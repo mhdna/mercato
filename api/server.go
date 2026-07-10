@@ -1,85 +1,141 @@
 package api
 
 import (
+	"fmt"
+
 	"github.com/gin-gonic/gin"
 	db "github.com/mhdna/kashi/db/sqlc"
+	"github.com/mhdna/kashi/token"
+	"github.com/mhdna/kashi/util"
 )
 
 type Server struct {
-	store  db.Store
-	router *gin.Engine
+	config     util.Config
+	store      db.Store
+	tokenMaker token.Maker
+	router     *gin.Engine
 }
 
-func NewServer(store db.Store) *Server {
-	server := &Server{store: store}
+func NewServer(config util.Config, store db.Store) (*Server, error) {
+	tokenMaker, err := token.NewPasetoMaker(config.TokenSymmetricKey)
+	if err != nil {
+		return nil, fmt.Errorf("cannot create token maker: %s", err)
+	}
 
+	server := &Server{
+		config:     config,
+		store:      store,
+		tokenMaker: tokenMaker,
+	}
+
+	server.setupRoutes()
+
+	return server, nil
+}
+
+func (server *Server) setupRoutes() {
 	router := gin.Default()
-	router.POST("/inventories", server.createInventory)
-	router.GET("/inventories/:id", server.getInventory)
-	router.GET("/inventories/", server.listInventories)
-	router.POST("/products", server.createProduct)
-	router.GET("/products/:id", server.getProduct)
-	router.GET("/products/", server.listProducts)
-	router.DELETE("/products/:id", server.deleteProduct)
-	router.POST("/attributes", server.createAttributeValue)
-	router.PUT("/attributes", server.updateAttributeValue)
-	router.GET("/attributes/", server.listAttributeValues)
+
+	authRoutes := router.Group("/").Use(authMiddleware(server.tokenMaker))
+
+	authRoutes.POST("/inventories", server.createInventory)
+	authRoutes.GET("/inventories/:id", server.getInventory)
+	authRoutes.GET("/inventories/", server.listInventories)
+	authRoutes.POST("/products", server.createProduct)
+	authRoutes.GET("/products/:id", server.getProduct)
+	authRoutes.GET("/products", server.listProducts)
+	authRoutes.GET("/barcodes", server.listBarcodes)
+	authRoutes.DELETE("/products/:id", server.deleteProduct)
+	authRoutes.POST("/attributes/batch", server.createAttributeValues)
+	authRoutes.POST("/attributes", server.createAttributeValue)
+	authRoutes.PUT("/attributes", server.updateAttributeValue)
+	authRoutes.GET("/attributes/", server.listAttributeValues)
 	// TODO: add updateAsset
-	router.POST("/assets", server.createAsset)
-	router.DELETE("/assets/:id", server.deleteAsset)
-	router.GET("/assets/:id", server.getAsset)
-	router.GET("/assets/", server.listAssets)
+	authRoutes.POST("/assets", server.createAsset)
+	authRoutes.DELETE("/assets/:id", server.deleteAsset)
+	authRoutes.GET("/assets/:id", server.getAsset)
+	authRoutes.GET("/assets/", server.listAssets)
 	// TODO: add getAssetType
-	router.POST("/asset_types", server.createAssetType)
-	router.DELETE("/asset_types/:id", server.deleteAssetType)
-	router.POST("/clients", server.createClient)
-	router.PUT("/clients", server.updateClient)
-	router.GET("/clients/:id", server.getClient)
-	router.GET("/clients/", server.listClients)
-	router.POST("/currencies", server.createCurrency)
-	router.GET("/currencies/:id", server.getCurrency)
-	router.GET("/currencies/", server.listCurrencies)
+	authRoutes.POST("/asset_types", server.createAssetType)
+	authRoutes.DELETE("/asset_types/:id", server.deleteAssetType)
+	authRoutes.POST("/clients", server.createClient)
+	authRoutes.PUT("/clients", server.updateClient)
+	authRoutes.GET("/clients/:id", server.getClient)
+	authRoutes.GET("/clients/", server.listClients)
+	authRoutes.POST("/currencies", server.createCurrency)
+	authRoutes.GET("/currencies/:id", server.getCurrency)
+	authRoutes.GET("/currencies/", server.listCurrencies)
 
-	router.POST("/cashboxes", server.createCashbox)
-	router.GET("/cashboxes/:id", server.getCashbox)
-	router.GET("/cashboxes/", server.listCashboxes)
-	router.POST("/shifts", server.createShift)
-	router.POST("/shifts/:id/close", server.CloseShift)
-	router.GET("/shifts", server.listShifts)
-	router.GET("/shifts/:id", server.getShift)
-	router.POST("/cashbox_accounts", server.createCashboxAccount)
-	router.GET("/cashboxes_accounts/", server.listCashboxAccounts)
-	router.PUT("/cashbox_accounts", server.updateCashboxAccount)
-	router.POST("/cashbox_accounts/balance", server.addCashboxAccountBalance)
+	authRoutes.POST("/cashboxes", server.createCashbox)
+	authRoutes.GET("/cashboxes/:id", server.getCashbox)
+	authRoutes.GET("/cashboxes/", server.listCashboxes)
+	authRoutes.POST("/shifts", server.createShift)
+	authRoutes.POST("/shifts/:id/close", server.CloseShift)
+	authRoutes.GET("/shifts", server.listShifts)
+	authRoutes.GET("/shifts/:id", server.getShift)
+	authRoutes.POST("/cashbox_accounts", server.createCashboxAccount)
+	authRoutes.GET("/cashbox_accounts/", server.listCashboxAccounts)
+	authRoutes.PUT("/cashbox_accounts", server.updateCashboxAccount)
+	authRoutes.POST("/cashbox_accounts/balance", server.addCashboxAccountBalance)
 
-	router.POST("/suppliers", server.createSupplier)
-	router.GET("/suppliers/:id", server.getSupplier)
-	router.GET("/suppliers", server.listSuppliers)
+	authRoutes.POST("/suppliers", server.createSupplier)
+	authRoutes.GET("/suppliers/:id", server.getSupplier)
+	authRoutes.GET("/suppliers", server.listSuppliers)
 
-	router.POST("/sales_invoices", server.createSalesInvoice)
-	router.GET("/sales_invoices/:id", server.getSalesInvoice)
-	router.GET("/sales_invoices", server.listSalesInvoices)
+	authRoutes.POST("/sales_invoices", server.createSalesInvoice)
+	authRoutes.GET("/sales_invoices/:id", server.getSalesInvoice)
+	authRoutes.GET("/sales_invoices", server.listSalesInvoices)
 
-	router.POST("/return_invoices", server.createReturnInvoice)
-	router.GET("/return_invoices/:id", server.getReturnInvoice)
-	router.GET("/return_invoices", server.listReturnInvoices)
+	authRoutes.POST("/return_invoices", server.createReturnInvoice)
+	authRoutes.GET("/return_invoices/:id", server.getReturnInvoice)
+	authRoutes.GET("/return_invoices", server.listReturnInvoices)
 
-	router.POST("/price_lists", server.createPriceList)
-	router.GET("/price_lists/:id", server.getPriceList)
-	router.GET("/price_lists", server.listPriceLists)
-	router.POST("/price_lists/items", server.createPriceListItem)
-	router.GET("/price_lists/:id/items", server.listPriceListItems)
-	router.DELETE("/price_lists/:id/items/:product_id", server.deletePriceListItem)
+	authRoutes.POST("/price_lists", server.createPriceList)
+	authRoutes.GET("/price_lists/:id", server.getPriceList)
+	authRoutes.GET("/price_lists", server.listPriceLists)
+	authRoutes.POST("/price_lists/items", server.createPriceListItem)
+	authRoutes.GET("/price_lists/:id/items", server.listPriceListItems)
+	authRoutes.DELETE("/price_lists/:id/items/:product_id", server.deletePriceListItem)
 
-	router.POST("/discount_lists", server.createDiscountList)
-	router.GET("/discount_lists/:id", server.getDiscountList)
-	router.GET("/discount_lists", server.listDiscountLists)
-	router.POST("/discount_lists/items", server.createDiscountListItem)
-	router.GET("/discount_lists/:id/items", server.listDiscountListItems)
-	router.DELETE("/discount_lists/:id/items/:product_id", server.deleteDiscountListItem)
+	authRoutes.POST("/discount_lists", server.createDiscountList)
+	authRoutes.GET("/discount_lists/:id", server.getDiscountList)
+	authRoutes.GET("/discount_lists", server.listDiscountLists)
+	authRoutes.POST("/discount_lists/items", server.createDiscountListItem)
+	authRoutes.GET("/discount_lists/:id/items", server.listDiscountListItems)
+	authRoutes.DELETE("/discount_lists/:id/items/:product_id", server.deleteDiscountListItem)
+
+	authRoutes.POST("/users", server.createUser)
+	authRoutes.GET("/users/:id", server.getUser)
+	authRoutes.GET("/users", server.listUsers)
+	authRoutes.PUT("/users", server.updateUser)
+	authRoutes.DELETE("/users/:id", server.deleteUser)
+
+	authRoutes.POST("/entries", server.createEntry)
+	authRoutes.GET("/entries/:id", server.getEntry)
+	authRoutes.GET("/entries", server.listEntries)
+
+	authRoutes.POST("/expenses", server.createExpense)
+	authRoutes.GET("/expenses/:id", server.getExpense)
+	authRoutes.GET("/expenses", server.listExpenses)
+
+	authRoutes.POST("/coupons", server.createCoupon)
+	authRoutes.GET("/coupons/:code", server.getCoupon)
+	authRoutes.GET("/coupons", server.listCoupons)
+	authRoutes.PUT("/coupons/:code/deactivate", server.deactivateCoupon)
+
+	authRoutes.POST("/transfers", server.createTransfer)
+	authRoutes.GET("/transfers/:id", server.getTransfer)
+	authRoutes.GET("/transfers", server.listTransfers)
+	authRoutes.PUT("/transfers", server.updateTransfer)
+	authRoutes.POST("/transfer_items", server.createTransferItem)
+	authRoutes.GET("/transfer_items/:transfer_id", server.listTransferItems)
+
+	authRoutes.POST("/purchases", server.createPurchase)
+	authRoutes.GET("/purchases/:id", server.getPurchase)
+	authRoutes.GET("/purchases", server.listPurchases)
+	authRoutes.POST("/purchases/items", server.addPurchaseItem)
 
 	server.router = router
-	return server
 }
 
 func (server *Server) Start(address string) error {

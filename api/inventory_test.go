@@ -90,7 +90,7 @@ func TestGetInventoryAPI(t *testing.T) {
 			tc.buildStubs(store)
 
 			// start the test server
-			server := NewServer(store)
+			server := newTestServer(t, store)
 			recorder := httptest.NewRecorder()
 
 			url := fmt.Sprintf("/inventories/%d", tc.inventoryID)

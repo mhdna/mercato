@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package pb;
+
+import "inventory.proto";
+
+option go_package = "github.com/mhdna/kashi/pb";
+
+
+message CreateInventoryRequest {
+	string name       = 1;
+	string type      = 2;
+	string code   = 3;
+}
+
+message CreateInventoryResponse {
+  Inventory inventory = 1;
+}

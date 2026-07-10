@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package pb;
+
+option go_package = "github.com/mhdna/kashi/pb";
+
+
+enum InventoryType {
+  INVENTORY_TYPE_UNSPECIFIED = 0;
+  INVENTORY_TYPE_WAREHOUSE = 1;
+  INVENTORY_TYPE_STORE = 2;
+}
+
+message Inventory {
+  string name        = 1;
+  string code        = 2;
+  InventoryType type = 3;
+}

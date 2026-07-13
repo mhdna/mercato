@@ -1,1 +1,0 @@
-ALTER TABLE shifts_accounts_balances DROP CONSTRAINT shifts_accounts_balances_pkey;

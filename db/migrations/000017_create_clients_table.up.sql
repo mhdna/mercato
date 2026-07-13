@@ -1,4 +1,5 @@
-CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+-- -- needed for uuid
+-- CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 create table if not exists clients (
     id bigserial primary key,

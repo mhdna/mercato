@@ -24,8 +24,8 @@ create table if not exists invoice_products (
     primary key (invoice_id, product_id)
 );
 
-CREATE TYPE index_type AS ENUM ( 
-     'sales', 
+CREATE TYPE index_type AS ENUM (
+     'sales',
      'return'
 );
 

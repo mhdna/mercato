@@ -2,14 +2,37 @@ syntax = "proto3";
 
 package pb;
 
+import "google/api/annotations.proto";
 import "rpc_create_user.proto";
 import "rpc_login_user.proto";
 import "rpc_create_inventory.proto";
+import "protoc-gen-openapiv2/options/annotations.proto";
 
 option go_package = "github.com/mhdna/kashi/pb";
 
+option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_swagger) = {
+info: {
+title: "Kashi",
+       version: "1.0",
+       contact: {
+        name: "mhdna",
+        url: "https://github.com/mhdna",
+       };
+      };
+};
+
 service Kashi {
   rpc CreateUser (CreateUserRequest) returns (CreateUserResponse) { }
-  rpc LoginUser (LoginUserRequest) returns (LoginUserResponse) { }
-  rpc CreateInvetory (CreateInventoryRequest) returns (CreateInventoryResponse) {}
+  rpc LoginUser (LoginUserRequest) returns (LoginUserResponse) {
+    option (google.api.http) = {
+      post: "/v1/login"
+      body: "*"
+    };
+  }
+  rpc CreateInvetory (CreateInventoryRequest) returns (CreateInventoryResponse) {
+    option (google.api.http) = {
+      post: "/v1/inventories"
+      body: "*"
+    };
+  }
 }

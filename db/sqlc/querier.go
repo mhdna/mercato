@@ -23,6 +23,7 @@ type Querier interface {
 	AddPurchasedProductCost(ctx context.Context, arg AddPurchasedProductCostParams) (ProductSupplierCost, error)
 	CloseShift(ctx context.Context, id int64) error
 	CompleteBranchCommand(ctx context.Context, arg CompleteBranchCommandParams) (BranchCommand, error)
+	CountBranchExpenses(ctx context.Context, branchID sql.NullInt64) (int64, error)
 	CountBranchInvoices(ctx context.Context, branchID sql.NullInt64) (int64, error)
 	CountClients(ctx context.Context) (int64, error)
 	CountCoupons(ctx context.Context) (int64, error)
@@ -40,6 +41,7 @@ type Querier interface {
 	CreateAssetType(ctx context.Context, type_ string) (AssetsType, error)
 	CreateBranch(ctx context.Context, arg CreateBranchParams) (Branch, error)
 	CreateBranchCommand(ctx context.Context, arg CreateBranchCommandParams) (BranchCommand, error)
+	CreateBranchExpense(ctx context.Context, arg CreateBranchExpenseParams) (BranchExpense, error)
 	CreateBranchInvoice(ctx context.Context, arg CreateBranchInvoiceParams) (BranchInvoice, error)
 	CreateBranchInvoiceItem(ctx context.Context, arg CreateBranchInvoiceItemParams) (BranchInvoiceItem, error)
 	CreateCashbox(ctx context.Context, arg CreateCashboxParams) (Cashbox, error)
@@ -61,6 +63,7 @@ type Querier interface {
 	CreateProductAttribute(ctx context.Context, arg CreateProductAttributeParams) (ProductsAttribute, error)
 	CreateProductVariant(ctx context.Context, arg CreateProductVariantParams) (ProductVariant, error)
 	CreatePurchase(ctx context.Context, arg CreatePurchaseParams) (Purchase, error)
+	CreateRecurringExpense(ctx context.Context, arg CreateRecurringExpenseParams) (RecurringExpense, error)
 	CreateReturnInvoice(ctx context.Context, arg CreateReturnInvoiceParams) (ReturnInvoice, error)
 	CreateSalesInvoice(ctx context.Context, invoiceID int64) (int64, error)
 	CreateSalesperson(ctx context.Context, arg CreateSalespersonParams) (Salesperson, error)
@@ -91,6 +94,7 @@ type Querier interface {
 	GetBranch(ctx context.Context, id int64) (Branch, error)
 	GetBranchByCode(ctx context.Context, code string) (Branch, error)
 	GetBranchCommand(ctx context.Context, id int64) (BranchCommand, error)
+	GetBranchExpenseByClientRef(ctx context.Context, arg GetBranchExpenseByClientRefParams) (BranchExpense, error)
 	GetBranchInvoice(ctx context.Context, id int64) (BranchInvoice, error)
 	GetBranchInvoiceByClientRef(ctx context.Context, arg GetBranchInvoiceByClientRefParams) (BranchInvoice, error)
 	GetBranchSettings(ctx context.Context, branchID int64) (BranchSetting, error)
@@ -122,6 +126,7 @@ type Querier interface {
 	GetProductVariant(ctx context.Context, id int64) (ProductVariant, error)
 	GetProductVariantByBarcode(ctx context.Context, barcode string) (ProductVariant, error)
 	GetPurchase(ctx context.Context, id int64) (Purchase, error)
+	GetRecurringExpense(ctx context.Context, id int64) (RecurringExpense, error)
 	GetReturnInvoice(ctx context.Context, invoiceID int64) (ReturnInvoice, error)
 	GetSalesInvoice(ctx context.Context, invoiceID int64) (int64, error)
 	GetSalesperson(ctx context.Context, id int64) (Salesperson, error)
@@ -138,6 +143,9 @@ type Querier interface {
 	ListAttributeValues(ctx context.Context, arg ListAttributeValuesParams) ([]ListAttributeValuesRow, error)
 	ListAttributes(ctx context.Context) ([]Attribute, error)
 	ListBranchCommands(ctx context.Context, arg ListBranchCommandsParams) ([]BranchCommand, error)
+	// sqlc.narg(branch_id) is nullable: NULL means "all branches", matching
+	// ListBranchInvoices' admin-filter convention.
+	ListBranchExpenses(ctx context.Context, arg ListBranchExpensesParams) ([]BranchExpense, error)
 	ListBranchInvoiceItems(ctx context.Context, branchInvoiceID int64) ([]BranchInvoiceItem, error)
 	// sqlc.narg(branch_id) is nullable: NULL means "all branches", matching how
 	// the admin UI's branch filter works (a dropdown with an "All branches"
@@ -165,6 +173,7 @@ type Querier interface {
 	ListDailyIncome(ctx context.Context, arg ListDailyIncomeParams) ([]ListDailyIncomeRow, error)
 	ListDiscountListItems(ctx context.Context, discountListID int64) ([]DiscountListItem, error)
 	ListDiscountLists(ctx context.Context, arg ListDiscountListsParams) ([]DiscountList, error)
+	ListDueRecurringExpenses(ctx context.Context, nextDueAt time.Time) ([]RecurringExpense, error)
 	ListEntries(ctx context.Context, arg ListEntriesParams) ([]Entry, error)
 	ListExpenses(ctx context.Context, arg ListExpensesParams) ([]Expense, error)
 	ListInventories(ctx context.Context, arg ListInventoriesParams) ([]Inventory, error)
@@ -195,6 +204,7 @@ type Querier interface {
 	ListProductVariantsUpdatedSince(ctx context.Context, updatedAt time.Time) ([]ProductVariant, error)
 	ListProducts(ctx context.Context, arg ListProductsParams) ([]Product, error)
 	ListPurchases(ctx context.Context, arg ListPurchasesParams) ([]Purchase, error)
+	ListRecurringExpenses(ctx context.Context) ([]RecurringExpense, error)
 	ListSalespersons(ctx context.Context, arg ListSalespersonsParams) ([]Salesperson, error)
 	ListSalespersonsByCashbox(ctx context.Context, cashboxID sql.NullInt64) ([]Salesperson, error)
 	ListShifts(ctx context.Context, arg ListShiftsParams) ([]Shift, error)
@@ -206,6 +216,7 @@ type Querier interface {
 	ListTransfers(ctx context.Context, arg ListTransfersParams) ([]Transfer, error)
 	ListUsers(ctx context.Context, arg ListUsersParams) ([]User, error)
 	SetBranchActive(ctx context.Context, arg SetBranchActiveParams) error
+	SetRecurringExpenseActive(ctx context.Context, arg SetRecurringExpenseActiveParams) (RecurringExpense, error)
 	// The redemption-time query: every branch's contribution to this client's
 	// loyalty balance, added up. Each branch is decisive for what it reports
 	// (loyalty_points_delta on branch_invoices) -- this never recomputes that
@@ -230,6 +241,7 @@ type Querier interface {
 	UpdateProduct(ctx context.Context, arg UpdateProductParams) error
 	UpdateProductAttribute(ctx context.Context, arg UpdateProductAttributeParams) error
 	UpdateProductVariant(ctx context.Context, arg UpdateProductVariantParams) (ProductVariant, error)
+	UpdateRecurringExpenseNextDue(ctx context.Context, arg UpdateRecurringExpenseNextDueParams) (RecurringExpense, error)
 	UpdateSalesperson(ctx context.Context, arg UpdateSalespersonParams) (Salesperson, error)
 	UpdateTransfer(ctx context.Context, arg UpdateTransferParams) error
 	UpdateUser(ctx context.Context, arg UpdateUserParams) error

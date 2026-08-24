@@ -1,10 +1,12 @@
 -- name: CreateExpense :one
 INSERT INTO expenses (
   description,
+  category,
   amount,
-  currency_code
-) 
-VALUES ( $1, $2, $3 )
+  currency_code,
+  recurring_expense_id
+)
+VALUES ( $1, $2, $3, $4, $5 )
 RETURNING *;
 
 -- name: GetExpense :one
@@ -13,7 +15,6 @@ WHERE id = $1 LIMIT 1;
 
 -- name: ListExpenses :many
 SELECT * FROM expenses
-WHERE id = $1
-ORDER BY id
-LIMIT $2
-OFFSET $3;
+ORDER BY id DESC
+LIMIT $1
+OFFSET $2;

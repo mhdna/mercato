@@ -33,6 +33,7 @@ func main() {
 	store := db.NewStore(conn)
 
 	go runGatewayServer(config, store)
+	go runRecurringExpenseScheduler(context.Background(), store)
 	// runGrpcServer(config, store)
 	runGinServer(config, store)
 }

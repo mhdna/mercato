@@ -10,6 +10,7 @@ import (
 
 type createExpenseRequest struct {
 	Description  string `json:"description" binding:"required"`
+	Category     string `json:"category"`
 	Amount       int64  `json:"amount" binding:"required"`
 	CurrencyCode string `json:"currency_code" binding:"required"`
 }
@@ -23,8 +24,13 @@ func (server *Server) createExpense(ctx *gin.Context) {
 
 	arg := db.CreateExpenseParams{
 		Description:  req.Description,
+		Category:     req.Category,
 		Amount:       req.Amount,
 		CurrencyCode: req.CurrencyCode,
+		// Manually created through this endpoint, not fired by a recurring
+		// template -- see recurring_expense.go for the other path into
+		// CreateExpense.
+		RecurringExpenseID: sql.NullInt64{},
 	}
 
 	expense, err := server.store.CreateExpense(ctx, arg)
@@ -72,7 +78,6 @@ func (server *Server) listExpenses(ctx *gin.Context) {
 	}
 
 	arg := db.ListExpensesParams{
-		ID:     0,
 		Limit:  req.PageSize,
 		Offset: req.PageID,
 	}

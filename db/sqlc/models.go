@@ -318,6 +318,20 @@ type BranchCommand struct {
 	CompletedAt sql.NullTime          `json:"completed_at"`
 }
 
+type BranchExpense struct {
+	ID                     int64         `json:"id"`
+	BranchID               int64         `json:"branch_id"`
+	ClientRef              string        `json:"client_ref"`
+	Description            string        `json:"description"`
+	Category               string        `json:"category"`
+	Amount                 int64         `json:"amount"`
+	CurrencyCode           string        `json:"currency_code"`
+	BranchCashboxAccountID int64         `json:"branch_cashbox_account_id"`
+	BranchShiftID          sql.NullInt64 `json:"branch_shift_id"`
+	OccurredAt             time.Time     `json:"occurred_at"`
+	ReceivedAt             time.Time     `json:"received_at"`
+}
+
 type BranchInvoice struct {
 	ID                     int64          `json:"id"`
 	BranchID               int64          `json:"branch_id"`
@@ -456,11 +470,13 @@ type Entry struct {
 }
 
 type Expense struct {
-	ID           int64     `json:"id"`
-	Description  string    `json:"description"`
-	Amount       int64     `json:"amount"`
-	CurrencyCode string    `json:"currency_code"`
-	CreatedAt    time.Time `json:"created_at"`
+	ID                 int64         `json:"id"`
+	Description        string        `json:"description"`
+	Amount             int64         `json:"amount"`
+	CurrencyCode       string        `json:"currency_code"`
+	CreatedAt          time.Time     `json:"created_at"`
+	Category           string        `json:"category"`
+	RecurringExpenseID sql.NullInt64 `json:"recurring_expense_id"`
 }
 
 type InventoriesAsset struct {
@@ -603,6 +619,19 @@ type PurchaseItem struct {
 	Quantity     int64         `json:"quantity"`
 	UnitPrice    int64         `json:"unit_price"`
 	CurrencyCode string        `json:"currency_code"`
+}
+
+type RecurringExpense struct {
+	ID            int64     `json:"id"`
+	Description   string    `json:"description"`
+	Category      string    `json:"category"`
+	Amount        int64     `json:"amount"`
+	CurrencyCode  string    `json:"currency_code"`
+	IntervalUnit  string    `json:"interval_unit"`
+	IntervalCount int32     `json:"interval_count"`
+	NextDueAt     time.Time `json:"next_due_at"`
+	Active        bool      `json:"active"`
+	CreatedAt     time.Time `json:"created_at"`
 }
 
 type ReturnInvoice struct {

@@ -56,7 +56,7 @@ func TestListExpenses(t *testing.T) {
 
 	expenses, err := testQueries.ListExpenses(context.Background(), arg)
 	require.NoError(t, err)
-	for expense := range expenses {
+	for _, expense := range expenses {
 		require.NotEmpty(t, expense)
 	}
 }

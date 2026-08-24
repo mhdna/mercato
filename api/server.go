@@ -145,6 +145,10 @@ func (server *Server) setupRoutes() {
 	authRoutes.GET("/expenses/:id", server.getExpense)
 	authRoutes.GET("/expenses", server.listExpenses)
 
+	authRoutes.POST("/recurring_expenses", server.createRecurringExpense)
+	authRoutes.GET("/recurring_expenses", server.listRecurringExpenses)
+	authRoutes.PUT("/recurring_expenses/active", server.setRecurringExpenseActive)
+
 	authRoutes.POST("/coupons", server.createCoupon)
 	authRoutes.GET("/coupons/:code", server.getCoupon)
 	authRoutes.GET("/coupons", server.listCoupons)
@@ -168,6 +172,7 @@ func (server *Server) setupRoutes() {
 	authRoutes.POST("/branches/:id/deactivate", server.setBranchActive(false))
 	authRoutes.POST("/branches/:id/rotate_key", server.rotateBranchKey)
 
+	authRoutes.GET("/branch_expenses", server.listBranchExpenses)
 	authRoutes.GET("/branch_invoices", server.listBranchInvoices)
 	authRoutes.GET("/branch_invoices/:id/items", server.listBranchInvoiceItems)
 	authRoutes.GET("/branch_invoices/daily_income", server.dailyIncome)
@@ -183,6 +188,7 @@ func (server *Server) setupRoutes() {
 	branchRoutes.GET("/health", server.branchHealth)
 	branchRoutes.POST("/sales_invoices", server.createBranchSalesInvoice)
 	branchRoutes.POST("/return_invoices", server.createBranchReturnInvoice)
+	branchRoutes.POST("/expenses", server.createBranchExpense)
 	branchRoutes.GET("/sync/changes", server.branchSyncChanges)
 	branchRoutes.GET("/ws", server.branchWS)
 	branchRoutes.PUT("/settings", server.putBranchSettings)

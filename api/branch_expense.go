@@ -83,6 +83,19 @@ func (server *Server) createBranchExpense(ctx *gin.Context) {
 		return
 	}
 
+	// Only the genuinely-new-insert path reaches here (the lookup above
+	// returns early on "already exists"), same convention as
+	// createBranchInvoice in branch_sync.go. Amount is negated: an expense
+	// is always money leaving, so the toast queue can treat it the same as
+	// a return -- red, no separate "kind" field needed.
+	server.adminHub.broadcastAll(adminWSMessage{
+		Type:         "branch_expense_created",
+		BranchID:     branchID,
+		Amount:       -req.Amount,
+		CurrencyCode: req.CurrencyCode,
+		Label:        req.Description,
+	})
+
 	server.writeJSON(ctx, http.StatusOK, envelope{"expense": expense})
 }
 

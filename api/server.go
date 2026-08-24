@@ -15,6 +15,7 @@ type Server struct {
 	tokenMaker token.Maker
 	router     *gin.Engine
 	branchHub  *branchHub
+	adminHub   *adminHub
 }
 
 func NewServer(config util.Config, store db.Store) (*Server, error) {
@@ -28,6 +29,7 @@ func NewServer(config util.Config, store db.Store) (*Server, error) {
 		store:      store,
 		tokenMaker: tokenMaker,
 		branchHub:  newBranchHub(),
+		adminHub:   newAdminHub(),
 	}
 
 	server.setupRoutes()
@@ -179,6 +181,12 @@ func (server *Server) setupRoutes() {
 	authRoutes.GET("/branches/:id/settings", server.getBranchSettings)
 	authRoutes.POST("/branches/:id/commands", server.createBranchCommand)
 	authRoutes.GET("/branches/:id/commands", server.listBranchCommands)
+
+	// adminWS can't sit under authRoutes: authMiddleware only reads the
+	// Authorization header, and a browser WebSocket handshake can't set
+	// custom headers. Auth happens inside adminWS itself via a query-param
+	// token instead.
+	router.GET("/admin/ws", server.adminWS)
 
 	// branchRoutes is authenticated with a per-branch API key rather than a
 	// PASETO user token — see branchAuthMiddleware. Kept under its own path

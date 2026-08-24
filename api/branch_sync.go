@@ -154,6 +154,30 @@ func (server *Server) createBranchInvoice(ctx *gin.Context, kind string) {
 		return
 	}
 
+	// Only the genuinely-new-insert path reaches here (the two lookups above
+	// return early on "already exists"), so this never double-notifies
+	// admin clients for a retried/idempotent replay.
+	//
+	// Invoices don't carry their own currency_code (unlike branch expenses),
+	// so the toast displays the system's single default currency. A failed
+	// lookup just means an empty currency code on the toast -- informational
+	// only, never worth failing the checkout over.
+	currencyCode := ""
+	if currency, err := server.store.GetDefaultCurrency(ctx); err == nil {
+		currencyCode = currency.Code
+	}
+	amount := req.GrandTotal
+	if kind == "return" {
+		amount = -amount
+	}
+	server.adminHub.broadcastAll(adminWSMessage{
+		Type:         "branch_invoice_created",
+		BranchID:     branchID,
+		Amount:       amount,
+		CurrencyCode: currencyCode,
+		Label:        req.BranchInvoiceCode,
+	})
+
 	server.writeJSON(ctx, http.StatusOK, envelope{"invoice": result.Invoice, "items": result.Items})
 }
 

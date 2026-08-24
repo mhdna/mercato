@@ -14,6 +14,7 @@ declare module 'vue' {
     AbstractBG: typeof import('./src/components/AbstractBG.vue')['default']
     AppFooter: typeof import('./src/components/AppFooter.vue')['default']
     AttendanceTable: typeof import('./src/components/Tables/AttendanceTable.vue')['default']
+    BranchActivityToast: typeof import('./src/components/BranchActivityToast.vue')['default']
     BranchMenu: typeof import('./src/components/Buttons/BranchMenu.vue')['default']
     CategoriesChart: typeof import('./src/components/Stats/CategoriesChart.vue')['default']
     ClientRankTag: typeof import('./src/components/ClientRankTag.vue')['default']

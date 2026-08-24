@@ -29,7 +29,7 @@ test:
 	richgo test -v -cover ./...
 
 server:
-	go run main.go
+	go run .
 
 mock:
 	mockgen -package mockdb -destination db/mock/store.go github.com/mhdna/kashi/db/sqlc Store

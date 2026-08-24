@@ -12,7 +12,7 @@
         <div class="me-2 text-body-2">
           {{ statusText }}
         </div>
-        <v-icon icon="mdi-cloud" />
+        <v-icon :color="wsIconColor" icon="mdi-cloud" />
       </v-card>
     </template>
 
@@ -41,11 +41,13 @@
 
 <script setup>
   import { computed, onMounted, onUnmounted, ref } from 'vue'
+  import { useAdminSocket } from '@/composables/useAdminSocket'
   import { useBranches } from '@/composables/useBranches'
   import { useBranchInvoices } from '@/composables/useBranchInvoices'
 
   const { branches, fetchBranches } = useBranches()
   const { listRecentBranchInvoices } = useBranchInvoices()
+  const { status: wsStatus, ensureConnected, onMessage } = useAdminSocket()
 
   const menu = ref(false)
   const loaded = ref(false)
@@ -54,8 +56,15 @@
   // re-evaluate -- received_at/last_seen_at themselves only change on refresh.
   const now = ref(Date.now())
 
+  // Live push is purely an optimization on top of the poll below -- if the
+  // socket never connects or drops, the 30s poll still keeps this card
+  // correct, just slower. wsStatus only drives the icon color.
+  let unsubscribe = null
+
   let refreshTimer = null
   let clockTimer = null
+
+  const wsIconColor = computed(() => (wsStatus.value === 'open' ? 'success' : undefined))
 
   async function refresh () {
     try {
@@ -108,10 +117,17 @@
     clockTimer = setInterval(() => {
       now.value = Date.now()
     }, 30_000)
+    ensureConnected()
+    unsubscribe = onMessage(message => {
+      if (message.type === 'branch_invoice_created') {
+        refresh()
+      }
+    })
   })
 
   onUnmounted(() => {
     clearInterval(refreshTimer)
     clearInterval(clockTimer)
+    unsubscribe?.()
   })
 </script>

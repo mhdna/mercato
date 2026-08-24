@@ -1,17 +1,25 @@
 <template>
-    <ServerSideTable :header="headers" :apiURL="apiURL" rootKey="products" />
+  <ServerSideTable ref="tableRef" :api-u-r-l="apiURL" :headers="headers" root-key="products" />
 </template>
 
 <script setup>
-const apiURL = 'http://localhost:4123/products'
-const headers = ref([
+  import { ref } from 'vue'
+  import { API_BASE } from '@/config'
+
+  const apiURL = `${API_BASE}/products`
+  const headers = ref([
     { title: 'ID', key: 'id', align: 'start' },
     { title: 'Code', key: 'code', align: 'start' },
     { title: 'Name', key: 'name', align: 'start' },
     { title: 'Description', key: 'description', align: 'start' },
     { title: 'Active', key: 'is_active', align: 'center' },
-    { title: 'Price', key: 'price', align: 'end' },
-    { title: 'Discount', key: 'discount', align: 'end' },
     { title: 'Created At', key: 'created_at', align: 'end' },
-])
+  ])
+
+  const tableRef = ref(null)
+  function reload () {
+    tableRef.value?.reload()
+  }
+
+  defineExpose({ reload })
 </script>

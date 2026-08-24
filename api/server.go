@@ -35,12 +35,15 @@ func NewServer(config util.Config, store db.Store) (*Server, error) {
 
 func (server *Server) setupRoutes() {
 	router := gin.Default()
+	router.Use(corsMiddleware())
 
 	authRoutes := router.Group("/").Use(authMiddleware(server.tokenMaker))
 
 	authRoutes.POST("/inventories", server.createInventory)
 	authRoutes.GET("/inventories/:id", server.getInventory)
 	authRoutes.GET("/inventories/", server.listInventories)
+	authRoutes.PUT("/inventories", server.updateInventory)
+	authRoutes.DELETE("/inventories/:id", server.deleteInventory)
 	authRoutes.POST("/products", server.createProduct)
 	authRoutes.GET("/products/:id", server.getProduct)
 	authRoutes.GET("/products", server.listProducts)
@@ -62,13 +65,17 @@ func (server *Server) setupRoutes() {
 	authRoutes.PUT("/clients", server.updateClient)
 	authRoutes.GET("/clients/:id", server.getClient)
 	authRoutes.GET("/clients/", server.listClients)
+	authRoutes.DELETE("/clients/:id", server.deleteClient)
 	authRoutes.POST("/currencies", server.createCurrency)
-	authRoutes.GET("/currencies/:id", server.getCurrency)
+	authRoutes.GET("/currencies/:code", server.getCurrency)
 	authRoutes.GET("/currencies/", server.listCurrencies)
+	authRoutes.PUT("/currencies", server.updateCurrency)
+	authRoutes.DELETE("/currencies/:code", server.deleteCurrency)
 
 	authRoutes.POST("/cashboxes", server.createCashbox)
 	authRoutes.GET("/cashboxes/:id", server.getCashbox)
 	authRoutes.GET("/cashboxes/", server.listCashboxes)
+	authRoutes.PUT("/cashboxes", server.updateCashbox)
 	authRoutes.POST("/shifts", server.createShift)
 	authRoutes.POST("/shifts/:id/close", server.CloseShift)
 	authRoutes.GET("/shifts", server.listShifts)
@@ -78,9 +85,16 @@ func (server *Server) setupRoutes() {
 	authRoutes.PUT("/cashbox_accounts", server.updateCashboxAccount)
 	authRoutes.POST("/cashbox_accounts/balance", server.addCashboxAccountBalance)
 
+	authRoutes.GET("/pos_settings", server.posSettings)
+
 	authRoutes.POST("/suppliers", server.createSupplier)
 	authRoutes.GET("/suppliers/:id", server.getSupplier)
 	authRoutes.GET("/suppliers", server.listSuppliers)
+
+	authRoutes.POST("/colors", server.createColor)
+	authRoutes.GET("/colors", server.listColors)
+	authRoutes.POST("/sizes", server.createSize)
+	authRoutes.GET("/sizes", server.listSizes)
 
 	authRoutes.POST("/sales_invoices", server.createSalesInvoice)
 	authRoutes.GET("/sales_invoices/:id", server.getSalesInvoice)
@@ -100,11 +114,14 @@ func (server *Server) setupRoutes() {
 	authRoutes.POST("/discount_lists", server.createDiscountList)
 	authRoutes.GET("/discount_lists/:id", server.getDiscountList)
 	authRoutes.GET("/discount_lists", server.listDiscountLists)
+	authRoutes.PUT("/discount_lists", server.updateDiscountList)
 	authRoutes.POST("/discount_lists/items", server.createDiscountListItem)
 	authRoutes.GET("/discount_lists/:id/items", server.listDiscountListItems)
 	authRoutes.DELETE("/discount_lists/:id/items/:product_id", server.deleteDiscountListItem)
 
-	authRoutes.POST("/users", server.createUser)
+	router.POST("/users/login", server.loginUser)
+	router.POST("/tokens/renew_access", server.renewAccessToken)
+	router.POST("/users", server.createUser)
 	authRoutes.GET("/users/:id", server.getUser)
 	authRoutes.GET("/users", server.listUsers)
 	authRoutes.PUT("/users", server.updateUser)

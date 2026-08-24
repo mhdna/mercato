@@ -2,10 +2,10 @@
   <div class="text-center">
     <v-btn color="red-darken-2" @click="snackbar = true"> Open Snackbar </v-btn>
 
-    <v-snackbar location="top right" v-model="snackbar" multi-line>
+    <v-snackbar v-model="snackbar" location="top right" multi-line>
       {{ text }}
 
-      <template v-slot:actions>
+      <template #actions>
         <v-btn color="red" variant="text" @click="snackbar = false">
           Close
         </v-btn>
@@ -14,10 +14,10 @@
   </div>
 </template>
 <script>
-export default {
-  data: () => ({
-    snackbar: false,
-    text: `I am a multi-line snackbar.\nI can have more than one line. This is another line that is quite long.`,
-  }),
-};
+  export default {
+    data: () => ({
+      snackbar: false,
+      text: `I am a multi-line snackbar.\nI can have more than one line. This is another line that is quite long.`,
+    }),
+  }
 </script>

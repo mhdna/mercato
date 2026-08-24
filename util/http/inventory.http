@@ -1,0 +1,18 @@
+### Create an inventory (type: warehouse | store)
+POST {{baseUrl}}/inventories
+Content-Type: application/json
+Authorization: bearer {{token}}
+
+{
+  "name": "Main Warehouse",
+  "type": "warehouse",
+  "code": "WH-001"
+}
+
+### Get an inventory by id
+GET {{baseUrl}}/inventories/1
+Authorization: bearer {{token}}
+
+### List inventories
+GET {{baseUrl}}/inventories/?page_size=10&page_id=0
+Authorization: bearer {{token}}

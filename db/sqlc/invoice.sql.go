@@ -7,7 +7,6 @@ package db
 
 import (
 	"context"
-	"database/sql"
 )
 
 const addInvoiceProduct = `-- name: AddInvoiceProduct :one
@@ -18,16 +17,16 @@ INSERT INTO invoice_products (
   line_total,
   discount,
   quantity
-) 
+)
 VALUES ( $1, $2, $3, $4, $5, $6 )
 RETURNING invoice_id, product_id, unit_price, line_total, discount, quantity
 `
 
 type AddInvoiceProductParams struct {
-	InvoiceID int64 `json:"invoiceId"`
-	ProductID int64 `json:"productId"`
-	UnitPrice int64 `json:"unitPrice"`
-	LineTotal int64 `json:"lineTotal"`
+	InvoiceID int64 `json:"invoice_id"`
+	ProductID int64 `json:"product_id"`
+	UnitPrice int64 `json:"unit_price"`
+	LineTotal int64 `json:"line_total"`
 	Discount  int16 `json:"discount"`
 	Quantity  int64 `json:"quantity"`
 }
@@ -53,6 +52,17 @@ func (q *Queries) AddInvoiceProduct(ctx context.Context, arg AddInvoiceProductPa
 	return i, err
 }
 
+const countInvoices = `-- name: CountInvoices :one
+SELECT COUNT(*) FROM invoices
+`
+
+func (q *Queries) CountInvoices(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countInvoices)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createInvoice = `-- name: CreateInvoice :one
 INSERT INTO invoices (
   cashbox_id,
@@ -65,26 +75,24 @@ INSERT INTO invoices (
   discount,
   subtotal,
   discounted_total,
-  grand_total,
-  price_list_id
-) 
-VALUES ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12 )
-RETURNING id, cashbox_id, shift_id, invoice_code, invoice_index, year, client_id, inventory_id, discount, subtotal, discounted_total, grand_total, created_at, price_list_id
+  grand_total
+)
+VALUES ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+RETURNING id, cashbox_id, shift_id, invoice_code, invoice_index, year, client_id, inventory_id, discount, subtotal, discounted_total, grand_total, created_at
 `
 
 type CreateInvoiceParams struct {
-	CashboxID       int64         `json:"cashboxId"`
-	ShiftID         int64         `json:"shiftId"`
-	InvoiceCode     string        `json:"invoiceCode"`
-	InvoiceIndex    int64         `json:"invoiceIndex"`
-	Year            int32         `json:"year"`
-	ClientID        int64         `json:"clientId"`
-	InventoryID     int64         `json:"inventoryId"`
-	Discount        int16         `json:"discount"`
-	Subtotal        int64         `json:"subtotal"`
-	DiscountedTotal int64         `json:"discountedTotal"`
-	GrandTotal      int64         `json:"grandTotal"`
-	PriceListID     sql.NullInt64 `json:"priceListId"`
+	CashboxID       int64  `json:"cashbox_id"`
+	ShiftID         int64  `json:"shift_id"`
+	InvoiceCode     string `json:"invoice_code"`
+	InvoiceIndex    int64  `json:"invoice_index"`
+	Year            int32  `json:"year"`
+	ClientID        int64  `json:"client_id"`
+	InventoryID     int64  `json:"inventory_id"`
+	Discount        int16  `json:"discount"`
+	Subtotal        int64  `json:"subtotal"`
+	DiscountedTotal int64  `json:"discounted_total"`
+	GrandTotal      int64  `json:"grand_total"`
 }
 
 func (q *Queries) CreateInvoice(ctx context.Context, arg CreateInvoiceParams) (Invoice, error) {
@@ -100,7 +108,6 @@ func (q *Queries) CreateInvoice(ctx context.Context, arg CreateInvoiceParams) (I
 		arg.Subtotal,
 		arg.DiscountedTotal,
 		arg.GrandTotal,
-		arg.PriceListID,
 	)
 	var i Invoice
 	err := row.Scan(
@@ -117,7 +124,6 @@ func (q *Queries) CreateInvoice(ctx context.Context, arg CreateInvoiceParams) (I
 		&i.DiscountedTotal,
 		&i.GrandTotal,
 		&i.CreatedAt,
-		&i.PriceListID,
 	)
 	return i, err
 }
@@ -129,8 +135,8 @@ RETURNING invoice_id, sales_invoice_id
 `
 
 type CreateReturnInvoiceParams struct {
-	InvoiceID      int64 `json:"invoiceId"`
-	SalesInvoiceID int64 `json:"salesInvoiceId"`
+	InvoiceID      int64 `json:"invoice_id"`
+	SalesInvoiceID int64 `json:"sales_invoice_id"`
 }
 
 func (q *Queries) CreateReturnInvoice(ctx context.Context, arg CreateReturnInvoiceParams) (ReturnInvoice, error) {
@@ -163,7 +169,7 @@ RETURNING last_index
 
 type DecrementInvoicesIndexParams struct {
 	Year      int32     `json:"year"`
-	CashboxID int64     `json:"cashboxId"`
+	CashboxID int64     `json:"cashbox_id"`
 	Type      IndexType `json:"type"`
 }
 
@@ -175,7 +181,7 @@ func (q *Queries) DecrementInvoicesIndex(ctx context.Context, arg DecrementInvoi
 }
 
 const getInvoice = `-- name: GetInvoice :one
-SELECT id, cashbox_id, shift_id, invoice_code, invoice_index, year, client_id, inventory_id, discount, subtotal, discounted_total, grand_total, created_at, price_list_id FROM invoices
+SELECT id, cashbox_id, shift_id, invoice_code, invoice_index, year, client_id, inventory_id, discount, subtotal, discounted_total, grand_total, created_at FROM invoices
 WHERE id = $1 LIMIT 1
 `
 
@@ -196,7 +202,6 @@ func (q *Queries) GetInvoice(ctx context.Context, id int64) (Invoice, error) {
 		&i.DiscountedTotal,
 		&i.GrandTotal,
 		&i.CreatedAt,
-		&i.PriceListID,
 	)
 	return i, err
 }
@@ -235,7 +240,7 @@ RETURNING last_index
 
 type IncrementInvoicesIndexParams struct {
 	Year      int32     `json:"year"`
-	CashboxID int64     `json:"cashboxId"`
+	CashboxID int64     `json:"cashbox_id"`
 	Type      IndexType `json:"type"`
 }
 
@@ -247,7 +252,7 @@ func (q *Queries) IncrementInvoicesIndex(ctx context.Context, arg IncrementInvoi
 }
 
 const listInvoices = `-- name: ListInvoices :many
-SELECT id, cashbox_id, shift_id, invoice_code, invoice_index, year, client_id, inventory_id, discount, subtotal, discounted_total, grand_total, created_at, price_list_id
+SELECT id, cashbox_id, shift_id, invoice_code, invoice_index, year, client_id, inventory_id, discount, subtotal, discounted_total, grand_total, created_at
 FROM invoices
 ORDER BY created_at
 DESC
@@ -283,7 +288,6 @@ func (q *Queries) ListInvoices(ctx context.Context, arg ListInvoicesParams) ([]I
 			&i.DiscountedTotal,
 			&i.GrandTotal,
 			&i.CreatedAt,
-			&i.PriceListID,
 		); err != nil {
 			return nil, err
 		}

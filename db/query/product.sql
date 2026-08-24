@@ -2,11 +2,9 @@
 INSERT INTO products (
   code,
   name,
-  description,
-  price,
-  discount
+  description
 ) VALUES (
-    $1, $2, $3, $4, $5
+    $1, $2, $3
 ) RETURNING *;
 
 -- name: GetProduct :one
@@ -15,12 +13,15 @@ WHERE id = $1 LIMIT 1;
 
 -- name: ListProducts :many
 SELECT * FROM products
-ORDER BY name
+ORDER BY id
 LIMIT $1
 OFFSET $2;
 
+-- name: CountProducts :one
+SELECT COUNT(*) FROM products;
+
 -- name: UpdateProduct :exec
-UPDATE products 
+UPDATE products
   SET name = $2,
   code = $3,
   description = $4

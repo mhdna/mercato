@@ -1,0 +1,25 @@
+### Create a coupon
+POST {{baseUrl}}/coupons
+Content-Type: application/json
+Authorization: bearer {{token}}
+
+{
+  "code": "SUMMER20",
+  "status": "active",
+  "discount_type": "percentage",
+  "reason": "Summer sale",
+  "client_id": 1,
+  "valid_until": "2026-12-31T23:59:59Z"
+}
+
+### Get a coupon by code
+GET {{baseUrl}}/coupons/SUMMER20
+Authorization: bearer {{token}}
+
+### List coupons
+GET {{baseUrl}}/coupons?page_size=10&page_id=0
+Authorization: bearer {{token}}
+
+### Deactivate a coupon
+PUT {{baseUrl}}/coupons/SUMMER20/deactivate
+Authorization: bearer {{token}}

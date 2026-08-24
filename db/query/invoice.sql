@@ -10,10 +10,9 @@ INSERT INTO invoices (
   discount,
   subtotal,
   discounted_total,
-  grand_total,
-  price_list_id
-) 
-VALUES ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12 )
+  grand_total
+)
+VALUES ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 RETURNING *;
 
 -- name: AddInvoiceProduct :one
@@ -24,7 +23,7 @@ INSERT INTO invoice_products (
   line_total,
   discount,
   quantity
-) 
+)
 VALUES ( $1, $2, $3, $4, $5, $6 )
 RETURNING *;
 
@@ -71,3 +70,6 @@ VALUES ($1, $2, $3, 1)
 ON CONFLICT (year, cashbox_id)
 DO UPDATE SET last_index = invoice_indexes.last_index - 1
 RETURNING last_index;
+
+-- name: CountInvoices :one
+SELECT COUNT(*) FROM invoices;

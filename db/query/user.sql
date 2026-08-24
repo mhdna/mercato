@@ -11,6 +11,10 @@ RETURNING *;
 SELECT * FROM users
 WHERE id = $1 LIMIT 1;
 
+-- name: GetUserByUsername :one
+SELECT * FROM users
+WHERE name = $1 LIMIT 1;
+
 -- name: ListUsers :many
 SELECT * FROM users
 ORDER BY id
@@ -21,7 +25,8 @@ OFFSET $2;
 UPDATE users
   SET name = $2,
   email = $3,
-  password_hash = $4
+  password_hash = $4,
+  activated = $5
 WHERE id = $1;
 
 -- name: DeleteUser :exec

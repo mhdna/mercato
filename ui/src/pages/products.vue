@@ -1,47 +1,43 @@
 <template>
-  <!-- <ProductsList /> -->
-  <v-dialog max-width="920" max-height="780" v-model="dialog" persistent="true">
-    <!-- <template v-slot:activator="{ props: activatorProps }"> -->
-    <!-- </template> -->
-
-    <template v-slot:default="{ isActive }">
+  <v-dialog v-model="dialog" max-height="780" max-width="920" :persistent="true">
+    <template #default>
       <v-card class="px-4">
         <v-card-title>
-          <!-- <div class="d-flex justify-space-between"> -->
-          <!-- <div> -->
           Create a New Product
-          <!--   </div> -->
-          <!--   <v-btn icon="mdi-close" size="sm" @click="dialogActive.value = false"></v-btn> -->
-          <!-- </div> -->
           <v-spacer />
         </v-card-title>
-        <NewProductForm />
+        <NewProductForm @created="onProductCreated" />
 
         <v-card-actions>
-          <v-spacer></v-spacer>
+          <v-spacer />
 
-          <v-btn text="Close Dialog" @click="dialog = false"></v-btn>
+          <v-btn text="Close Dialog" @click="dialog = false" />
         </v-card-actions>
       </v-card>
     </template>
   </v-dialog>
 
-
   <div class="d-flex justify-space-between">
-    <v-btn @click="dialog = true" text="Add a New Product"></v-btn>
+    <v-btn text="Add a New Product" @click="dialog = true" />
     <div>
-      <v-icon-btn icon="mdi-view-gallery" @click="galleryView = true"></v-icon-btn>
-      <v-icon-btn icon="mdi-format-list-bulleted" @click="galleryView = false"></v-icon-btn>
+      <v-icon-btn icon="mdi-format-list-bulleted" @click="galleryView = false" />
     </div>
   </div>
 
-  <ProductsGallery v-if="galleryView" />
-  <ProductsTable v-else />
+  <ProductsTable v-if="!galleryView" ref="productsTableRef" />
 </template>
 
 <script setup>
-import { ref } from 'vue';
-const dialog = ref(false)
+  import { ref } from 'vue'
+  import NewProductForm from '@/components/Forms/NewProductForm.vue'
+  import ProductsTable from '@/components/ProductsTable.vue'
 
-const galleryView = ref(false)
+  const dialog = ref(false)
+  const galleryView = ref(false)
+  const productsTableRef = ref(null)
+
+  function onProductCreated () {
+    dialog.value = false
+    productsTableRef.value?.reload()
+  }
 </script>

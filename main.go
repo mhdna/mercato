@@ -33,8 +33,8 @@ func main() {
 	store := db.NewStore(conn)
 
 	go runGatewayServer(config, store)
-	runGrpcServer(config, store)
-	// runGinServer(config, store)
+	// runGrpcServer(config, store)
+	runGinServer(config, store)
 }
 
 func runGrpcServer(config util.Config, store db.Store) {
@@ -50,7 +50,7 @@ func runGrpcServer(config util.Config, store db.Store) {
 
 	listener, err := net.Listen("tcp", config.GRPCServerAddress)
 	if err != nil {
-		log.Fatal("cannot create listener")
+		log.Fatal("cannot create listener:", err)
 	}
 	log.Printf("start gRPC server at %s", listener.Addr().String())
 	err = grpcServer.Serve(listener)
@@ -98,9 +98,9 @@ func runGatewayServer(config util.Config, store db.Store) {
 	swaggerHandler := http.StripPrefix("/swagger/", http.FileServer(statikFs))
 	mux.Handle("/swagger/", swaggerHandler)
 
-	listener, err := net.Listen("tcp", config.HTTPServerAddress)
+	listener, err := net.Listen("tcp", config.GatewayServerAddress)
 	if err != nil {
-		log.Fatal("cannot create listener")
+		log.Fatal("cannot create listener:", err)
 	}
 	log.Printf("start HTTP gateway server at %s", listener.Addr().String())
 	err = http.Serve(listener, mux)

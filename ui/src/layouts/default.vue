@@ -13,11 +13,11 @@
         </div>
       </v-app-bar-title>
       <!-- <SnackBar /> -->
-      <!-- <SearchInput /> -->
       <template #append>
+        <CommandPalette />
         <SyncCard />
-        <NotificationMenu />
-        <!-- <v-icon icon="mdi-translate" /> -->
+        <NotificationMenu class="me-4" />
+        <v-icon icon="mdi-translate" />
         <ToggleTheme />
         <v-avatar
           class="text-white"
@@ -63,6 +63,7 @@ import { ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useDisplay } from "vuetify";
 import ToggleTheme from "@/components/Buttons/ToggleTheme.vue";
+import CommandPalette from "@/components/CommandPalette.vue";
 import NotificationMenu from "@/components/Menus/NotificationMenu.vue";
 import { useAuthStore } from "@/stores/auth";
 
@@ -102,7 +103,7 @@ router.afterEach(() => {
 </script>
 
 <style scoped>
-@import url("https://fonts.googleapis.com/css2?family=Google+Sans:ital,opsz,wght@0,17..18,400..700;1,17..18,400..700&display=swap");
+/*@import url("https://fonts.googleapis.com/css2?family=Google+Sans:ital,opsz,wght@0,17..18,400..700;1,17..18,400..700&display=swap");*/
 
 .page-wrapper {
   display: flex;

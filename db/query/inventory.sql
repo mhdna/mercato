@@ -58,3 +58,6 @@ AND product_id = $2;
 DELETE FROM inventories_products
 WHERE inventory_id = $1
 AND product_id = $2;
+
+-- name: CountInventories :one
+SELECT COUNT(*) FROM inventories;

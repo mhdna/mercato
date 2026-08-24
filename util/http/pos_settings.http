@@ -1,0 +1,3 @@
+### POS settings for a cashbox
+GET {{baseUrl}}/pos_settings?cashbox_id=1
+Authorization: bearer {{token}}

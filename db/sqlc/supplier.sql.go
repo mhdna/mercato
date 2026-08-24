@@ -10,6 +10,17 @@ import (
 	"database/sql"
 )
 
+const countSuppliers = `-- name: CountSuppliers :one
+SELECT COUNT(*) FROM suppliers
+`
+
+func (q *Queries) CountSuppliers(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countSuppliers)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createSupplier = `-- name: CreateSupplier :one
 INSERT INTO suppliers (
   name,
@@ -28,8 +39,8 @@ type CreateSupplierParams struct {
 	Phone            string          `json:"phone"`
 	Country          string          `json:"country"`
 	Address          string          `json:"address"`
-	AddressLatitude  sql.NullFloat64 `json:"addressLatitude"`
-	AddressLongitude sql.NullFloat64 `json:"addressLongitude"`
+	AddressLatitude  sql.NullFloat64 `json:"address_latitude"`
+	AddressLongitude sql.NullFloat64 `json:"address_longitude"`
 }
 
 func (q *Queries) CreateSupplier(ctx context.Context, arg CreateSupplierParams) (Supplier, error) {

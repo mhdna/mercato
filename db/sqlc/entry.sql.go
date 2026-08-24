@@ -22,10 +22,10 @@ RETURNING id, cashbox_id, inventory_id, reference_type, reference_id, amount, cr
 `
 
 type CreateEntryItemParams struct {
-	CashboxID     int64              `json:"cashboxId"`
-	InventoryID   int64              `json:"inventoryId"`
-	ReferenceType EntryReferenceType `json:"referenceType"`
-	ReferenceID   int64              `json:"referenceId"`
+	CashboxID     int64              `json:"cashbox_id"`
+	InventoryID   int64              `json:"inventory_id"`
+	ReferenceType EntryReferenceType `json:"reference_type"`
+	ReferenceID   int64              `json:"reference_id"`
 	Amount        int64              `json:"amount"`
 }
 
@@ -79,7 +79,7 @@ OFFSET $3
 `
 
 type ListEntriesParams struct {
-	InventoryID int64 `json:"inventoryId"`
+	InventoryID int64 `json:"inventory_id"`
 	Limit       int32 `json:"limit"`
 	Offset      int32 `json:"offset"`
 }

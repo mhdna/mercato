@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import AttendanceTable from '@/components/Tables/AttendanceTable.vue';
+  import AttendanceTable from '@/components/Tables/AttendanceTable.vue'
 
 </script>
 

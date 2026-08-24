@@ -6,6 +6,9 @@ package db
 
 import (
 	"context"
+	"database/sql"
+
+	"github.com/google/uuid"
 )
 
 type Querier interface {
@@ -18,12 +21,24 @@ type Querier interface {
 	AddPurchasedProduct(ctx context.Context, arg AddPurchasedProductParams) (ProductSupplier, error)
 	AddPurchasedProductCost(ctx context.Context, arg AddPurchasedProductCostParams) (ProductSupplierCost, error)
 	CloseShift(ctx context.Context, id int64) error
+	CountClients(ctx context.Context) (int64, error)
+	CountCoupons(ctx context.Context) (int64, error)
+	CountCurrencies(ctx context.Context) (int64, error)
+	CountDiscountLists(ctx context.Context) (int64, error)
+	CountInventories(ctx context.Context) (int64, error)
+	CountInvoices(ctx context.Context) (int64, error)
+	CountProducts(ctx context.Context) (int64, error)
+	CountPurchases(ctx context.Context) (int64, error)
+	CountShifts(ctx context.Context) (int64, error)
+	CountSuppliers(ctx context.Context) (int64, error)
+	CountTransfers(ctx context.Context) (int64, error)
 	CreateAsset(ctx context.Context, arg CreateAssetParams) (Asset, error)
 	CreateAssetType(ctx context.Context, type_ string) (AssetsType, error)
-	CreateAttributeValue(ctx context.Context, arg CreateAttributeValueParams) (AttributesValue, error)
+	CreateBarcode(ctx context.Context, arg CreateBarcodeParams) (Barcode, error)
 	CreateCashbox(ctx context.Context, arg CreateCashboxParams) (Cashbox, error)
 	CreateCashboxAccount(ctx context.Context, name string) (CashboxAccount, error)
 	CreateClient(ctx context.Context, arg CreateClientParams) (Client, error)
+	CreateColor(ctx context.Context, arg CreateColorParams) (Color, error)
 	CreateCoupon(ctx context.Context, arg CreateCouponParams) (Coupon, error)
 	CreateCurrency(ctx context.Context, arg CreateCurrencyParams) (Currency, error)
 	CreateDiscountList(ctx context.Context, arg CreateDiscountListParams) (DiscountList, error)
@@ -36,10 +51,15 @@ type Querier interface {
 	CreatePriceListItem(ctx context.Context, arg CreatePriceListItemParams) (PriceListItem, error)
 	CreateProduct(ctx context.Context, arg CreateProductParams) (Product, error)
 	CreateProductAttribute(ctx context.Context, arg CreateProductAttributeParams) (ProductsAttribute, error)
+	CreateProductColor(ctx context.Context, arg CreateProductColorParams) (ProductsColor, error)
+	CreateProductSize(ctx context.Context, arg CreateProductSizeParams) (ProductsSize, error)
 	CreatePurchase(ctx context.Context, arg CreatePurchaseParams) (Purchase, error)
 	CreateReturnInvoice(ctx context.Context, arg CreateReturnInvoiceParams) (ReturnInvoice, error)
 	CreateSalesInvoice(ctx context.Context, invoiceID int64) (int64, error)
+	CreateSalesperson(ctx context.Context, arg CreateSalespersonParams) (Salesperson, error)
+	CreateSession(ctx context.Context, arg CreateSessionParams) (Session, error)
 	CreateShift(ctx context.Context, cashboxID int64) (Shift, error)
+	CreateSize(ctx context.Context, arg CreateSizeParams) (Size, error)
 	CreateSupplier(ctx context.Context, arg CreateSupplierParams) (Supplier, error)
 	CreateTransfer(ctx context.Context, arg CreateTransferParams) (Transfer, error)
 	CreateTransferItem(ctx context.Context, arg CreateTransferItemParams) (TransferItem, error)
@@ -48,6 +68,10 @@ type Querier interface {
 	DecrementInvoicesIndex(ctx context.Context, arg DecrementInvoicesIndexParams) (int64, error)
 	DeleteAsset(ctx context.Context, id int64) error
 	DeleteAssetType(ctx context.Context, id int64) error
+	// WARN: beware of renaming the $2 above to $4 or sth
+	// AND color_id IS NOT DISTINCT FROM $2
+	// AND size_id IS NOT DISTINCT FROM $3;
+	DeleteBarcode(ctx context.Context, productID int64) error
 	DeleteClient(ctx context.Context, id int64) error
 	DeleteCurrency(ctx context.Context, code string) error
 	DeleteDiscountListItem(ctx context.Context, arg DeleteDiscountListItemParams) error
@@ -55,9 +79,16 @@ type Querier interface {
 	DeleteInventoryProduct(ctx context.Context, arg DeleteInventoryProductParams) error
 	DeletePriceListItem(ctx context.Context, arg DeletePriceListItemParams) error
 	DeleteProduct(ctx context.Context, id int64) error
+	DeleteSalesperson(ctx context.Context, id int64) error
 	DeleteUser(ctx context.Context, id int64) error
 	GetAsset(ctx context.Context, id int64) (Asset, error)
+	GetAttribute(ctx context.Context, name string) (Attribute, error)
+	// upserting instead of inserting makes product creation with attributes easier
 	GetAttributeValue(ctx context.Context, id int64) (AttributesValue, error)
+	// can't use = since color & size are nullable
+	// AND color_id IS NOT DISTINCT FROM $2
+	// AND size_id IS NOT DISTINCT FROM $3
+	GetBarcode(ctx context.Context, productID int64) (Barcode, error)
 	GetCashbox(ctx context.Context, id int64) (Cashbox, error)
 	GetCashboxAccount(ctx context.Context, id int64) (CashboxAccount, error)
 	GetCashboxAccountBalance(ctx context.Context, arg GetCashboxAccountBalanceParams) (ShiftsAccountsBalance, error)
@@ -72,6 +103,7 @@ type Querier interface {
 	GetExpense(ctx context.Context, id int64) (Expense, error)
 	GetInventory(ctx context.Context, id int64) (Inventory, error)
 	GetInvoice(ctx context.Context, id int64) (Invoice, error)
+	GetNextBarcodeItemValue(ctx context.Context) (int64, error)
 	GetPriceList(ctx context.Context, id int64) (PriceList, error)
 	GetProduct(ctx context.Context, id int64) (Product, error)
 	GetProductAttributeValue(ctx context.Context, arg GetProductAttributeValueParams) (ProductsAttribute, error)
@@ -81,17 +113,28 @@ type Querier interface {
 	GetPurchase(ctx context.Context, id int64) (Purchase, error)
 	GetReturnInvoice(ctx context.Context, invoiceID int64) (ReturnInvoice, error)
 	GetSalesInvoice(ctx context.Context, invoiceID int64) (int64, error)
+	GetSalesperson(ctx context.Context, id int64) (Salesperson, error)
+	GetSession(ctx context.Context, id uuid.UUID) (Session, error)
 	GetShift(ctx context.Context, id int64) (Shift, error)
 	GetSupplier(ctx context.Context, id int64) (Supplier, error)
 	GetTransfer(ctx context.Context, id int64) (Transfer, error)
 	GetUser(ctx context.Context, id int64) (User, error)
+	GetUserByUsername(ctx context.Context, name string) (User, error)
 	IncrementInvoicesIndex(ctx context.Context, arg IncrementInvoicesIndexParams) (int64, error)
+	ListAllCashboxAccounts(ctx context.Context) ([]CashboxAccount, error)
+	ListAllCurrencies(ctx context.Context) ([]Currency, error)
 	ListAssets(ctx context.Context, arg ListAssetsParams) ([]Asset, error)
 	ListAttributeValues(ctx context.Context, arg ListAttributeValuesParams) ([]ListAttributeValuesRow, error)
-	ListAttributes(ctx context.Context) ([]string, error)
+	ListAttributes(ctx context.Context) ([]Attribute, error)
+	// we have color & sizes in both tables, so them only once instead of twice
+	// LEFT JOIN colors c ON c.id = b.color_id
+	// LEFT JOIN sizes s ON s.id = b.size_id
+	// TODO: fix created_at being 2
+	ListBarcodes(ctx context.Context, arg ListBarcodesParams) ([]ListBarcodesRow, error)
 	ListCashboxAccounts(ctx context.Context, arg ListCashboxAccountsParams) ([]CashboxAccount, error)
 	ListCashboxes(ctx context.Context, arg ListCashboxesParams) ([]Cashbox, error)
 	ListClients(ctx context.Context, arg ListClientsParams) ([]Client, error)
+	ListColors(ctx context.Context) ([]Color, error)
 	ListCoupons(ctx context.Context, arg ListCouponsParams) ([]Coupon, error)
 	ListCurrencies(ctx context.Context, arg ListCurrenciesParams) ([]Currency, error)
 	ListDiscountListItems(ctx context.Context, discountListID int64) ([]DiscountListItem, error)
@@ -106,7 +149,10 @@ type Querier interface {
 	ListProductAttributes(ctx context.Context, arg ListProductAttributesParams) ([]ProductsAttribute, error)
 	ListProducts(ctx context.Context, arg ListProductsParams) ([]Product, error)
 	ListPurchases(ctx context.Context, arg ListPurchasesParams) ([]Purchase, error)
+	ListSalespersons(ctx context.Context, arg ListSalespersonsParams) ([]Salesperson, error)
+	ListSalespersonsByCashbox(ctx context.Context, cashboxID sql.NullInt64) ([]Salesperson, error)
 	ListShifts(ctx context.Context, arg ListShiftsParams) ([]Shift, error)
+	ListSizes(ctx context.Context) ([]Size, error)
 	// TOOD: add UpdateSupplier
 	ListSuppliers(ctx context.Context, arg ListSuppliersParams) ([]Supplier, error)
 	// TODO maybe this is not so clean
@@ -117,9 +163,11 @@ type Querier interface {
 	UnsetDefaultPriceList(ctx context.Context, id int64) error
 	UpdateAsset(ctx context.Context, arg UpdateAssetParams) error
 	UpdateAttributeValue(ctx context.Context, arg UpdateAttributeValueParams) (AttributesValue, error)
+	UpdateBarcode(ctx context.Context, arg UpdateBarcodeParams) error
 	UpdateCashbox(ctx context.Context, arg UpdateCashboxParams) (Cashbox, error)
 	UpdateCashboxAccount(ctx context.Context, arg UpdateCashboxAccountParams) (CashboxAccount, error)
 	UpdateClient(ctx context.Context, arg UpdateClientParams) (Client, error)
+	UpdateCurrency(ctx context.Context, arg UpdateCurrencyParams) (Currency, error)
 	UpdateDiscountList(ctx context.Context, arg UpdateDiscountListParams) error
 	UpdateDiscountListItem(ctx context.Context, arg UpdateDiscountListItemParams) error
 	UpdateInventory(ctx context.Context, arg UpdateInventoryParams) error
@@ -127,8 +175,10 @@ type Querier interface {
 	UpdatePriceListItem(ctx context.Context, arg UpdatePriceListItemParams) error
 	UpdateProduct(ctx context.Context, arg UpdateProductParams) error
 	UpdateProductAttribute(ctx context.Context, arg UpdateProductAttributeParams) error
+	UpdateSalesperson(ctx context.Context, arg UpdateSalespersonParams) (Salesperson, error)
 	UpdateTransfer(ctx context.Context, arg UpdateTransferParams) error
 	UpdateUser(ctx context.Context, arg UpdateUserParams) error
+	UpsertAttributeValue(ctx context.Context, arg UpsertAttributeValueParams) (AttributesValue, error)
 }
 
 var _ Querier = (*Queries)(nil)

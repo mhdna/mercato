@@ -87,7 +87,6 @@ func (store *SQLStore) ReturnInvoiceTx(ctx context.Context, arg ReturnInvoiceTxP
 			Subtotal:        arg.SubTotal,
 			DiscountedTotal: arg.DiscountedTotal,
 			GrandTotal:      arg.GrandTotal,
-			PriceListID:     arg.PriceListID,
 		})
 		if err != nil {
 			return err

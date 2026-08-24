@@ -10,6 +10,17 @@ import (
 	"database/sql"
 )
 
+const countTransfers = `-- name: CountTransfers :one
+SELECT COUNT(*) FROM transfers
+`
+
+func (q *Queries) CountTransfers(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countTransfers)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createTransfer = `-- name: CreateTransfer :one
 INSERT INTO transfers (
   from_inventory_id,
@@ -20,8 +31,8 @@ RETURNING id, from_inventory_id, to_inventory_id, type, created_at
 `
 
 type CreateTransferParams struct {
-	FromInventoryID int64        `json:"fromInventoryId"`
-	ToInventoryID   int64        `json:"toInventoryId"`
+	FromInventoryID int64        `json:"from_inventory_id"`
+	ToInventoryID   int64        `json:"to_inventory_id"`
 	Type            TransferType `json:"type"`
 }
 
@@ -49,9 +60,9 @@ RETURNING id, transfer_id, product_id, asset_id, quantity
 `
 
 type CreateTransferItemParams struct {
-	TransferID int64         `json:"transferId"`
-	ProductID  sql.NullInt64 `json:"productId"`
-	AssetID    sql.NullInt64 `json:"assetId"`
+	TransferID int64         `json:"transfer_id"`
+	ProductID  sql.NullInt64 `json:"product_id"`
+	AssetID    sql.NullInt64 `json:"asset_id"`
 	Quantity   int64         `json:"quantity"`
 }
 
@@ -101,12 +112,12 @@ where t.transfer_id = $1
 
 type ListTransferItemsRow struct {
 	ID          int64          `json:"id"`
-	TransferID  int64          `json:"transferId"`
-	ProductID   sql.NullInt64  `json:"productId"`
-	AssetID     sql.NullInt64  `json:"assetId"`
+	TransferID  int64          `json:"transfer_id"`
+	ProductID   sql.NullInt64  `json:"product_id"`
+	AssetID     sql.NullInt64  `json:"asset_id"`
 	Quantity    int64          `json:"quantity"`
-	ProductName sql.NullString `json:"productName"`
-	AssetName   sql.NullString `json:"assetName"`
+	ProductName sql.NullString `json:"product_name"`
+	AssetName   sql.NullString `json:"asset_name"`
 }
 
 // TODO maybe this is not so clean
@@ -192,8 +203,8 @@ WHERE id = $1
 
 type UpdateTransferParams struct {
 	ID              int64        `json:"id"`
-	FromInventoryID int64        `json:"fromInventoryId"`
-	ToInventoryID   int64        `json:"toInventoryId"`
+	FromInventoryID int64        `json:"from_inventory_id"`
+	ToInventoryID   int64        `json:"to_inventory_id"`
 	Type            TransferType `json:"type"`
 }
 

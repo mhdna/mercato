@@ -47,4 +47,7 @@ proto:
 evans:
 	evans --host localhost --port 8088 --package pb -r repl
 
-.PHONY: postgres createdb dropdb migrateup migratedown migrateup1 migratedown1 sqlc test server mock proto
+seed:
+	go run ./cmd/seed/main.go
+
+.PHONY: postgres createdb dropdb migrateup migratedown migrateup1 migratedown1 sqlc test server mock proto evans seed

@@ -22,7 +22,7 @@ RETURNING id, description, amount, currency_code, created_at
 type CreateExpenseParams struct {
 	Description  string `json:"description"`
 	Amount       int64  `json:"amount"`
-	CurrencyCode string `json:"currencyCode"`
+	CurrencyCode string `json:"currency_code"`
 }
 
 func (q *Queries) CreateExpense(ctx context.Context, arg CreateExpenseParams) (Expense, error) {

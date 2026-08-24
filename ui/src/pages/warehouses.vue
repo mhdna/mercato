@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import WarehouseTreemap from "@/components/Stats/WarehouseTreemap.vue";
-import FilterBar from "./FilterBar.vue";
+  import WarehouseTreemap from '@/components/Stats/WarehouseTreemap.vue'
+  import FilterBar from './FilterBar.vue'
 </script>
 
 <template>

@@ -1,0 +1,21 @@
+### Create a supplier
+POST {{baseUrl}}/suppliers
+Content-Type: application/json
+Authorization: bearer {{token}}
+
+{
+  "name": "Acme Supplies",
+  "phone": "+905551234567",
+  "country": "Turkey",
+  "address": "Istanbul, Turkey",
+  "latitude": 41.0082,
+  "longitude": 28.9784
+}
+
+### Get a supplier by id
+GET {{baseUrl}}/suppliers/1
+Authorization: bearer {{token}}
+
+### List suppliers
+GET {{baseUrl}}/suppliers?page_size=10&page_id=0
+Authorization: bearer {{token}}

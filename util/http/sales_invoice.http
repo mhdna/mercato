@@ -1,0 +1,25 @@
+### Create a sales invoice
+POST {{baseUrl}}/sales_invoices
+Content-Type: application/json
+Authorization: bearer {{token}}
+
+{
+  "cashbox_id": 1,
+  "cashbox_account_id": 1,
+  "shift_id": 1,
+  "inventory_id": 1,
+  "year": 2026,
+  "client_id": 1,
+  "discount": 0,
+  "grand_total": 5000,
+  "sub_total": 5000,
+  "discounted_total": 5000
+}
+
+### Get a sales invoice by id
+GET {{baseUrl}}/sales_invoices/1
+Authorization: bearer {{token}}
+
+### List sales invoices
+GET {{baseUrl}}/sales_invoices?page_size=10&page_id=0
+Authorization: bearer {{token}}

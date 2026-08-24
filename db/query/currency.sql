@@ -12,6 +12,14 @@ RETURNING *;
 delete from currencies
 where code = $1;
 
+-- name: UpdateCurrency :one
+UPDATE currencies
+SET name = $2,
+symbol = $3,
+value_in_default_currency = $4
+WHERE code = $1
+RETURNING *;
+
 -- name: GetCurrency :one
 SELECT * FROM currencies
 WHERE code = $1 LIMIT 1;
@@ -25,3 +33,9 @@ SELECT * FROM currencies
 ORDER BY code
 LIMIT $1
 OFFSET $2;
+
+-- name: ListAllCurrencies :many
+SELECT * FROM currencies
+ORDER BY code;
+-- name: CountCurrencies :one
+SELECT COUNT(*) FROM currencies;

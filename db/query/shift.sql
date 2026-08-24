@@ -22,3 +22,6 @@ SELECT * FROM shifts
 ORDER BY id
 LIMIT $1
 OFFSET $2;
+
+-- name: CountShifts :one
+SELECT COUNT(*) FROM shifts;

@@ -9,41 +9,35 @@ import (
 	"context"
 )
 
-const createAttributeValue = `-- name: CreateAttributeValue :one
-INSERT INTO attributes_values (
-  attribute,
-  value
-) VALUES (
-    $1, $2
-) RETURNING id, attribute, value
+const getAttribute = `-- name: GetAttribute :one
+Select id, name
+from attributes
+WHERe name = $1
 `
 
-type CreateAttributeValueParams struct {
-	Attribute string `json:"attribute"`
-	Value     string `json:"value"`
-}
-
-func (q *Queries) CreateAttributeValue(ctx context.Context, arg CreateAttributeValueParams) (AttributesValue, error) {
-	row := q.db.QueryRowContext(ctx, createAttributeValue, arg.Attribute, arg.Value)
-	var i AttributesValue
-	err := row.Scan(&i.ID, &i.Attribute, &i.Value)
+func (q *Queries) GetAttribute(ctx context.Context, name string) (Attribute, error) {
+	row := q.db.QueryRowContext(ctx, getAttribute, name)
+	var i Attribute
+	err := row.Scan(&i.ID, &i.Name)
 	return i, err
 }
 
 const getAttributeValue = `-- name: GetAttributeValue :one
-SELECT id, attribute, value FROM attributes_values
+
+SELECT id, attribute_id, value FROM attributes_values
 WHERE id = $1
 `
 
+// upserting instead of inserting makes product creation with attributes easier
 func (q *Queries) GetAttributeValue(ctx context.Context, id int64) (AttributesValue, error) {
 	row := q.db.QueryRowContext(ctx, getAttributeValue, id)
 	var i AttributesValue
-	err := row.Scan(&i.ID, &i.Attribute, &i.Value)
+	err := row.Scan(&i.ID, &i.AttributeID, &i.Value)
 	return i, err
 }
 
 const listAttributeValues = `-- name: ListAttributeValues :many
-SELECT a.name, av.id, av.attribute, av.value
+SELECT a.id, a.name, av.id, av.attribute_id, av.value
 FROM attributes a
 INNER JOIN attributes_values av
 ON a.name = av.attribute
@@ -58,10 +52,11 @@ type ListAttributeValuesParams struct {
 }
 
 type ListAttributeValuesRow struct {
-	Name      string `json:"name"`
-	ID        int64  `json:"id"`
-	Attribute string `json:"attribute"`
-	Value     string `json:"value"`
+	ID          int64  `json:"id"`
+	Name        string `json:"name"`
+	ID_2        int64  `json:"id_2"`
+	AttributeID int64  `json:"attribute_id"`
+	Value       string `json:"value"`
 }
 
 func (q *Queries) ListAttributeValues(ctx context.Context, arg ListAttributeValuesParams) ([]ListAttributeValuesRow, error) {
@@ -74,9 +69,10 @@ func (q *Queries) ListAttributeValues(ctx context.Context, arg ListAttributeValu
 	for rows.Next() {
 		var i ListAttributeValuesRow
 		if err := rows.Scan(
-			&i.Name,
 			&i.ID,
-			&i.Attribute,
+			&i.Name,
+			&i.ID_2,
+			&i.AttributeID,
 			&i.Value,
 		); err != nil {
 			return nil, err
@@ -93,24 +89,24 @@ func (q *Queries) ListAttributeValues(ctx context.Context, arg ListAttributeValu
 }
 
 const listAttributes = `-- name: ListAttributes :many
-SELECT name
-FROM attributes 
+SELECT id, name
+FROM attributes
 ORDER BY name
 `
 
-func (q *Queries) ListAttributes(ctx context.Context) ([]string, error) {
+func (q *Queries) ListAttributes(ctx context.Context) ([]Attribute, error) {
 	rows, err := q.db.QueryContext(ctx, listAttributes)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []string{}
+	items := []Attribute{}
 	for rows.Next() {
-		var name string
-		if err := rows.Scan(&name); err != nil {
+		var i Attribute
+		if err := rows.Scan(&i.ID, &i.Name); err != nil {
 			return nil, err
 		}
-		items = append(items, name)
+		items = append(items, i)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err
@@ -122,10 +118,10 @@ func (q *Queries) ListAttributes(ctx context.Context) ([]string, error) {
 }
 
 const updateAttributeValue = `-- name: UpdateAttributeValue :one
-UPDATE attributes_values 
+UPDATE attributes_values
 SET value = $2
 WHERE id = $1
-RETURNING id, attribute, value
+RETURNING id, attribute_id, value
 `
 
 type UpdateAttributeValueParams struct {
@@ -136,6 +132,25 @@ type UpdateAttributeValueParams struct {
 func (q *Queries) UpdateAttributeValue(ctx context.Context, arg UpdateAttributeValueParams) (AttributesValue, error) {
 	row := q.db.QueryRowContext(ctx, updateAttributeValue, arg.ID, arg.Value)
 	var i AttributesValue
-	err := row.Scan(&i.ID, &i.Attribute, &i.Value)
+	err := row.Scan(&i.ID, &i.AttributeID, &i.Value)
+	return i, err
+}
+
+const upsertAttributeValue = `-- name: UpsertAttributeValue :one
+INSERT INTO attributes_values (attribute_id, value)
+VALUES ($1, $2)
+ON CONFLICT (attribute_id, value) DO UPDATE SET value = $2
+RETURNING id, attribute_id, value
+`
+
+type UpsertAttributeValueParams struct {
+	AttributeID int64  `json:"attribute_id"`
+	Value       string `json:"value"`
+}
+
+func (q *Queries) UpsertAttributeValue(ctx context.Context, arg UpsertAttributeValueParams) (AttributesValue, error) {
+	row := q.db.QueryRowContext(ctx, upsertAttributeValue, arg.AttributeID, arg.Value)
+	var i AttributesValue
+	err := row.Scan(&i.ID, &i.AttributeID, &i.Value)
 	return i, err
 }

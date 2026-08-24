@@ -1,0 +1,36 @@
+### Create an asset type
+POST {{baseUrl}}/asset_types
+Content-Type: application/json
+Authorization: bearer {{token}}
+
+{
+  "name": "Electronics"
+}
+
+### Delete an asset type
+DELETE {{baseUrl}}/asset_types/1
+Authorization: bearer {{token}}
+
+### Create an asset
+POST {{baseUrl}}/assets
+Content-Type: application/json
+Authorization: bearer {{token}}
+
+{
+  "code": "AST-001",
+  "name": "Barcode Scanner",
+  "bought_at": "2026-01-15T00:00:00Z",
+  "type_id": 1
+}
+
+### Get an asset by id
+GET {{baseUrl}}/assets/1
+Authorization: bearer {{token}}
+
+### List assets
+GET {{baseUrl}}/assets/?page_size=10&page_id=0
+Authorization: bearer {{token}}
+
+### Delete an asset
+DELETE {{baseUrl}}/assets/1
+Authorization: bearer {{token}}

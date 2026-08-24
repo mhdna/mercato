@@ -41,7 +41,7 @@ func (server *Server) createPriceList(ctx *gin.Context) {
 }
 
 type getPriceListRequest struct {
-	ID int64 `uri:"id" binding:"required,min=1"`
+	ID int64 `uri:"id" binding:"required,min=0"`
 }
 
 func (server *Server) getPriceList(ctx *gin.Context) {
@@ -67,7 +67,7 @@ func (server *Server) getPriceList(ctx *gin.Context) {
 
 type listPriceListsRequest struct {
 	PageSize int32 `form:"page_size,default=10" binding:"min=5,max=10"`
-	PageID   int32 `form:"page_id,default=1" binding:"min=1"`
+	PageID   int32 `form:"page_id,default=0" binding:"min=0"`
 }
 
 func (server *Server) listPriceLists(ctx *gin.Context) {
@@ -118,7 +118,7 @@ func (server *Server) createPriceListItem(ctx *gin.Context) {
 }
 
 type listPriceListItemsRequest struct {
-	PriceListID int64 `uri:"id" binding:"required,min=1"`
+	PriceListID int64 `uri:"id" binding:"required,min=0"`
 }
 
 func (server *Server) listPriceListItems(ctx *gin.Context) {
@@ -137,8 +137,8 @@ func (server *Server) listPriceListItems(ctx *gin.Context) {
 }
 
 type deletePriceListItemRequest struct {
-	PriceListID int64 `uri:"id" binding:"required,min=1"`
-	ProductID   int64 `uri:"product_id" binding:"required,min=1"`
+	PriceListID int64 `uri:"id" binding:"required,min=0"`
+	ProductID   int64 `uri:"product_id" binding:"required,min=0"`
 }
 
 func (server *Server) deletePriceListItem(ctx *gin.Context) {

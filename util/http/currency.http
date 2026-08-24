@@ -1,0 +1,18 @@
+### Create a currency
+POST {{baseUrl}}/currencies
+Content-Type: application/json
+Authorization: bearer {{token}}
+
+{
+  "name": "US Dollar",
+  "code": "USD",
+  "symbol": "$"
+}
+
+### Get a currency by code
+GET {{baseUrl}}/currencies/USD
+Authorization: bearer {{token}}
+
+### List currencies
+GET {{baseUrl}}/currencies/?page_size=10&page_id=0
+Authorization: bearer {{token}}

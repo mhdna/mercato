@@ -11,19 +11,17 @@
   },
   "dependencies": {
     "@fontsource/roboto": "5.2.7",
-    "@mdi/font": "7.4.47",
+    "@mdi/js": "^7.4.47",
     "VFileUpload": "link:vuetify/labs/VFileUpload",
     "VFileUploadDropzon": "link:vuetify/labs/VFileUploadDropzon",
     "VFileUploadItem": "link:vuetify/labs/VFileUploadItem",
     "VFileUploadList": "link:vuetify/labs/VFileUploadList",
     "echarts": "^6.0.0",
-    "echarts-vue": "^1.1.5",
     "pinia": "^3.0.3",
     "vee-validate": "^4.15.1",
     "vue": "^3.5.21",
     "vue-echarts": "^8.0.1",
     "vue-router": "^4.5.1",
-    "vue-validate": "^1.0.1",
     "vuetify": "^4.0.2"
   },
   "devDependencies": {

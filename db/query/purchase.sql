@@ -44,3 +44,5 @@ INSERT INTO product_supplier_costs (
 ) 
 VALUES ( $1, $2, $3 )
 RETURNING *;
+-- name: CountPurchases :one
+SELECT COUNT(*) FROM purchases;

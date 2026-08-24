@@ -65,7 +65,7 @@ func (server *Server) getAsset(ctx *gin.Context) {
 
 type listAssetRequest struct {
 	PageSize int32 `form:"page_size,default=10" binding:"min=5,max=10"`
-	PageID   int32 `form:"page_id,default=1" binding:"min=1"`
+	PageID   int32 `form:"page_id,default=0" binding:"min=0"`
 }
 
 func (server *Server) listAssets(ctx *gin.Context) {
@@ -74,7 +74,6 @@ func (server *Server) listAssets(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, errorResponse(err))
 		return
 	}
-
 	arg := db.ListAssetsParams{
 		Limit:  req.PageSize,
 		Offset: req.PageID,

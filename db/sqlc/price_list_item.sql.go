@@ -18,8 +18,8 @@ RETURNING price_list_id, product_id, price
 `
 
 type CreatePriceListItemParams struct {
-	PriceListID int64 `json:"priceListId"`
-	ProductID   int64 `json:"productId"`
+	PriceListID int64 `json:"price_list_id"`
+	ProductID   int64 `json:"product_id"`
 	Price       int64 `json:"price"`
 }
 
@@ -36,8 +36,8 @@ WHERE price_list_id = $1 AND product_id = $2
 `
 
 type DeletePriceListItemParams struct {
-	PriceListID int64 `json:"priceListId"`
-	ProductID   int64 `json:"productId"`
+	PriceListID int64 `json:"price_list_id"`
+	ProductID   int64 `json:"product_id"`
 }
 
 func (q *Queries) DeletePriceListItem(ctx context.Context, arg DeletePriceListItemParams) error {
@@ -67,8 +67,8 @@ WHERE price_list_id = $1 AND product_id = $2
 `
 
 type GetProductPriceFromListParams struct {
-	PriceListID int64 `json:"priceListId"`
-	ProductID   int64 `json:"productId"`
+	PriceListID int64 `json:"price_list_id"`
+	ProductID   int64 `json:"product_id"`
 }
 
 func (q *Queries) GetProductPriceFromList(ctx context.Context, arg GetProductPriceFromListParams) (PriceListItem, error) {
@@ -114,8 +114,8 @@ WHERE price_list_id = $1 AND product_id = $2
 `
 
 type UpdatePriceListItemParams struct {
-	PriceListID int64 `json:"priceListId"`
-	ProductID   int64 `json:"productId"`
+	PriceListID int64 `json:"price_list_id"`
+	ProductID   int64 `json:"product_id"`
 	Price       int64 `json:"price"`
 }
 

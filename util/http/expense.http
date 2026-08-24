@@ -1,0 +1,18 @@
+### Create an expense
+POST {{baseUrl}}/expenses
+Content-Type: application/json
+Authorization: bearer {{token}}
+
+{
+  "description": "Office supplies",
+  "amount": 15000,
+  "currency_code": "USC"
+}
+
+### Get an expense by id
+GET {{baseUrl}}/expenses/1
+Authorization: bearer {{token}}
+
+### List expenses
+GET {{baseUrl}}/expenses?page_size=10&page_id=0
+Authorization: bearer {{token}}

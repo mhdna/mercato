@@ -1,0 +1,39 @@
+### Create a discount list
+POST {{baseUrl}}/discount_lists
+Content-Type: application/json
+Authorization: bearer {{token}}
+
+{
+  "name": "Summer Discounts",
+  "is_active": true,
+  "is_default": false,
+  "valid_from": "2026-06-01T00:00:00Z",
+  "valid_to": "2026-09-30T23:59:59Z"
+}
+
+### Get a discount list by id
+GET {{baseUrl}}/discount_lists/1
+Authorization: bearer {{token}}
+
+### List discount lists
+GET {{baseUrl}}/discount_lists?page_size=10&page_id=0
+Authorization: bearer {{token}}
+
+### Create a discount list item
+POST {{baseUrl}}/discount_lists/items
+Content-Type: application/json
+Authorization: bearer {{token}}
+
+{
+  "discount_list_id": 1,
+  "product_id": 1,
+  "discount": 15
+}
+
+### List discount list items
+GET {{baseUrl}}/discount_lists/1/items
+Authorization: bearer {{token}}
+
+### Delete a discount list item
+DELETE {{baseUrl}}/discount_lists/1/items/1
+Authorization: bearer {{token}}

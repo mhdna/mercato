@@ -1,5 +1,5 @@
 <template>
-  <v-row >
+  <v-row>
     <v-col>
       <v-sheet height="64">
         <v-toolbar flat>
@@ -13,9 +13,9 @@
           </v-btn>
           <v-btn
             color="grey-darken-2"
+            icon
             size="small"
             variant="text"
-            icon
             @click="prev"
           >
             <v-icon size="small">
@@ -24,9 +24,9 @@
           </v-btn>
           <v-btn
             color="grey-darken-2"
+            icon
             size="small"
             variant="text"
-            icon
             @click="next"
           >
             <v-icon size="small">
@@ -37,7 +37,7 @@
             {{ calendar.title }}
           </v-toolbar-title>
           <v-menu location="bottom end">
-            <template v-slot:activator="{ props }">
+            <template #activator="{ props }">
               <v-btn
                 color="grey-darken-2"
                 variant="outlined"
@@ -70,15 +70,15 @@
         <v-calendar
           ref="calendar"
           v-model="focus"
+          color="primary"
           :event-color="getEventColor"
           :events="events"
           :type="type"
-          color="primary"
           @change="updateRange"
           @click:date="viewDay"
           @click:event="showEvent"
           @click:more="viewDay"
-        ></v-calendar>
+        />
         <v-menu
           v-model="selectedOpen"
           :activator="selectedElement"
@@ -87,8 +87,8 @@
         >
           <v-card
             color="grey-lighten-4"
-            min-width="350px"
             flat
+            min-width="350px"
           >
             <v-toolbar
               :color="selectedEvent.color"
@@ -97,7 +97,7 @@
               <v-btn icon>
                 <v-icon>mdi-pencil</v-icon>
               </v-btn>
-              <v-toolbar-title v-html="selectedEvent.name"></v-toolbar-title>
+              <v-toolbar-title v-html="selectedEvent.name" />
               <v-btn icon>
                 <v-icon>mdi-heart</v-icon>
               </v-btn>
@@ -106,7 +106,7 @@
               </v-btn>
             </v-toolbar>
             <v-card-text>
-              <span v-html="selectedEvent.details"></span>
+              <span v-html="selectedEvent.details" />
             </v-card-text>
             <v-card-actions>
               <v-btn
@@ -129,9 +129,9 @@
   const calendar = ref()
 
   const typeToLabel = {
-    month: 'Month',
-    week: 'Week',
-    day: 'Day',
+    'month': 'Month',
+    'week': 'Week',
+    'day': 'Day',
     '4day': '4 Days',
   }
   const colors = ['blue', 'indigo', 'deep-purple', 'cyan', 'green', 'orange', 'grey darken-1']
@@ -180,26 +180,26 @@
     nativeEvent.stopPropagation()
   }
 
-function updateRange ({ start, end }) {
+  function updateRange ({ start, end }) {
     const _attendance = []
     const min = new Date(`${start.date}T00:00:00`)
     const max = new Date(`${end.date}T23:59:59`)
-    const days = Math.floor((max.getTime() - min.getTime()) / 86400000) + 1
-    
+    const days = Math.floor((max.getTime() - min.getTime()) / 86_400_000) + 1
+
     for (let i = 0; i < days; i++) {
-      const dayTimestamp = min.getTime() + (i * 86400000)
+      const dayTimestamp = min.getTime() + (i * 86_400_000)
       const dayStart = new Date(dayTimestamp)
-      
+
       for (let j = 0; j < 16; j++) {
         // Random start time between 10 AM and 11 AM
         const startHour = rnd(10, 11)
         const startMinute = rnd(0, 3) * 15 // 0, 15, 30, or 45
         const checkIn = new Date(dayStart)
         checkIn.setHours(startHour, startMinute, 0, 0)
-        
+
         // 9 hours work + 1 hour break = 10 hours total
-        const checkOut = new Date(checkIn.getTime() + (10 * 3600000))
-        
+        const checkOut = new Date(checkIn.getTime() + (10 * 3_600_000))
+
         _attendance.push({
           name: names[rnd(0, names.length - 1)],
           start: checkIn,
@@ -211,7 +211,7 @@ function updateRange ({ start, end }) {
     }
     events.value = _attendance
   }
-  
+
   function rnd (a, b) {
     return Math.floor((b - a + 1) * Math.random()) + a
   }

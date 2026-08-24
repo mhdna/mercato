@@ -1,0 +1,35 @@
+### Create an attribute value
+POST {{baseUrl}}/attributes
+Content-Type: application/json
+Authorization: bearer {{token}}
+
+{
+  "attribute": "category",
+  "value": "clothing"
+}
+
+### Create attribute values in batch
+POST {{baseUrl}}/attributes/batch
+Content-Type: application/json
+Authorization: bearer {{token}}
+
+{
+  "items": [
+    {"attribute": "category", "value": "clothing"},
+    {"attribute": "brand", "value": "Acme"}
+  ]
+}
+
+### Update an attribute value
+PUT {{baseUrl}}/attributes
+Content-Type: application/json
+Authorization: bearer {{token}}
+
+{
+  "id": 1,
+  "value": "updated-value"
+}
+
+### List attribute values
+GET {{baseUrl}}/attributes/?page_size=10&page_id=0
+Authorization: bearer {{token}}

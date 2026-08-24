@@ -18,13 +18,24 @@ WHERE id = $1
 
 type AddClientLoyaltyPointsParams struct {
 	ID                 int64 `json:"id"`
-	TotalLoyaltyPoints int64 `json:"totalLoyaltyPoints"`
-	ValidLoyaltyPoints int64 `json:"validLoyaltyPoints"`
+	TotalLoyaltyPoints int64 `json:"total_loyalty_points"`
+	ValidLoyaltyPoints int64 `json:"valid_loyalty_points"`
 }
 
 func (q *Queries) AddClientLoyaltyPoints(ctx context.Context, arg AddClientLoyaltyPointsParams) error {
 	_, err := q.db.ExecContext(ctx, addClientLoyaltyPoints, arg.ID, arg.TotalLoyaltyPoints, arg.ValidLoyaltyPoints)
 	return err
+}
+
+const countClients = `-- name: CountClients :one
+SELECT COUNT(*) FROM clients
+`
+
+func (q *Queries) CountClients(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countClients)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
 }
 
 const createClient = `-- name: CreateClient :one

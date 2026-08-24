@@ -12,45 +12,45 @@ import (
 const createProductAttribute = `-- name: CreateProductAttribute :one
 INSERT INTO products_attributes (
   product_id,
-  attribute,
+  attribute_id,
   attribute_value_id
 ) VALUES (
     $1, $2, $3
-) RETURNING attribute, attribute_value_id, product_id
+) RETURNING attribute_id, attribute_value_id, product_id
 `
 
 type CreateProductAttributeParams struct {
-	ProductID        int64  `json:"productId"`
-	Attribute        string `json:"attribute"`
-	AttributeValueID int64  `json:"attributeValueId"`
+	ProductID        int64 `json:"product_id"`
+	AttributeID      int64 `json:"attribute_id"`
+	AttributeValueID int64 `json:"attribute_value_id"`
 }
 
 func (q *Queries) CreateProductAttribute(ctx context.Context, arg CreateProductAttributeParams) (ProductsAttribute, error) {
-	row := q.db.QueryRowContext(ctx, createProductAttribute, arg.ProductID, arg.Attribute, arg.AttributeValueID)
+	row := q.db.QueryRowContext(ctx, createProductAttribute, arg.ProductID, arg.AttributeID, arg.AttributeValueID)
 	var i ProductsAttribute
-	err := row.Scan(&i.Attribute, &i.AttributeValueID, &i.ProductID)
+	err := row.Scan(&i.AttributeID, &i.AttributeValueID, &i.ProductID)
 	return i, err
 }
 
 const getProductAttributeValue = `-- name: GetProductAttributeValue :one
-SELECT attribute, attribute_value_id, product_id FROM products_attributes
-WHERE product_id = $1 AND attribute = $2
+SELECT attribute_id, attribute_value_id, product_id FROM products_attributes
+WHERE product_id = $1 AND attribute_id = $2
 `
 
 type GetProductAttributeValueParams struct {
-	ProductID int64  `json:"productId"`
-	Attribute string `json:"attribute"`
+	ProductID   int64 `json:"product_id"`
+	AttributeID int64 `json:"attribute_id"`
 }
 
 func (q *Queries) GetProductAttributeValue(ctx context.Context, arg GetProductAttributeValueParams) (ProductsAttribute, error) {
-	row := q.db.QueryRowContext(ctx, getProductAttributeValue, arg.ProductID, arg.Attribute)
+	row := q.db.QueryRowContext(ctx, getProductAttributeValue, arg.ProductID, arg.AttributeID)
 	var i ProductsAttribute
-	err := row.Scan(&i.Attribute, &i.AttributeValueID, &i.ProductID)
+	err := row.Scan(&i.AttributeID, &i.AttributeValueID, &i.ProductID)
 	return i, err
 }
 
 const getProductAttributes = `-- name: GetProductAttributes :many
-SELECT attribute, attribute_value_id, product_id FROM products_attributes
+SELECT attribute_id, attribute_value_id, product_id FROM products_attributes
 WHERE product_id = $1
 `
 
@@ -63,7 +63,7 @@ func (q *Queries) GetProductAttributes(ctx context.Context, productID int64) ([]
 	items := []ProductsAttribute{}
 	for rows.Next() {
 		var i ProductsAttribute
-		if err := rows.Scan(&i.Attribute, &i.AttributeValueID, &i.ProductID); err != nil {
+		if err := rows.Scan(&i.AttributeID, &i.AttributeValueID, &i.ProductID); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -78,11 +78,11 @@ func (q *Queries) GetProductAttributes(ctx context.Context, productID int64) ([]
 }
 
 const listProductAttributes = `-- name: ListProductAttributes :many
-SELECT pa.attribute, pa.attribute_value_id, pa.product_id
+SELECT pa.attribute_id, pa.attribute_value_id, pa.product_id
 FROM products p
 INNER JOIN products_attributes pa
 ON p.id = pa.product_id
-ORDER BY attribute
+ORDER BY attribute_id
 LIMIT $1
 OFFSET $2
 `
@@ -101,7 +101,7 @@ func (q *Queries) ListProductAttributes(ctx context.Context, arg ListProductAttr
 	items := []ProductsAttribute{}
 	for rows.Next() {
 		var i ProductsAttribute
-		if err := rows.Scan(&i.Attribute, &i.AttributeValueID, &i.ProductID); err != nil {
+		if err := rows.Scan(&i.AttributeID, &i.AttributeValueID, &i.ProductID); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -116,18 +116,18 @@ func (q *Queries) ListProductAttributes(ctx context.Context, arg ListProductAttr
 }
 
 const updateProductAttribute = `-- name: UpdateProductAttribute :exec
-UPDATE products_attributes 
+UPDATE products_attributes
 SET attribute_value_id = $3
-WHERE product_id = $1 AND attribute = $2
+WHERE product_id = $1 AND attribute_id = $2
 `
 
 type UpdateProductAttributeParams struct {
-	ProductID        int64  `json:"productId"`
-	Attribute        string `json:"attribute"`
-	AttributeValueID int64  `json:"attributeValueId"`
+	ProductID        int64 `json:"product_id"`
+	AttributeID      int64 `json:"attribute_id"`
+	AttributeValueID int64 `json:"attribute_value_id"`
 }
 
 func (q *Queries) UpdateProductAttribute(ctx context.Context, arg UpdateProductAttributeParams) error {
-	_, err := q.db.ExecContext(ctx, updateProductAttribute, arg.ProductID, arg.Attribute, arg.AttributeValueID)
+	_, err := q.db.ExecContext(ctx, updateProductAttribute, arg.ProductID, arg.AttributeID, arg.AttributeValueID)
 	return err
 }

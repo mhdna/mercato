@@ -21,8 +21,8 @@ RETURNING product_id, inventory_id, quantity
 `
 
 type AddInventoryProductParams struct {
-	InventoryID int64 `json:"inventoryId"`
-	ProductID   int64 `json:"productId"`
+	InventoryID int64 `json:"inventory_id"`
+	ProductID   int64 `json:"product_id"`
 	Quantity    int64 `json:"quantity"`
 }
 
@@ -41,14 +41,25 @@ AND product_id = $2
 `
 
 type AddInventoryProductQuantityParams struct {
-	InventoryID int64 `json:"inventoryId"`
-	ProductID   int64 `json:"productId"`
+	InventoryID int64 `json:"inventory_id"`
+	ProductID   int64 `json:"product_id"`
 	Quantity    int64 `json:"quantity"`
 }
 
 func (q *Queries) AddInventoryProductQuantity(ctx context.Context, arg AddInventoryProductQuantityParams) error {
 	_, err := q.db.ExecContext(ctx, addInventoryProductQuantity, arg.InventoryID, arg.ProductID, arg.Quantity)
 	return err
+}
+
+const countInventories = `-- name: CountInventories :one
+SELECT COUNT(*) FROM inventories
+`
+
+func (q *Queries) CountInventories(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countInventories)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
 }
 
 const createInventory = `-- name: CreateInventory :one
@@ -108,8 +119,8 @@ AND product_id = $2
 `
 
 type DeleteInventoryProductParams struct {
-	InventoryID int64 `json:"inventoryId"`
-	ProductID   int64 `json:"productId"`
+	InventoryID int64 `json:"inventory_id"`
+	ProductID   int64 `json:"product_id"`
 }
 
 func (q *Queries) DeleteInventoryProduct(ctx context.Context, arg DeleteInventoryProductParams) error {
@@ -194,8 +205,8 @@ ORDER BY p.name
 `
 
 type ListInventoryProductsRow struct {
-	InventoryID int64  `json:"inventoryId"`
-	ProductID   int64  `json:"productId"`
+	InventoryID int64  `json:"inventory_id"`
+	ProductID   int64  `json:"product_id"`
 	Quantity    int64  `json:"quantity"`
 	Name        string `json:"name"`
 	Code        string `json:"code"`

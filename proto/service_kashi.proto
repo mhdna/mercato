@@ -28,6 +28,10 @@ service Kashi {
       post: "/v1/login"
       body: "*"
     };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+       description: "Login user and get access token & refresh token",
+       summary: "Login User"
+    };
   }
   rpc CreateInvetory (CreateInventoryRequest) returns (CreateInventoryResponse) {
     option (google.api.http) = {

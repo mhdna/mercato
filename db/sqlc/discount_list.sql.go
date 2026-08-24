@@ -10,6 +10,17 @@ import (
 	"time"
 )
 
+const countDiscountLists = `-- name: CountDiscountLists :one
+SELECT COUNT(*) FROM discount_lists
+`
+
+func (q *Queries) CountDiscountLists(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countDiscountLists)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createDiscountList = `-- name: CreateDiscountList :one
 INSERT INTO discount_lists (name, is_active, is_default, valid_from, valid_to)
 VALUES ($1, $2, $3, $4, $5)
@@ -18,10 +29,10 @@ RETURNING id, name, is_active, is_default, valid_from, valid_to, created_at
 
 type CreateDiscountListParams struct {
 	Name      string    `json:"name"`
-	IsActive  bool      `json:"isActive"`
-	IsDefault bool      `json:"isDefault"`
-	ValidFrom time.Time `json:"validFrom"`
-	ValidTo   time.Time `json:"validTo"`
+	IsActive  bool      `json:"is_active"`
+	IsDefault bool      `json:"is_default"`
+	ValidFrom time.Time `json:"valid_from"`
+	ValidTo   time.Time `json:"valid_to"`
 }
 
 func (q *Queries) CreateDiscountList(ctx context.Context, arg CreateDiscountListParams) (DiscountList, error) {
@@ -54,8 +65,8 @@ RETURNING discount_list_id, product_id, discount
 `
 
 type CreateDiscountListItemParams struct {
-	DiscountListID int64 `json:"discountListId"`
-	ProductID      int64 `json:"productId"`
+	DiscountListID int64 `json:"discount_list_id"`
+	ProductID      int64 `json:"product_id"`
 	Discount       int16 `json:"discount"`
 }
 
@@ -72,8 +83,8 @@ WHERE discount_list_id = $1 AND product_id = $2
 `
 
 type DeleteDiscountListItemParams struct {
-	DiscountListID int64 `json:"discountListId"`
-	ProductID      int64 `json:"productId"`
+	DiscountListID int64 `json:"discount_list_id"`
+	ProductID      int64 `json:"product_id"`
 }
 
 func (q *Queries) DeleteDiscountListItem(ctx context.Context, arg DeleteDiscountListItemParams) error {
@@ -123,8 +134,8 @@ WHERE discount_list_id = $1 AND product_id = $2
 `
 
 type GetProductDiscountFromListParams struct {
-	DiscountListID int64 `json:"discountListId"`
-	ProductID      int64 `json:"productId"`
+	DiscountListID int64 `json:"discount_list_id"`
+	ProductID      int64 `json:"product_id"`
 }
 
 func (q *Queries) GetProductDiscountFromList(ctx context.Context, arg GetProductDiscountFromListParams) (DiscountListItem, error) {
@@ -226,10 +237,10 @@ WHERE id = $1
 type UpdateDiscountListParams struct {
 	ID        int64     `json:"id"`
 	Name      string    `json:"name"`
-	IsActive  bool      `json:"isActive"`
-	IsDefault bool      `json:"isDefault"`
-	ValidFrom time.Time `json:"validFrom"`
-	ValidTo   time.Time `json:"validTo"`
+	IsActive  bool      `json:"is_active"`
+	IsDefault bool      `json:"is_default"`
+	ValidFrom time.Time `json:"valid_from"`
+	ValidTo   time.Time `json:"valid_to"`
 }
 
 func (q *Queries) UpdateDiscountList(ctx context.Context, arg UpdateDiscountListParams) error {
@@ -251,8 +262,8 @@ WHERE discount_list_id = $1 AND product_id = $2
 `
 
 type UpdateDiscountListItemParams struct {
-	DiscountListID int64 `json:"discountListId"`
-	ProductID      int64 `json:"productId"`
+	DiscountListID int64 `json:"discount_list_id"`
+	ProductID      int64 `json:"product_id"`
 	Discount       int16 `json:"discount"`
 }
 

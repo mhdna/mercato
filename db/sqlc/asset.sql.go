@@ -23,8 +23,8 @@ RETURNING id, name, code, type_id, version, bought_at, created_at
 type CreateAssetParams struct {
 	Name     string    `json:"name"`
 	Code     string    `json:"code"`
-	TypeID   int64     `json:"typeId"`
-	BoughtAt time.Time `json:"boughtAt"`
+	TypeID   int64     `json:"type_id"`
+	BoughtAt time.Time `json:"bought_at"`
 }
 
 func (q *Queries) CreateAsset(ctx context.Context, arg CreateAssetParams) (Asset, error) {
@@ -156,7 +156,7 @@ type UpdateAssetParams struct {
 	ID     int64  `json:"id"`
 	Name   string `json:"name"`
 	Code   string `json:"code"`
-	TypeID int64  `json:"typeId"`
+	TypeID int64  `json:"type_id"`
 }
 
 func (q *Queries) UpdateAsset(ctx context.Context, arg UpdateAssetParams) error {

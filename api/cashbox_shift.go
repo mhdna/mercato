@@ -9,7 +9,7 @@ import (
 )
 
 type createShiftRequest struct {
-	CashboxID int64 `json:"cashbox_id"`
+	CashboxID int64 `json:"cashbox_id" binding:"required,min=1"`
 }
 
 func (server *Server) createShift(ctx *gin.Context) {
@@ -56,7 +56,7 @@ func (server *Server) getShift(ctx *gin.Context) {
 
 type listShifts struct {
 	PageSize int32 `form:"page_size,default=10" binding:"min=5,max=10"`
-	PageID   int32 `form:"page_id,default=1" binding:"min=1"`
+	PageID   int32 `form:"page_id,default=0" binding:"min=0"`
 }
 
 func (server *Server) listShifts(ctx *gin.Context) {
@@ -76,7 +76,13 @@ func (server *Server) listShifts(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusOK, shifts)
+	total, err := server.store.CountShifts(ctx)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"shifts": shifts, "total": total})
 }
 
 type CloseShiftRequest struct {

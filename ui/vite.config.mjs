@@ -1,16 +1,16 @@
+import { fileURLToPath, URL } from 'node:url'
+import Vue from '@vitejs/plugin-vue'
 // Plugins
 import AutoImport from 'unplugin-auto-import/vite'
-import Components from 'unplugin-vue-components/vite'
 import Fonts from 'unplugin-fonts/vite'
-import Layouts from 'vite-plugin-vue-layouts-next'
-import Vue from '@vitejs/plugin-vue'
-import VueRouter from 'unplugin-vue-router/vite'
+import Components from 'unplugin-vue-components/vite'
 import { VueRouterAutoImports } from 'unplugin-vue-router'
-import Vuetify, { transformAssetUrls } from 'vite-plugin-vuetify'
-
+import VueRouter from 'unplugin-vue-router/vite'
 // Utilities
 import { defineConfig } from 'vite'
-import { fileURLToPath, URL } from 'node:url'
+
+import Layouts from 'vite-plugin-vue-layouts-next'
+import Vuetify, { transformAssetUrls } from 'vite-plugin-vuetify'
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -20,7 +20,6 @@ export default defineConfig({
     Vue({
       template: { transformAssetUrls },
     }),
-    // https://github.com/vuetifyjs/vuetify-loader/tree/master/packages/vite-plugin#readme
     Vuetify({
       autoImport: true,
       styles: {
@@ -29,11 +28,14 @@ export default defineConfig({
     }),
     Components(),
     Fonts({
-      google: {
-        families: [{
-          name: 'Roboto',
-          styles: 'wght@100;300;400;500;700;900',
-        }],
+      provider: 'none',
+      fonts: {
+        google: {
+          families: [{
+            name: 'Roboto',
+            styles: 'wght@100;300;400;500;700;900',
+          }],
+        },
       },
     }),
     AutoImport({
@@ -50,6 +52,33 @@ export default defineConfig({
       vueTemplate: true,
     }),
   ],
+  build: {
+    minify: 'esbuild',
+    rollupOptions: {
+      output: {
+        manualChunks (id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('echarts')) {
+              return 'echarts'
+            }
+            if (id.includes('vuetify')) {
+              return 'vuetify'
+            }
+            if (id.includes('@mdi')) {
+              return 'mdi'
+            }
+          }
+        },
+        chunkFileNames: 'assets/js/[name]-[hash].js',
+        entryFileNames: 'assets/js/[name]-[hash].js',
+        assetFileNames: 'assets/[ext]/[name]-[hash].[ext]',
+      },
+    },
+    target: 'esnext',
+    cssCodeSplit: true,
+    assetsInlineLimit: 4096,
+    chunkSizeWarningLimit: 600,
+  },
   optimizeDeps: {
     exclude: [
       'vuetify',

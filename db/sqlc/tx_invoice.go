@@ -135,7 +135,6 @@ func (store *SQLStore) SalesInvoiceTx(ctx context.Context, arg SalesInvoiceTxPar
 			Subtotal:        arg.SubTotal,
 			DiscountedTotal: arg.DiscountedTotal,
 			GrandTotal:      arg.GrandTotal,
-			PriceListID:     arg.PriceListID,
 		})
 		if err != nil {
 			return err

@@ -1,0 +1,38 @@
+### Create a product
+POST {{baseUrl}}/products
+Content-Type: application/json
+Authorization: bearer {{token}}
+
+{
+  "code": "P-001",
+  "name": "Blue T-Shirt",
+  "description": "Cotton t-shirt, slim fit",
+  "price": 2500,
+  "discount": 10,
+  "attributes": {
+    "category": "clothing",
+    "subcategory": "t-shirts",
+    "brand": "Acme",
+    "kind": "casual",
+    "type": "regular",
+    "unit": "piece",
+    "year": "2026",
+    "season": "summer",
+    "origin": "Turkey"
+  },
+  "barcode": 1234567890,
+  "color_id": null,
+  "size_id": null
+}
+
+### Get a product by id
+GET {{baseUrl}}/products/1
+Authorization: bearer {{token}}
+
+### List products (paginated)
+GET {{baseUrl}}/products?page_size=10&page_id=0
+Authorization: bearer {{token}}
+
+### Delete a product
+DELETE {{baseUrl}}/products/1
+Authorization: bearer {{token}}

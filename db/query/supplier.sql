@@ -21,3 +21,6 @@ SELECT * FROM suppliers
 ORDER BY id
 LIMIT $1
 OFFSET $2;
+
+-- name: CountSuppliers :one
+SELECT COUNT(*) FROM suppliers;

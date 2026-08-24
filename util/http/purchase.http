@@ -1,0 +1,30 @@
+### Create a purchase
+POST {{baseUrl}}/purchases
+Content-Type: application/json
+Authorization: bearer {{token}}
+
+{
+  "supplier_id": 1,
+  "purchased_at": "2026-07-01T10:00:00Z"
+}
+
+### Get a purchase by id
+GET {{baseUrl}}/purchases/1
+Authorization: bearer {{token}}
+
+### List purchases
+GET {{baseUrl}}/purchases?page_size=10&page_id=0
+Authorization: bearer {{token}}
+
+### Add an item to a purchase
+POST {{baseUrl}}/purchases/items
+Content-Type: application/json
+Authorization: bearer {{token}}
+
+{
+  "purchase_id": 1,
+  "product_id": 1,
+  "quantity": 100,
+  "unit_price": 2000,
+  "currency_code": "USC"
+}

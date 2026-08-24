@@ -3,101 +3,230 @@
     <v-row>
       <v-col cols="8">
         <div class="w-100">
-          <v-text-field density="compact" v-model="code.value.value" :counter="20"
-            :error-messages="name.errorMessage.value" label="Code"></v-text-field>
-          <v-text-field density="compact" v-model="name.value.value" :counter="100"
-            :error-messages="name.errorMessage.value" label="Name"></v-text-field>
-          <v-textarea no-resize v-model="description.value.value" :counter="100"
-            :error-messages="name.errorMessage.value" label="Description"></v-textarea>
+          <v-row>
+            <v-col cols="6">
+              <v-text-field
+                v-model="code.value.value"
+                :counter="20"
+                density="compact"
+                :error-messages="code.errorMessage.value"
+                label="Code"
+              />
+            </v-col>
+            <v-col cols="6">
+              <v-text-field
+                v-model="name.value.value"
+                :counter="100"
+                density="compact"
+                :error-messages="name.errorMessage.value"
+                label="Name"
+              />
+            </v-col>
+          </v-row>
 
-          <v-select density="compact" v-model="select.value.value" :error-messages="select.errorMessage.value"
-            :items="items" label="Kind"></v-select>
-          <v-select density="compact" v-model="select.value.value" :error-messages="select.errorMessage.value"
-            :items="items" label="Category"></v-select>
-          <v-select density="compact" v-model="select.value.value" :error-messages="select.errorMessage.value"
-            :items="items" label="SubCategory"></v-select>
-          <v-select density="compact" v-model="select.value.value" :error-messages="select.errorMessage.value"
-            :items="items" label="Unit"></v-select>
+          <v-textarea
+            v-model="description.value.value"
+            :counter="100"
+            :error-messages="description.errorMessage.value"
+            label="Description"
+            no-resize
+            rows="2"
+          />
 
-          <div class="d-flex">
-            <v-checkbox class="me-8" width="110" density="compact" v-model="hasColors.value.value"
-              :error-messages="hasColors.errorMessage.value" label="Has Colors" type="checkbox" value="1"></v-checkbox>
-            <v-select density="compact" multiple clearable v-model="selectedColors.value.value"
-              :error-messages="selectedColors.errorMessage.value" :items="colors" label="Select Colors"></v-select>
-          </div>
+          <v-row>
+            <v-col cols="4">
+              <v-text-field v-model="category.value.value" density="compact" label="Category" />
+            </v-col>
+            <v-col cols="4">
+              <v-text-field v-model="subCategory.value.value" density="compact" label="Sub-Category" />
+            </v-col>
+            <v-col cols="4">
+              <v-text-field v-model="brand.value.value" density="compact" label="Brand" />
+            </v-col>
+            <v-col cols="4">
+              <v-text-field v-model="kind.value.value" density="compact" label="Kind" />
+            </v-col>
+            <v-col cols="4">
+              <v-text-field v-model="type.value.value" density="compact" label="Type" />
+            </v-col>
+            <v-col cols="4">
+              <v-text-field v-model="unit.value.value" density="compact" label="Unit" />
+            </v-col>
+            <v-col cols="4">
+              <v-text-field v-model="year.value.value" density="compact" label="Year" />
+            </v-col>
+            <v-col cols="4">
+              <v-text-field v-model="season.value.value" density="compact" label="Season" />
+            </v-col>
+            <v-col cols="4">
+              <v-text-field v-model="origin.value.value" density="compact" label="Origin" />
+            </v-col>
+          </v-row>
 
-          <div class="d-flex">
-            <v-checkbox density="compact" width="110" class="me-8" v-model="hasSizes.value.value"
-              :error-messages="hasSizes.errorMessage.value" label="Has Sizes" type="checkbox" value="1"></v-checkbox>
-            <v-select density="compact" multiple clearable v-model="selectedSizes.value.value"
-              :error-messages="selectedSizes.errorMessage.value" :items="sizes" label="Select Sizes"></v-select>
+          <v-text-field
+            v-model.number="barcode.value.value"
+            clearable
+            density="compact"
+            :error-messages="barcode.errorMessage.value"
+            hint="Leave empty to auto-generate a barcode"
+            label="Barcode (optional)"
+            persistent-hint
+            type="number"
+          />
+
+          <div class="d-flex align-center mt-4" style="gap: 12px;">
+            <v-select
+              v-model="colorId.value.value"
+              clearable
+              density="compact"
+              :error-messages="colorId.errorMessage.value"
+              :item-title="c => c.name"
+              :item-value="c => c.id"
+              :items="colors"
+              label="Color"
+            >
+              <template #item="{ props: itemProps, item }">
+                <v-list-item v-bind="itemProps">
+                  <template #prepend>
+                    <div
+                      class="rounded me-2"
+                      :style="{ backgroundColor: item.raw.hexValue, width: '16px', height: '16px', border: '1px solid #999' }"
+                    />
+                  </template>
+                </v-list-item>
+              </template>
+            </v-select>
+            <v-select
+              v-model="sizeId.value.value"
+              clearable
+              density="compact"
+              :error-messages="sizeId.errorMessage.value"
+              :item-title="s => `${s.type}: ${s.name}`"
+              :item-value="s => s.id"
+              :items="sizes"
+              label="Size"
+            />
+            <ColorsSizesDialog />
           </div>
         </div>
       </v-col>
       <v-col class="4">
-        <v-card flat height="650" width="100%" class="pa-5">
+        <v-card class="pa-5" flat height="650" width="100%">
           <FileUploadCard />
         </v-card>
       </v-col>
     </v-row>
+
+    <v-alert v-if="submitError" class="mb-4" type="error" variant="tonal">{{ submitError }}</v-alert>
+
     <v-row>
       <v-col>
-        <v-btn class="w-100" @click="handleReset" variant="solid"> clear </v-btn>
+        <v-btn class="w-100" variant="solid" @click="handleReset"> clear </v-btn>
       </v-col>
       <v-col>
-        <v-btn class="me-4 w-100" type="submit" variant="solid"> Add Product </v-btn>
+        <v-btn class="me-4 w-100" :loading="submitting" type="submit" variant="solid"> Add Product </v-btn>
       </v-col>
     </v-row>
   </form>
 </template>
 <script setup>
-import { ref } from "vue";
-import { useField, useForm } from "vee-validate";
+  import { useField, useForm } from 'vee-validate'
+  import { ref } from 'vue'
+  import ColorsSizesDialog from '@/components/Forms/ColorsSizesDialog.vue'
+  import { useColorsAndSizes } from '@/composables/useColorsAndSizes'
+  import { API_BASE } from '@/config'
+  import { authFetch } from '@/composables/useApi'
 
-const { handleSubmit, handleReset } = useForm({
-  validationSchema: {
-    name(value) {
-      if (value?.length >= 2) return true;
+  const emit = defineEmits(['created'])
 
-      return "Name needs to be at least 2 characters.";
+  const { colors, sizes, fetchColors, fetchSizes } = useColorsAndSizes()
+  fetchColors()
+  fetchSizes()
+
+  const { handleSubmit, handleReset } = useForm({
+    validationSchema: {
+      code (value) {
+        if (value?.length >= 1) return true
+        return 'Code is required.'
+      },
+      name (value) {
+        if (value?.length >= 2) return true
+        return 'Name needs to be at least 2 characters.'
+      },
+      description (value) {
+        if (value?.length >= 1) return true
+        return 'Description is required.'
+      },
+      barcode () {
+        return true
+      },
+      colorId () {
+        return true
+      },
+      sizeId () {
+        return true
+      },
     },
-    phone(value) {
-      if (/^[0-9-]{7,}$/.test(value)) return true;
+  })
 
-      return "Phone number needs to be at least 7 digits.";
-    },
-    email(value) {
-      if (/^[a-z.-]+@[a-z.-]+\.[a-z]+$/i.test(value)) return true;
+  const code = useField('code')
+  const name = useField('name')
+  const description = useField('description')
+  const category = useField('category')
+  const subCategory = useField('subCategory')
+  const brand = useField('brand')
+  const kind = useField('kind')
+  const type = useField('type')
+  const unit = useField('unit')
+  const year = useField('year')
+  const season = useField('season')
+  const origin = useField('origin')
+  const barcode = useField('barcode')
+  const colorId = useField('colorId')
+  const sizeId = useField('sizeId')
 
-      return "Must be a valid e-mail.";
-    },
-    select(value) {
-      if (value) return true;
+  const submitting = ref(false)
+  const submitError = ref('')
 
-      return "Select an item.";
-    },
-    checkbox(value) {
-      if (value === "1") return true;
+  const submit = handleSubmit(async values => {
+    submitting.value = true
+    submitError.value = ''
+    try {
+      const res = await authFetch(`${API_BASE}/products`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: values.code,
+          name: values.name,
+          description: values.description,
+          attributes: {
+            category: values.category ?? '',
+            subcategory: values.subCategory ?? '',
+            brand: values.brand ?? '',
+            kind: values.kind ?? '',
+            type: values.type ?? '',
+            unit: values.unit ?? '',
+            year: values.year ?? '',
+            season: values.season ?? '',
+            origin: values.origin ?? '',
+          },
+          barcode: values.barcode || null,
+          color_id: values.colorId || null,
+          size_id: values.sizeId || null,
+        }),
+      })
 
-      return "Must be checked.";
-    },
-  },
-});
-const name = useField("name");
-const code = useField("email");
-const description = useField("phone");
-const select = useField("select");
-const checkbox = useField("checkbox");
-const selectedSizes = useField("selectedSizes");
-const selectedColors = useField("selectedColors");
-const hasColors = useField("hasColors");
-const hasSizes = useField("hasSizes");
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || `Request failed with status ${res.status}`)
+      }
 
-const items = ref(["Item 1", "Item 2", "Item 3", "Item 4"]);
-const colors = ref(["Blue", "White", "Orange", "Yellow"]);
-const sizes = ref(["XL", "L", "M", "S"]);
-
-const submit = handleSubmit((values) => {
-  alert(JSON.stringify(values, null, 2));
-});
+      handleReset()
+      emit('created')
+    } catch (error) {
+      submitError.value = error.message
+    } finally {
+      submitting.value = false
+    }
+  })
 </script>

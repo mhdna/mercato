@@ -24,3 +24,5 @@ OFFSET $2;
 UPDATE coupons 
   SET status = 'inactive'
 WHERE code = $1;
+-- name: CountCoupons :one
+SELECT COUNT(*) FROM coupons;

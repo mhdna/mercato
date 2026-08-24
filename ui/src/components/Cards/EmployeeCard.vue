@@ -6,12 +6,12 @@
       cover
     ></v-img> -->
   </v-avatar>
-  <v-list-item :subtitle="title" :title="props.name"></v-list-item>
+  <v-list-item :subtitle="title" :title="props.name" />
 </template>
 
 <script setup>
-const props = defineProps({
-  name: String,
-  title: String,
-});
+  const props = defineProps({
+    name: String,
+    title: String,
+  })
 </script>

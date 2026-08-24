@@ -1,0 +1,84 @@
+### Create a cashbox
+POST {{baseUrl}}/cashboxes
+Content-Type: application/json
+Authorization: bearer {{token}}
+
+{
+  "code": "CB-001",
+  "name": "Main Cash Register"
+}
+
+### Update a cashbox
+PUT {{baseUrl}}/cashboxes
+Content-Type: application/json
+Authorization: bearer {{token}}
+
+{
+  "id": 1,
+  "code": "CB-001",
+  "name": "Main Cash Register Updated"
+}
+
+### Get a cashbox by id
+GET {{baseUrl}}/cashboxes/1
+Authorization: bearer {{token}}
+
+### List cashboxes
+GET {{baseUrl}}/cashboxes/?page_size=10&page_id=0
+Authorization: bearer {{token}}
+
+### Create a cashbox account
+POST {{baseUrl}}/cashbox_accounts
+Content-Type: application/json
+Authorization: bearer {{token}}
+
+{
+  "name": "Cash"
+}
+
+### List cashbox accounts
+GET {{baseUrl}}/cashbox_accounts/?page_size=10&page_id=0
+Authorization: bearer {{token}}
+
+### Update a cashbox account
+PUT {{baseUrl}}/cashbox_accounts
+Content-Type: application/json
+Authorization: bearer {{token}}
+
+{
+  "id": 1,
+  "name": "Cash Updated"
+}
+
+### Add balance to a cashbox account
+POST {{baseUrl}}/cashbox_accounts/balance
+Content-Type: application/json
+Authorization: bearer {{token}}
+
+{
+  "account_id": 1,
+  "shift_id": 1,
+  "amount": 10000
+}
+
+### Create a shift
+POST {{baseUrl}}/shifts
+Content-Type: application/json
+Authorization: bearer {{token}}
+
+{
+  "cashbox_id": 1
+}
+
+### Close a shift
+POST {{baseUrl}}/shifts/1/close
+Authorization: bearer {{token}}
+
+### Get a shift by id
+GET {{baseUrl}}/shifts/1
+Authorization: bearer {{token}}
+
+### List shifts
+GET {{baseUrl}}/shifts?page_size=10&page_id=0
+Authorization: bearer {{token}}
+

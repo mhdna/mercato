@@ -19,16 +19,55 @@ func (server *Server) createAttributeValue(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, errorResponse(err))
 		return
 	}
-	arg := db.CreateAttributeValueParams{
-		Attribute: req.Attribute,
-		Value:     req.Value,
+	attribute, err := server.store.GetAttribute(ctx, req.Attribute)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		return
 	}
-	attributeValue, err := server.store.CreateAttributeValue(ctx, arg)
+
+	arg := db.UpsertAttributeValueParams{
+		AttributeID: attribute.ID,
+		Value:       req.Value,
+	}
+	attributeValue, err := server.store.UpsertAttributeValue(ctx, arg)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
 		return
 	}
 	ctx.JSON(http.StatusOK, attributeValue)
+}
+
+type createAttributeValuesRequest struct {
+	Items []createAttributeValueRequest `json:"items" binding:"required,min=1"`
+}
+
+func (server *Server) createAttributeValues(ctx *gin.Context) {
+	var req createAttributeValuesRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		return
+	}
+
+	var results []db.AttributesValue
+	for _, item := range req.Items {
+		attribute, err := server.store.GetAttribute(ctx, item.Attribute)
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+			return
+		}
+
+		arg := db.UpsertAttributeValueParams{
+			AttributeID: attribute.ID,
+			Value:       item.Value,
+		}
+		attributeValue, err := server.store.UpsertAttributeValue(ctx, arg)
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+			return
+		}
+		results = append(results, attributeValue)
+	}
+	ctx.JSON(http.StatusOK, results)
 }
 
 type getAttributeValue struct {
@@ -56,7 +95,7 @@ func (server *Server) getAttributeValue(ctx *gin.Context) {
 type listAttributeValuesRequest struct {
 	// AttributeID int64 `form:"attribute_id" binding:"min=1"`
 	PageSize int32 `form:"page_size,default=10" binding:"min=5,max=10"`
-	PageID   int32 `form:"page_id,default=1" binding:"min=1"`
+	PageID   int32 `form:"page_id,default=0" binding:"min=0"`
 }
 
 func (server *Server) listAttributeValues(ctx *gin.Context) {

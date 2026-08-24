@@ -1,5 +1,7 @@
 package db
 
+// TODO: Test line total
+
 import (
 	"context"
 	"testing"
@@ -67,10 +69,7 @@ func TestAddInvoiceProduct(t *testing.T) {
 	arg := AddInvoiceProductParams{
 		InvoiceID: salesInvoice.ID,
 		ProductID: product.ID,
-		UnitPrice: product.Price,
-		Discount:  product.Discount,
 		Quantity:  util.RandomQuantity(),
-		LineTotal: product.Price * util.RandomQuantity(),
 	}
 
 	result, err := testQueries.AddInvoiceProduct(context.Background(), arg)
@@ -181,10 +180,7 @@ func TestAddReturnInvoiceProduct(t *testing.T) {
 	arg := AddInvoiceProductParams{
 		InvoiceID: invoice.ID,
 		ProductID: product.ID,
-		UnitPrice: product.Price,
-		Discount:  product.Discount,
 		Quantity:  util.RandomQuantity(),
-		LineTotal: product.Price * util.RandomQuantity(),
 	}
 
 	result, err := testQueries.AddInvoiceProduct(context.Background(), arg)

@@ -24,10 +24,10 @@ INSERT INTO price_lists (
 
 type CreatePriceListParams struct {
 	Name      string    `json:"name"`
-	IsActive  bool      `json:"isActive"`
-	IsDefault bool      `json:"isDefault"`
-	ValidFrom time.Time `json:"validFrom"`
-	ValidTo   time.Time `json:"validTo"`
+	IsActive  bool      `json:"is_active"`
+	IsDefault bool      `json:"is_default"`
+	ValidFrom time.Time `json:"valid_from"`
+	ValidTo   time.Time `json:"valid_to"`
 }
 
 func (q *Queries) CreatePriceList(ctx context.Context, arg CreatePriceListParams) (PriceList, error) {
@@ -134,10 +134,10 @@ WHERE id = $1
 type UpdatePriceListParams struct {
 	ID        int64     `json:"id"`
 	Name      string    `json:"name"`
-	IsActive  bool      `json:"isActive"`
-	IsDefault bool      `json:"isDefault"`
-	ValidFrom time.Time `json:"validFrom"`
-	ValidTo   time.Time `json:"validTo"`
+	IsActive  bool      `json:"is_active"`
+	IsDefault bool      `json:"is_default"`
+	ValidFrom time.Time `json:"valid_from"`
+	ValidTo   time.Time `json:"valid_to"`
 }
 
 func (q *Queries) UpdatePriceList(ctx context.Context, arg UpdatePriceListParams) error {

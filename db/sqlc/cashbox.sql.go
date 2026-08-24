@@ -7,6 +7,7 @@ package db
 
 import (
 	"context"
+	"database/sql"
 )
 
 const addCashboxAccountBalance = `-- name: AddCashboxAccountBalance :one
@@ -18,8 +19,8 @@ RETURNING account_id, shift_id, balance
 `
 
 type AddCashboxAccountBalanceParams struct {
-	AccountID int64 `json:"accountId"`
-	ShiftID   int64 `json:"shiftId"`
+	AccountID int64 `json:"account_id"`
+	ShiftID   int64 `json:"shift_id"`
 	Balance   int64 `json:"balance"`
 }
 
@@ -43,7 +44,7 @@ RETURNING id, name, code, is_active, created_at
 type CreateCashboxParams struct {
 	Code     string `json:"code"`
 	Name     string `json:"name"`
-	IsActive bool   `json:"isActive"`
+	IsActive bool   `json:"is_active"`
 }
 
 func (q *Queries) CreateCashbox(ctx context.Context, arg CreateCashboxParams) (Cashbox, error) {
@@ -72,6 +73,37 @@ func (q *Queries) CreateCashboxAccount(ctx context.Context, name string) (Cashbo
 	var i CashboxAccount
 	err := row.Scan(&i.ID, &i.Name)
 	return i, err
+}
+
+const createSalesperson = `-- name: CreateSalesperson :one
+INSERT INTO salespersons (
+  name,
+  cashbox_id
+)
+VALUES ( $1, $2 )
+RETURNING id, name, cashbox_id
+`
+
+type CreateSalespersonParams struct {
+	Name      string        `json:"name"`
+	CashboxID sql.NullInt64 `json:"cashbox_id"`
+}
+
+func (q *Queries) CreateSalesperson(ctx context.Context, arg CreateSalespersonParams) (Salesperson, error) {
+	row := q.db.QueryRowContext(ctx, createSalesperson, arg.Name, arg.CashboxID)
+	var i Salesperson
+	err := row.Scan(&i.ID, &i.Name, &i.CashboxID)
+	return i, err
+}
+
+const deleteSalesperson = `-- name: DeleteSalesperson :exec
+DELETE FROM salespersons
+WHERE id = $1
+`
+
+func (q *Queries) DeleteSalesperson(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, deleteSalesperson, id)
+	return err
 }
 
 const getCashbox = `-- name: GetCashbox :one
@@ -112,8 +144,8 @@ AND shift_id = $2
 `
 
 type GetCashboxAccountBalanceParams struct {
-	AccountID int64 `json:"accountId"`
-	ShiftID   int64 `json:"shiftId"`
+	AccountID int64 `json:"account_id"`
+	ShiftID   int64 `json:"shift_id"`
 }
 
 func (q *Queries) GetCashboxAccountBalance(ctx context.Context, arg GetCashboxAccountBalanceParams) (ShiftsAccountsBalance, error) {
@@ -121,6 +153,46 @@ func (q *Queries) GetCashboxAccountBalance(ctx context.Context, arg GetCashboxAc
 	var i ShiftsAccountsBalance
 	err := row.Scan(&i.AccountID, &i.ShiftID, &i.Balance)
 	return i, err
+}
+
+const getSalesperson = `-- name: GetSalesperson :one
+SELECT id, name, cashbox_id FROM salespersons
+WHERE id = $1 LIMIT 1
+`
+
+func (q *Queries) GetSalesperson(ctx context.Context, id int64) (Salesperson, error) {
+	row := q.db.QueryRowContext(ctx, getSalesperson, id)
+	var i Salesperson
+	err := row.Scan(&i.ID, &i.Name, &i.CashboxID)
+	return i, err
+}
+
+const listAllCashboxAccounts = `-- name: ListAllCashboxAccounts :many
+SELECT id, name FROM cashbox_accounts
+ORDER BY id
+`
+
+func (q *Queries) ListAllCashboxAccounts(ctx context.Context) ([]CashboxAccount, error) {
+	rows, err := q.db.QueryContext(ctx, listAllCashboxAccounts)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []CashboxAccount{}
+	for rows.Next() {
+		var i CashboxAccount
+		if err := rows.Scan(&i.ID, &i.Name); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listCashboxAccounts = `-- name: ListCashboxAccounts :many
@@ -199,6 +271,70 @@ func (q *Queries) ListCashboxes(ctx context.Context, arg ListCashboxesParams) ([
 	return items, nil
 }
 
+const listSalespersons = `-- name: ListSalespersons :many
+SELECT id, name, cashbox_id FROM salespersons
+ORDER BY id
+LIMIT $1
+OFFSET $2
+`
+
+type ListSalespersonsParams struct {
+	Limit  int32 `json:"limit"`
+	Offset int32 `json:"offset"`
+}
+
+func (q *Queries) ListSalespersons(ctx context.Context, arg ListSalespersonsParams) ([]Salesperson, error) {
+	rows, err := q.db.QueryContext(ctx, listSalespersons, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Salesperson{}
+	for rows.Next() {
+		var i Salesperson
+		if err := rows.Scan(&i.ID, &i.Name, &i.CashboxID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listSalespersonsByCashbox = `-- name: ListSalespersonsByCashbox :many
+SELECT id, name, cashbox_id FROM salespersons
+WHERE cashbox_id = $1
+ORDER BY id
+`
+
+func (q *Queries) ListSalespersonsByCashbox(ctx context.Context, cashboxID sql.NullInt64) ([]Salesperson, error) {
+	rows, err := q.db.QueryContext(ctx, listSalespersonsByCashbox, cashboxID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Salesperson{}
+	for rows.Next() {
+		var i Salesperson
+		if err := rows.Scan(&i.ID, &i.Name, &i.CashboxID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateCashbox = `-- name: UpdateCashbox :one
 UPDATE cashboxes
 SET code = $2,
@@ -212,7 +348,7 @@ type UpdateCashboxParams struct {
 	ID       int64  `json:"id"`
 	Code     string `json:"code"`
 	Name     string `json:"name"`
-	IsActive bool   `json:"isActive"`
+	IsActive bool   `json:"is_active"`
 }
 
 func (q *Queries) UpdateCashbox(ctx context.Context, arg UpdateCashboxParams) (Cashbox, error) {
@@ -249,5 +385,26 @@ func (q *Queries) UpdateCashboxAccount(ctx context.Context, arg UpdateCashboxAcc
 	row := q.db.QueryRowContext(ctx, updateCashboxAccount, arg.ID, arg.Name)
 	var i CashboxAccount
 	err := row.Scan(&i.ID, &i.Name)
+	return i, err
+}
+
+const updateSalesperson = `-- name: UpdateSalesperson :one
+UPDATE salespersons
+SET name = $2,
+cashbox_id = $3
+WHERE id = $1
+RETURNING id, name, cashbox_id
+`
+
+type UpdateSalespersonParams struct {
+	ID        int64         `json:"id"`
+	Name      string        `json:"name"`
+	CashboxID sql.NullInt64 `json:"cashbox_id"`
+}
+
+func (q *Queries) UpdateSalesperson(ctx context.Context, arg UpdateSalespersonParams) (Salesperson, error) {
+	row := q.db.QueryRowContext(ctx, updateSalesperson, arg.ID, arg.Name, arg.CashboxID)
+	var i Salesperson
+	err := row.Scan(&i.ID, &i.Name, &i.CashboxID)
 	return i, err
 }

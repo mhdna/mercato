@@ -2,7 +2,7 @@
 <template>
   <div class="text-center d-flex justify-space-between align-center">
     <v-menu v-model="menu" :close-on-content-click="false">
-      <template v-slot:activator="{ props }">
+      <template #activator="{ props }">
         <!-- <v-tooltip text="Notifications" max-width="300" location="bottom"> -->
         <!--   <template v-slot:activator="{ props }"> -->
         <v-badge v-bind="props" class="me-1" color="red-darken-4" content="9+">
@@ -12,7 +12,7 @@
         <!-- </v-tooltip> -->
       </template>
 
-      <v-card max-width="400" class="overflow-y-auto" max-height="520">
+      <v-card class="overflow-y-auto" max-height="520" max-width="400">
         <!-- <v-list> -->
         <!--   <v-list-item -->
         <!--     prepend-avatar="https://cdn.vuetifyjs.com/images/john.jpg" -->
@@ -30,11 +30,11 @@
         <!--   </v-list-item> -->
         <!-- </v-list> -->
 
-        <v-divider></v-divider>
+        <v-divider />
 
-        <v-list :items="items" lines="three" item-props>
-          <template v-slot:subtitle="{ subtitle }">
-            <div v-html="subtitle"></div>
+        <v-list item-props :items="items" lines="three">
+          <template #subtitle="{ subtitle }">
+            <div v-html="subtitle" />
           </template>
         </v-list>
 
@@ -51,57 +51,50 @@
   </div>
 </template>
 <script setup>
-import { ref } from "vue";
+  import { ref } from 'vue'
 
-const fav = ref(true);
-const menu = ref(false);
-const message = ref(false);
-const hints = ref(true);
-const items = [
-  { type: "subheader", title: "Today" },
-  {
-    prependAvatar: "https://cdn.vuetifyjs.com/images/lists/1.jpg",
-    title: "Brunch this weekend?",
-    subtitle: `<span class="text-primary">Ali Connors</span> &mdash; I'll be in your neighborhood doing errands this weekend. Do you want to hang out?`,
-  },
-  { type: "divider", inset: true },
-  {
-    prependAvatar: "https://cdn.vuetifyjs.com/images/lists/2.jpg",
-    title: "Summer BBQ",
-    subtitle: `<span class="text-primary">to Alex, Scott, Jennifer</span> &mdash; Wish I could come, but I'm out of town this weekend.`,
-  },
-  { type: "divider", inset: true },
-  {
-    prependAvatar: "https://cdn.vuetifyjs.com/images/lists/3.jpg",
-    title: "Oui oui",
-    subtitle:
-      '<span class="text-primary">Sandra Adams</span> &mdash; Do you have Paris recommendations? Have you ever been?',
-  },
-  { type: "divider", inset: true },
-  {
-    prependAvatar: "https://cdn.vuetifyjs.com/images/lists/4.jpg",
-    title: "Birthday gift",
-    subtitle:
-      '<span class="text-primary">Trevor Hansen</span> &mdash; Have any ideas about what we should get Heidi for her birthday?',
-  },
-  {
-    prependAvatar: "https://cdn.vuetifyjs.com/images/lists/5.jpg",
-    title: "Recipe to try",
-    subtitle:
-      '<span class="text-primary">Britta Holt</span> &mdash; We should eat this: Grate, Squash, Corn, and tomatillo Tacos.',
-  },
-  { type: "divider", inset: true },
-  {
-    prependAvatar: "https://cdn.vuetifyjs.com/images/lists/5.jpg",
-    title: "Recipe to try",
-    subtitle:
-      '<span class="text-primary">Britta Holt</span> &mdash; We should eat this: Grate, Squash, Corn, and tomatillo Tacos.',
-  },
-  {
-    prependAvatar: "https://cdn.vuetifyjs.com/images/lists/5.jpg",
-    title: "Recipe to try",
-    subtitle:
-      '<span class="text-primary">Britta Holt</span> &mdash; We should eat this: Grate, Squash, Corn, and tomatillo Tacos.',
-  },
-];
+  const fav = ref(true)
+  const menu = ref(false)
+  const message = ref(false)
+  const hints = ref(true)
+  const stock = (product) => Math.floor(Math.random() * 25)
+
+  const items = [
+    { type: 'subheader', title: 'Low Stock Alerts' },
+    {
+      prependIcon: 'mdi-tshirt-crew',
+      title: 'Lady T-Shirt',
+      subtitle: `Code: 8000000135892 &mdash; Only ${stock()} items left &mdash; $22.00`,
+    },
+    { type: 'divider', inset: true },
+    {
+      prependIcon: 'mdi-bag-personal',
+      title: 'Travel Bag',
+      subtitle: `Code: 8000000246713 &mdash; Only ${stock()} items left &mdash; $90.00`,
+    },
+    { type: 'divider', inset: true },
+    {
+      prependIcon: 'mdi-hanger',
+      title: 'Kids Boy Pants',
+      subtitle: `Code: 8000000357424 &mdash; Only ${stock()} items left &mdash; $49.99`,
+    },
+    { type: 'divider', inset: true },
+    {
+      prependIcon: 'mdi-hanger',
+      title: 'Baby Shorts',
+      subtitle: `Code: 8000000468135 &mdash; Only ${stock()} items left &mdash; $39.99`,
+    },
+    { type: 'divider', inset: true },
+    {
+      prependIcon: 'mdi-hanger',
+      title: 'Kids Sweatshirt',
+      subtitle: `Code: 8000000579246 &mdash; Only ${stock()} items left &mdash; $39.00`,
+    },
+    { type: 'divider', inset: true },
+    {
+      prependIcon: 'mdi-shoe-sneaker',
+      title: 'Men Sneakers',
+      subtitle: `Code: 8000000680157 &mdash; Only ${stock()} items left &mdash; $35.00`,
+    },
+  ]
 </script>

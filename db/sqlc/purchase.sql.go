@@ -25,12 +25,12 @@ RETURNING id, purchase_id, product_id, asset_id, quantity, unit_price, currency_
 `
 
 type AddPurchaseItemParams struct {
-	PurchaseID   sql.NullInt64 `json:"purchaseId"`
-	ProductID    sql.NullInt64 `json:"productId"`
-	AssetID      sql.NullInt64 `json:"assetId"`
+	PurchaseID   sql.NullInt64 `json:"purchase_id"`
+	ProductID    sql.NullInt64 `json:"product_id"`
+	AssetID      sql.NullInt64 `json:"asset_id"`
 	Quantity     int64         `json:"quantity"`
-	UnitPrice    int64         `json:"unitPrice"`
-	CurrencyCode string        `json:"currencyCode"`
+	UnitPrice    int64         `json:"unit_price"`
+	CurrencyCode string        `json:"currency_code"`
 }
 
 func (q *Queries) AddPurchaseItem(ctx context.Context, arg AddPurchaseItemParams) (PurchaseItem, error) {
@@ -65,8 +65,8 @@ RETURNING id, product_id, supplier_id
 `
 
 type AddPurchasedProductParams struct {
-	ProductID  int64 `json:"productId"`
-	SupplierID int64 `json:"supplierId"`
+	ProductID  int64 `json:"product_id"`
+	SupplierID int64 `json:"supplier_id"`
 }
 
 func (q *Queries) AddPurchasedProduct(ctx context.Context, arg AddPurchasedProductParams) (ProductSupplier, error) {
@@ -87,9 +87,9 @@ RETURNING product_supplier_id, unit_cost, currency_code, created_at
 `
 
 type AddPurchasedProductCostParams struct {
-	ProductSupplierID int64  `json:"productSupplierId"`
-	UnitCost          int64  `json:"unitCost"`
-	CurrencyCode      string `json:"currencyCode"`
+	ProductSupplierID int64  `json:"product_supplier_id"`
+	UnitCost          int64  `json:"unit_cost"`
+	CurrencyCode      string `json:"currency_code"`
 }
 
 func (q *Queries) AddPurchasedProductCost(ctx context.Context, arg AddPurchasedProductCostParams) (ProductSupplierCost, error) {
@@ -104,6 +104,17 @@ func (q *Queries) AddPurchasedProductCost(ctx context.Context, arg AddPurchasedP
 	return i, err
 }
 
+const countPurchases = `-- name: CountPurchases :one
+SELECT COUNT(*) FROM purchases
+`
+
+func (q *Queries) CountPurchases(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countPurchases)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createPurchase = `-- name: CreatePurchase :one
 INSERT INTO purchases (
   supplier_id,
@@ -114,8 +125,8 @@ RETURNING id, supplier_id, purchased_at
 `
 
 type CreatePurchaseParams struct {
-	SupplierID  int64     `json:"supplierId"`
-	PurchasedAt time.Time `json:"purchasedAt"`
+	SupplierID  int64     `json:"supplier_id"`
+	PurchasedAt time.Time `json:"purchased_at"`
 }
 
 func (q *Queries) CreatePurchase(ctx context.Context, arg CreatePurchaseParams) (Purchase, error) {

@@ -22,7 +22,7 @@ RETURNING id, name, email, password_hash, password_changed_at, activated, versio
 type CreateUserParams struct {
 	Name         string `json:"name"`
 	Email        string `json:"email"`
-	PasswordHash []byte `json:"passwordHash"`
+	PasswordHash string `json:"password_hash"`
 	Activated    bool   `json:"activated"`
 }
 
@@ -64,6 +64,27 @@ WHERE id = $1 LIMIT 1
 
 func (q *Queries) GetUser(ctx context.Context, id int64) (User, error) {
 	row := q.db.QueryRowContext(ctx, getUser, id)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Email,
+		&i.PasswordHash,
+		&i.PasswordChangedAt,
+		&i.Activated,
+		&i.Version,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getUserByUsername = `-- name: GetUserByUsername :one
+SELECT id, name, email, password_hash, password_changed_at, activated, version, created_at FROM users
+WHERE name = $1 LIMIT 1
+`
+
+func (q *Queries) GetUserByUsername(ctx context.Context, name string) (User, error) {
+	row := q.db.QueryRowContext(ctx, getUserByUsername, name)
 	var i User
 	err := row.Scan(
 		&i.ID,
@@ -126,7 +147,8 @@ const updateUser = `-- name: UpdateUser :exec
 UPDATE users
   SET name = $2,
   email = $3,
-  password_hash = $4
+  password_hash = $4,
+  activated = $5
 WHERE id = $1
 `
 
@@ -134,7 +156,8 @@ type UpdateUserParams struct {
 	ID           int64  `json:"id"`
 	Name         string `json:"name"`
 	Email        string `json:"email"`
-	PasswordHash []byte `json:"passwordHash"`
+	PasswordHash string `json:"password_hash"`
+	Activated    bool   `json:"activated"`
 }
 
 func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) error {
@@ -143,6 +166,7 @@ func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) error {
 		arg.Name,
 		arg.Email,
 		arg.PasswordHash,
+		arg.Activated,
 	)
 	return err
 }

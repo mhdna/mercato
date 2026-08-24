@@ -32,3 +32,5 @@ UPDATE clients
   SET total_loyalty_points = total_loyalty_points + $2,
   valid_loyalty_points = valid_loyalty_points + $3
 WHERE id = $1;
+-- name: CountClients :one
+SELECT COUNT(*) FROM clients;

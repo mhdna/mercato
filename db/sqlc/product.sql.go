@@ -9,34 +9,35 @@ import (
 	"context"
 )
 
+const countProducts = `-- name: CountProducts :one
+SELECT COUNT(*) FROM products
+`
+
+func (q *Queries) CountProducts(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countProducts)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createProduct = `-- name: CreateProduct :one
 INSERT INTO products (
   code,
   name,
-  description,
-  price,
-  discount
+  description
 ) VALUES (
-    $1, $2, $3, $4, $5
-) RETURNING id, code, name, description, is_active, price, discount, created_at
+    $1, $2, $3
+) RETURNING id, code, name, description, is_active, created_at
 `
 
 type CreateProductParams struct {
 	Code        string `json:"code"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
-	Price       int64  `json:"price"`
-	Discount    int16  `json:"discount"`
 }
 
 func (q *Queries) CreateProduct(ctx context.Context, arg CreateProductParams) (Product, error) {
-	row := q.db.QueryRowContext(ctx, createProduct,
-		arg.Code,
-		arg.Name,
-		arg.Description,
-		arg.Price,
-		arg.Discount,
-	)
+	row := q.db.QueryRowContext(ctx, createProduct, arg.Code, arg.Name, arg.Description)
 	var i Product
 	err := row.Scan(
 		&i.ID,
@@ -44,8 +45,6 @@ func (q *Queries) CreateProduct(ctx context.Context, arg CreateProductParams) (P
 		&i.Name,
 		&i.Description,
 		&i.IsActive,
-		&i.Price,
-		&i.Discount,
 		&i.CreatedAt,
 	)
 	return i, err
@@ -62,7 +61,7 @@ func (q *Queries) DeleteProduct(ctx context.Context, id int64) error {
 }
 
 const getProduct = `-- name: GetProduct :one
-SELECT id, code, name, description, is_active, price, discount, created_at FROM products
+SELECT id, code, name, description, is_active, created_at FROM products
 WHERE id = $1 LIMIT 1
 `
 
@@ -75,16 +74,14 @@ func (q *Queries) GetProduct(ctx context.Context, id int64) (Product, error) {
 		&i.Name,
 		&i.Description,
 		&i.IsActive,
-		&i.Price,
-		&i.Discount,
 		&i.CreatedAt,
 	)
 	return i, err
 }
 
 const listProducts = `-- name: ListProducts :many
-SELECT id, code, name, description, is_active, price, discount, created_at FROM products
-ORDER BY name
+SELECT id, code, name, description, is_active, created_at FROM products
+ORDER BY id
 LIMIT $1
 OFFSET $2
 `
@@ -109,8 +106,6 @@ func (q *Queries) ListProducts(ctx context.Context, arg ListProductsParams) ([]P
 			&i.Name,
 			&i.Description,
 			&i.IsActive,
-			&i.Price,
-			&i.Discount,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err
@@ -127,7 +122,7 @@ func (q *Queries) ListProducts(ctx context.Context, arg ListProductsParams) ([]P
 }
 
 const updateProduct = `-- name: UpdateProduct :exec
-UPDATE products 
+UPDATE products
   SET name = $2,
   code = $3,
   description = $4

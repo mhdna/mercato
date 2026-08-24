@@ -60,3 +60,41 @@ SELECT * FROM cashbox_accounts
 ORDER BY id
 LIMIT $1
 OFFSET $2;
+
+-- name: CreateSalesperson :one
+INSERT INTO salespersons (
+  name,
+  cashbox_id
+)
+VALUES ( $1, $2 )
+RETURNING *;
+
+-- name: GetSalesperson :one
+SELECT * FROM salespersons
+WHERE id = $1 LIMIT 1;
+
+-- name: ListSalespersons :many
+SELECT * FROM salespersons
+ORDER BY id
+LIMIT $1
+OFFSET $2;
+
+-- name: ListSalespersonsByCashbox :many
+SELECT * FROM salespersons
+WHERE cashbox_id = $1
+ORDER BY id;
+
+-- name: ListAllCashboxAccounts :many
+SELECT * FROM cashbox_accounts
+ORDER BY id;
+
+-- name: UpdateSalesperson :one
+UPDATE salespersons
+SET name = $2,
+cashbox_id = $3
+WHERE id = $1
+RETURNING *;
+
+-- name: DeleteSalesperson :exec
+DELETE FROM salespersons
+WHERE id = $1;

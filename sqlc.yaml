@@ -19,7 +19,7 @@ packages:
     emit_pointers_for_null_types: false
     emit_enum_valid_method: false
     emit_all_enum_values: false
-    json_tags_case_style: "camel"
+    json_tags_case_style: "snake"
     omit_unused_structs: false
     output_batch_file_name: "batch.go"
     output_db_file_name: "db.go"

@@ -1,0 +1,45 @@
+### Create a user
+POST {{baseUrl}}/users
+Content-Type: application/json
+Authorization: bearer {{token}}
+
+{
+  "name": "johndoe",
+  "email": "john@example.com",
+  "password": "secret123",
+  "activated": true
+}
+
+### Login (returns an access token)
+POST {{baseUrl}}/users/login
+Content-Type: application/json
+
+{
+  "name": "mahdi",
+  "password": "mahdii"
+}
+
+### Get a user by id
+GET {{baseUrl}}/users/1
+Authorization: bearer {{token}}
+
+### List users
+GET {{baseUrl}}/users?page_size=10&page_id=0
+Authorization: bearer {{token}}
+
+### Update a user
+PUT {{baseUrl}}/users
+Content-Type: application/json
+Authorization: bearer {{token}}
+
+{
+  "id": 1,
+  "name": "mahdi",
+  "email": "mahdi@example.com",
+  "password": "mahdii",
+  "activate": true
+}
+
+### Delete a user
+DELETE {{baseUrl}}/users/1
+Authorization: bearer {{token}}

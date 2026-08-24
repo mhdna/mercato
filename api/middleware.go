@@ -16,6 +16,27 @@ var (
 	authoizationPayloadKey  = "authorization_payload"
 )
 
+// corsMiddleware reflects back the request's Origin header so the Vite dev
+// server (a different origin/port than the API) can call these routes.
+func corsMiddleware() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		origin := ctx.GetHeader("Origin")
+		if origin != "" {
+			ctx.Header("Access-Control-Allow-Origin", origin)
+			ctx.Header("Vary", "Origin")
+		}
+		ctx.Header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+		ctx.Header("Access-Control-Allow-Headers", "Origin, Content-Type, Authorization")
+
+		if ctx.Request.Method == http.MethodOptions {
+			ctx.AbortWithStatus(http.StatusNoContent)
+			return
+		}
+
+		ctx.Next()
+	}
+}
+
 func authMiddleware(tokenMaker token.Maker) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		authorizationHeader := ctx.GetHeader(authorizationHeaderKey)

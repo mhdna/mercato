@@ -10,6 +10,17 @@ import (
 	"time"
 )
 
+const countCoupons = `-- name: CountCoupons :one
+SELECT COUNT(*) FROM coupons
+`
+
+func (q *Queries) CountCoupons(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countCoupons)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createCoupon = `-- name: CreateCoupon :one
 INSERT INTO coupons (
   code,
@@ -26,10 +37,10 @@ INSERT INTO coupons (
 type CreateCouponParams struct {
 	Code         string       `json:"code"`
 	Status       CouponStatus `json:"status"`
-	DiscountType DiscountType `json:"discountType"`
+	DiscountType DiscountType `json:"discount_type"`
 	Reason       string       `json:"reason"`
-	ClientID     int64        `json:"clientId"`
-	ValidUntil   time.Time    `json:"validUntil"`
+	ClientID     int64        `json:"client_id"`
+	ValidUntil   time.Time    `json:"valid_until"`
 }
 
 func (q *Queries) CreateCoupon(ctx context.Context, arg CreateCouponParams) (Coupon, error) {

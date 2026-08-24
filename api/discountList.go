@@ -65,7 +65,7 @@ func (server *Server) getDiscountList(ctx *gin.Context) {
 
 type listDiscountListsRequest struct {
 	PageSize int32 `form:"page_size,default=10" binding:"min=5,max=10"`
-	PageID   int32 `form:"page_id,default=1" binding:"min=1"`
+	PageID   int32 `form:"page_id,default=0" binding:"min=0"`
 }
 
 func (server *Server) listDiscountLists(ctx *gin.Context) {
@@ -84,7 +84,49 @@ func (server *Server) listDiscountLists(ctx *gin.Context) {
 		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
 		return
 	}
-	ctx.JSON(http.StatusOK, discountLists)
+
+	total, err := server.store.CountDiscountLists(ctx)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"discount_lists": discountLists, "total": total})
+}
+
+type updateDiscountListRequest struct {
+	ID        int64     `json:"id" binding:"required,min=1"`
+	Name      string    `json:"name" binding:"required"`
+	IsActive  bool      `json:"is_active"`
+	IsDefault bool      `json:"is_default"`
+	ValidFrom time.Time `json:"valid_from"`
+	ValidTo   time.Time `json:"valid_to"`
+}
+
+func (server *Server) updateDiscountList(ctx *gin.Context) {
+	var req updateDiscountListRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		return
+	}
+
+	err := server.store.UpdateDiscountList(ctx, db.UpdateDiscountListParams{
+		ID:        req.ID,
+		Name:      req.Name,
+		IsActive:  req.IsActive,
+		IsDefault: req.IsDefault,
+		ValidFrom: req.ValidFrom,
+		ValidTo:   req.ValidTo,
+	})
+	if err != nil {
+		if err == sql.ErrNoRows {
+			ctx.JSON(http.StatusBadRequest, errorResponse(err))
+			return
+		}
+		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		return
+	}
+	ctx.JSON(http.StatusOK, gin.H{"status": "updated"})
 }
 
 type createDiscountListItemRequest struct {

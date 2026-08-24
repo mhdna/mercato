@@ -2,17 +2,17 @@
   <v-container>
     <v-row>
       <v-btn>Import Excel Sheet</v-btn>
-      <v-checkbox v-model="multiLine" label="Multi-Line Mode"></v-checkbox>
+      <v-checkbox v-model="multiLine" label="Multi-Line Mode" />
     </v-row>
     <v-row v-if="!multiLine">
       <v-text-field
         hide-details="auto"
         label="Enter your barcode"
-      ></v-text-field>
+      />
     </v-row>
     <v-row>
       <v-col v-if="multiLine" cols="4">
-        <v-textarea label="Barcode,Quantity" variant="outlined"></v-textarea>
+        <v-textarea label="Barcode,Quantity" variant="outlined" />
       </v-col>
       <v-col>
         <server-side-table />
@@ -26,7 +26,7 @@
 </template>
 
 <script setup>
-import ServerSideTable from "@/components/Tables/ServerSideTable.vue";
+  import ServerSideTable from '@/components/Tables/ServerSideTable.vue'
 
-const multiLine = ref(false);
+  const multiLine = ref(false)
 </script>

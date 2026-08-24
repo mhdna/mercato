@@ -1,13 +1,22 @@
 <template>
   <div>
-    <v-img class="mx-auto my-6" max-width="228"
-      src="https://cdn.vuetifyjs.com/docs/images/logos/vuetify-logo-v3-slim-text-light.svg" />
+    <v-img
+      class="mx-auto my-6"
+      max-width="228"
+      src="https://cdn.vuetifyjs.com/docs/images/logos/vuetify-logo-v3-slim-text-light.svg"
+    />
 
     <v-card class="mx-auto pa-12 pb-8" elevation="8" max-width="448" rounded="lg">
       <div class="text-subtitle-1 text-medium-emphasis">Account</div>
 
-      <v-text-field density="compact" placeholder="Email address" prepend-inner-icon="mdi-email-outline"
-        variant="outlined" />
+      <v-text-field
+        v-model="username"
+        density="compact"
+        placeholder="Username"
+        prepend-inner-icon="mdi-account-outline"
+        variant="outlined"
+        @keyup.enter="submit"
+      />
 
       <div class="text-subtitle-1 text-medium-emphasis d-flex align-center justify-space-between">
         Password
@@ -21,9 +30,21 @@
         <!--   Forgot login password?</a> -->
       </div>
 
-      <v-text-field :append-inner-icon="visible ? 'mdi-eye-off' : 'mdi-eye'" density="compact"
-        placeholder="Enter your password" prepend-inner-icon="mdi-lock-outline" :type="visible ? 'text' : 'password'"
-        variant="outlined" @click:append-inner="visible = !visible"></v-text-field>
+      <v-text-field
+        v-model="password"
+        :append-inner-icon="visible ? 'mdi-eye-off' : 'mdi-eye'"
+        density="compact"
+        placeholder="Enter your password"
+        prepend-inner-icon="mdi-lock-outline"
+        :type="visible ? 'text' : 'password'"
+        variant="outlined"
+        @click:append-inner="visible = !visible"
+        @keyup.enter="submit"
+      />
+
+      <v-alert v-if="error" class="mb-4" type="error" variant="tonal">
+        {{ error }}
+      </v-alert>
 
       <v-card class="mb-12" color="surface-variant" variant="tonal">
         <v-card-text class="text-medium-emphasis text-caption">
@@ -32,20 +53,50 @@
         </v-card-text>
       </v-card>
 
-      <v-btn class="mb-8" color="blue" size="large" variant="tonal" block>
+      <v-btn
+        block
+        class="mb-8"
+        color="blue"
+        :loading="submitting"
+        size="large"
+        variant="tonal"
+        @click="submit"
+      >
         Log In
       </v-btn>
 
       <v-card-text class="text-center">
         <a class="text-blue text-decoration-none" href="#" rel="noopener noreferrer" target="_blank">
-          Sign up now <v-icon icon="mdi-chevron-right"></v-icon>
+          Sign up now <v-icon icon="mdi-chevron-right" />
         </a>
       </v-card-text>
     </v-card>
   </div>
 </template>
 <script setup lang="ts">
-import { ref } from 'vue'
+  import { ref } from 'vue'
+  import { useRouter } from 'vue-router'
+  import { useAuthStore } from '@/stores/auth'
 
-const visible = ref(false)
+  const router = useRouter()
+  const authStore = useAuthStore()
+
+  const visible = ref(false)
+  const username = ref('')
+  const password = ref('')
+  const submitting = ref(false)
+  const error = ref('')
+
+  async function submit () {
+    error.value = ''
+    submitting.value = true
+    try {
+      await authStore.login(username.value, password.value)
+      router.push('/')
+    } catch (error_) {
+      error.value = error_.message
+    } finally {
+      submitting.value = false
+    }
+  }
 </script>

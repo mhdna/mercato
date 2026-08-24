@@ -19,8 +19,9 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	Kashi_CreateUser_FullMethodName = "/pb.Kashi/CreateUser"
-	Kashi_LoginUser_FullMethodName  = "/pb.Kashi/LoginUser"
+	Kashi_CreateUser_FullMethodName     = "/pb.Kashi/CreateUser"
+	Kashi_LoginUser_FullMethodName      = "/pb.Kashi/LoginUser"
+	Kashi_CreateInvetory_FullMethodName = "/pb.Kashi/CreateInvetory"
 )
 
 // KashiClient is the client API for Kashi service.
@@ -29,6 +30,7 @@ const (
 type KashiClient interface {
 	CreateUser(ctx context.Context, in *CreateUserRequest, opts ...grpc.CallOption) (*CreateUserResponse, error)
 	LoginUser(ctx context.Context, in *LoginUserRequest, opts ...grpc.CallOption) (*LoginUserResponse, error)
+	CreateInvetory(ctx context.Context, in *CreateInventoryRequest, opts ...grpc.CallOption) (*CreateInventoryResponse, error)
 }
 
 type kashiClient struct {
@@ -59,12 +61,23 @@ func (c *kashiClient) LoginUser(ctx context.Context, in *LoginUserRequest, opts 
 	return out, nil
 }
 
+func (c *kashiClient) CreateInvetory(ctx context.Context, in *CreateInventoryRequest, opts ...grpc.CallOption) (*CreateInventoryResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CreateInventoryResponse)
+	err := c.cc.Invoke(ctx, Kashi_CreateInvetory_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // KashiServer is the server API for Kashi service.
 // All implementations must embed UnimplementedKashiServer
 // for forward compatibility.
 type KashiServer interface {
 	CreateUser(context.Context, *CreateUserRequest) (*CreateUserResponse, error)
 	LoginUser(context.Context, *LoginUserRequest) (*LoginUserResponse, error)
+	CreateInvetory(context.Context, *CreateInventoryRequest) (*CreateInventoryResponse, error)
 	mustEmbedUnimplementedKashiServer()
 }
 
@@ -80,6 +93,9 @@ func (UnimplementedKashiServer) CreateUser(context.Context, *CreateUserRequest) 
 }
 func (UnimplementedKashiServer) LoginUser(context.Context, *LoginUserRequest) (*LoginUserResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method LoginUser not implemented")
+}
+func (UnimplementedKashiServer) CreateInvetory(context.Context, *CreateInventoryRequest) (*CreateInventoryResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CreateInvetory not implemented")
 }
 func (UnimplementedKashiServer) mustEmbedUnimplementedKashiServer() {}
 func (UnimplementedKashiServer) testEmbeddedByValue()               {}
@@ -138,6 +154,24 @@ func _Kashi_LoginUser_Handler(srv interface{}, ctx context.Context, dec func(int
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Kashi_CreateInvetory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateInventoryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(KashiServer).CreateInvetory(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Kashi_CreateInvetory_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(KashiServer).CreateInvetory(ctx, req.(*CreateInventoryRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Kashi_ServiceDesc is the grpc.ServiceDesc for Kashi service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -152,6 +186,10 @@ var Kashi_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "LoginUser",
 			Handler:    _Kashi_LoginUser_Handler,
+		},
+		{
+			MethodName: "CreateInvetory",
+			Handler:    _Kashi_CreateInvetory_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

@@ -29,7 +29,7 @@ func (server *Server) createCashboxAccount(ctx *gin.Context) {
 
 type listCashboxAccountsRequest struct {
 	PageSize int32 `form:"page_size,default=10" binding:"min=5,max=10"`
-	PageID   int32 `form:"page_id,default=1" binding:"min=1"`
+	PageID   int32 `form:"page_id,default=0" binding:"min=0"`
 }
 
 func (server *Server) listCashboxAccounts(ctx *gin.Context) {

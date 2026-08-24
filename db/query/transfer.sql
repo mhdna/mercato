@@ -39,3 +39,6 @@ FROM transfer_items t
 left join products p on product_id = p.id
 left join assets a on asset_id = a.id
 where t.transfer_id = $1;
+
+-- name: CountTransfers :one
+SELECT COUNT(*) FROM transfers;

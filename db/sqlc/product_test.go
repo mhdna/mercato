@@ -16,8 +16,6 @@ func createRandomProduct(t *testing.T) Product {
 		Name:        util.RandomString(20),
 		Code:        util.RandomString(8),
 		Description: util.RandomString(200),
-		Price:       util.RandomAmount(),
-		Discount:    util.RandomDiscount(),
 	}
 
 	product, err := testQueries.CreateProduct(context.Background(), arg)
@@ -26,8 +24,6 @@ func createRandomProduct(t *testing.T) Product {
 	require.Equal(t, arg.Name, product.Name)
 	require.Equal(t, arg.Code, product.Code)
 	require.Equal(t, arg.Description, product.Description)
-	require.Equal(t, arg.Price, product.Price)
-	require.Equal(t, arg.Discount, product.Discount)
 
 	require.NotZero(t, product.ID)
 	require.NotZero(t, product.CreatedAt)
@@ -49,8 +45,6 @@ func TestGetProduct(t *testing.T) {
 	require.Equal(t, product1.Name, product2.Name)
 	require.Equal(t, product1.Code, product2.Code)
 	require.Equal(t, product1.Description, product2.Description)
-	require.Equal(t, product1.Price, product2.Price)
-	require.Equal(t, product1.Discount, product2.Discount)
 	require.WithinDuration(t, product1.CreatedAt, product2.CreatedAt, time.Second)
 }
 

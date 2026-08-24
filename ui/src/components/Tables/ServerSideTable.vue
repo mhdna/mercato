@@ -1,80 +1,130 @@
 <template>
-    <v-card class="mx-2" flat>
-        <v-card-title class="card-title d-flex justify-space-between">
-            Latest Invoices
-            <v-text-field v-model="search" label="Search" prepend-inner-icon="mdi-magnify" variant="filled" clearable
-                hide-details class="mx-4 mb-1 w-100" density="compact" single-line max-width="380" />
-            <!-- <v-tooltip text="Search"> -->
-            <!--     <template v-slot:activator="{ props }"> -->
-            <!--         <v-btn v-bind="props" variant="flat" icon="mdi-magnify" @click="searchBar = !searchBar"></v-btn> -->
-            <!--     </template> -->
-            <!-- </v-tooltip> -->
-        </v-card-title>
-        <v-data-table-server v-model:items-per-page="itemsPerPage" :headers="headers" :items="serverItems"
-            hide-default-footer density="compact" :items-length="totalItems" :loading="loading" :search="search"
-            item-value="name" @update:options="loadItems"></v-data-table-server>
-    </v-card>
+  <v-card class="px-4 py-4" flat>
+    <v-card-title class="card-title d-flex justify-space-between">
+      {{ props.title }}
+      <v-icon icon="mdi-magnify" size="26" />
+    </v-card-title>
+    <v-alert
+      v-if="error"
+      class="mb-2"
+      closable
+      type="error"
+      variant="tonal"
+      @click:close="error = ''"
+    >
+      Failed to load data: {{ error }}
+      <template #append>
+        <v-btn size="small" text="Retry" variant="text" @click="reload" />
+      </template>
+    </v-alert>
+    <v-data-table-server
+      v-model:items-per-page="itemsPerPage"
+      density="compact"
+      :headers="headers"
+      item-value="id"
+      :items="serverItems"
+      :items-length="totalItems"
+      :items-per-page-options="itemsPerPageOptions"
+      :loading="loading"
+      @update:options="loadItemsTracked"
+    >
+      <template v-for="(_, slotName) of $slots" :key="slotName" #[slotName]="scope">
+        <slot :name="slotName" v-bind="scope" />
+      </template>
+    </v-data-table-server>
+  </v-card>
 </template>
 <script setup>
-import { ref } from 'vue'
+  import { ref } from 'vue'
+  import { dedupedFetch } from '@/composables/useRequestDedup'
 
-const searchBar = ref(false)
-const props = defineProps({
+  const props = defineProps({
     apiURL: {
-        type: String,
-        required: true,
+      type: String,
+      required: true,
     },
     headers: {
-        type: Array,
-        required: true,
+      type: Array,
+      required: true,
+    },
+    maxPageSize: {
+      type: Number,
+      default: 100,
     },
     rootKey: {
-        type: String,
-        required: true,
+      type: String,
+      required: true,
+    },
+    title: {
+      type: String,
+      default: '',
+    },
+    totalKey: {
+      type: String,
+      default: 'total',
+    },
+  })
+
+  const itemsPerPageOption = [10, 25, 50, 100].find(n => n <= props.maxPageSize)
+  const itemsPerPage = ref(itemsPerPageOption ?? 10)
+  const serverItems = ref([])
+  const loading = ref(true)
+  const totalItems = ref(-1)
+  const error = ref('')
+
+  async function fetchPage ({ page, itemsPerPage, sortBy }) {
+    const offset = (page - 1) * itemsPerPage
+    const url = new URL(props.apiURL)
+    url.searchParams.set('page_size', itemsPerPage)
+    url.searchParams.set('page_id', offset)
+
+    const data = await dedupedFetch(url.toString())
+
+    let items = Array.isArray(data) ? data : (data[props.rootKey] ?? [])
+    const total = Array.isArray(data) ? -1 : (data[props.totalKey] ?? -1)
+
+    if (sortBy.length > 0) {
+      const sortKey = sortBy[0].key
+      const sortOrder = sortBy[0].order
+      items = items.toSorted((a, b) => {
+        const aValue = a[sortKey]
+        const bValue = b[sortKey]
+        return sortOrder === 'desc'
+          ? (bValue > aValue ? 1 : -1)
+          : (aValue > bValue ? 1 : -1)
+      })
     }
-})
 
-async function fetchProducts({ page, itemsPerPage, sortBy }) {
-    const res = await fetch(props.apiURL)
-    const data = await res.json()
+    return { items, total }
+  }
 
-    let items = data[props.rootKey]
-
-    // sorting
-    if (sortBy.length) {
-        const sortKey = sortBy[0].key
-        const sortOrder = sortBy[0].order
-        items = items.slice().sort((a, b) => {
-            const aValue = a[sortKey]
-            const bValue = b[sortKey]
-            return sortOrder === 'desc'
-                ? (bValue > aValue ? 1 : -1)
-                : (aValue > bValue ? 1 : -1)
-        })
-    }
-
-    // pagination
-    const start = (page - 1) * itemsPerPage
-    const end = start + itemsPerPage
-    const paginated = items.slice(start, end)
-
-    return {
-        items: paginated,
-        total: items.length,
-    }
-}
-const itemsPerPage = ref(8);
-
-const search = ref('')
-const serverItems = ref([])
-const loading = ref(true)
-const totalItems = ref(0)
-function loadItems({ page, itemsPerPage, sortBy }) {
+  function loadItems ({ page, itemsPerPage, sortBy }) {
     loading.value = true
-    fetchProducts({ page, itemsPerPage, sortBy }).then(({ items, total }) => {
+    error.value = ''
+    fetchPage({ page, itemsPerPage, sortBy })
+      .then(({ items, total }) => {
         serverItems.value = items
         totalItems.value = total
+      })
+      .catch(error_ => {
+        error.value = error_.message
+        serverItems.value = []
+        totalItems.value = 0
+      })
+      .finally(() => {
         loading.value = false
-    })
-}
+      })
+  }
+
+  const lastOptions = ref(null)
+  function loadItemsTracked (options) {
+    lastOptions.value = options
+    loadItems(options)
+  }
+
+  function reload () {
+    if (lastOptions.value) loadItems(lastOptions.value)
+  }
+
+  defineExpose({ reload })
 </script>

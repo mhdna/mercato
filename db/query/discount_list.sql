@@ -55,3 +55,6 @@ WHERE discount_list_id = $1 AND product_id = $2;
 SELECT * FROM discount_list_items
 WHERE discount_list_id = $1
 ORDER BY product_id;
+
+-- name: CountDiscountLists :one
+SELECT COUNT(*) FROM discount_lists;

@@ -8,33 +8,33 @@
 </template>
 
 <script>
-export default {
-  data() {
-    return {
-      healthData: null,
-      loading: true,
-      error: null,
-    };
-  },
-  mounted() {
-    this.fetchHealthCheck();
-  },
-  methods: {
-    async fetchHealthCheck() {
-      try {
-        const response = await fetch('http://localhost:4000/v1/healthcheck');
-        if (!response.ok) {
-          throw new Error('Network response was not ok');
-        }
-        this.healthData = await response.json();
-      } catch (error) {
-        this.error = 'Failed to fetch health check: ' + error.message;
-      } finally {
-        this.loading = false;
+  export default {
+    data () {
+      return {
+        healthData: null,
+        loading: true,
+        error: null,
       }
     },
-  },
-};
+    mounted () {
+      this.fetchHealthCheck()
+    },
+    methods: {
+      async fetchHealthCheck () {
+        try {
+          const response = await fetch('http://localhost:4000/v1/healthcheck')
+          if (!response.ok) {
+            throw new Error('Network response was not ok')
+          }
+          this.healthData = await response.json()
+        } catch (error) {
+          this.error = 'Failed to fetch health check: ' + error.message
+        } finally {
+          this.loading = false
+        }
+      },
+    },
+  }
 </script>
 
 <style scoped>

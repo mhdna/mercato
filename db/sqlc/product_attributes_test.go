@@ -15,7 +15,7 @@ func createRandomProductAttributes(t *testing.T) []ProductsAttribute {
 	for _, a := range attributeValues {
 		addAttributeArg := CreateProductAttributeParams{
 			ProductID:        product.ID,
-			Attribute:        a.Attribute,
+			AttributeID:      a.AttributeID,
 			AttributeValueID: a.ID,
 		}
 		productAttribute, err := testQueries.CreateProductAttribute(context.Background(), addAttributeArg)
@@ -36,14 +36,14 @@ func TestGetProductAttribute(t *testing.T) {
 
 	for _, productAttribute := range productAttributes {
 		arg := GetProductAttributeValueParams{
-			ProductID: productAttribute.ProductID,
-			Attribute: productAttribute.Attribute,
+			ProductID:   productAttribute.ProductID,
+			AttributeID: productAttribute.AttributeID,
 		}
 
 		productAttribute2, err := testQueries.GetProductAttributeValue(context.Background(), arg)
 		require.NoError(t, err)
 		require.Equal(t, productAttribute.ProductID, productAttribute2.ProductID)
-		require.Equal(t, productAttribute.Attribute, productAttribute2.Attribute)
+		require.Equal(t, productAttribute.AttributeID, productAttribute2.AttributeID)
 		require.Equal(t, productAttribute.AttributeValueID, productAttribute2.AttributeValueID)
 	}
 }
@@ -81,20 +81,20 @@ func TestUpdateProductAttribute(t *testing.T) {
 		newValue := newAttributeValues[i%len(newAttributeValues)]
 		arg := UpdateProductAttributeParams{
 			ProductID:        productAttribute.ProductID,
-			Attribute:        productAttribute.Attribute,
+			AttributeID:      productAttribute.AttributeID,
 			AttributeValueID: newValue.ID,
 		}
 		err := testQueries.UpdateProductAttribute(context.Background(), arg)
 		require.NoError(t, err)
 
 		arg2 := GetProductAttributeValueParams{
-			ProductID: productAttribute.ProductID,
-			Attribute: productAttribute.Attribute,
+			ProductID:   productAttribute.ProductID,
+			AttributeID: productAttribute.AttributeID,
 		}
 		productAttribute2, err := testQueries.GetProductAttributeValue(context.Background(), arg2)
 		require.NoError(t, err)
 		require.Equal(t, productAttribute2.ProductID, arg.ProductID)
-		require.Equal(t, productAttribute2.Attribute, arg.Attribute)
+		require.Equal(t, productAttribute2.AttributeID, arg.AttributeID)
 		require.Equal(t, productAttribute2.AttributeValueID, arg.AttributeValueID)
 	}
 }
@@ -111,7 +111,7 @@ func TestGetProductAttributes(t *testing.T) {
 
 	for i, fa := range fetched {
 		require.Equal(t, pID, fa.ProductID)
-		require.Equal(t, productAttributes[i].Attribute, fa.Attribute)
+		require.Equal(t, productAttributes[i].AttributeID, fa.AttributeID)
 		require.Equal(t, productAttributes[i].AttributeValueID, fa.AttributeValueID)
 	}
 }

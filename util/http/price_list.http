@@ -1,0 +1,39 @@
+### Create a price list
+POST {{baseUrl}}/price_lists
+Content-Type: application/json
+Authorization: bearer {{token}}
+
+{
+  "name": "Summer 2026 Prices",
+  "is_active": true,
+  "is_default": false,
+  "valid_from": "2026-06-01T00:00:00Z",
+  "valid_to": "2026-09-30T23:59:59Z"
+}
+
+### Get a price list by id
+GET {{baseUrl}}/price_lists/1
+Authorization: bearer {{token}}
+
+### List price lists
+GET {{baseUrl}}/price_lists?page_size=10&page_id=0
+Authorization: bearer {{token}}
+
+### Create a price list item
+POST {{baseUrl}}/price_lists/items
+Content-Type: application/json
+Authorization: bearer {{token}}
+
+{
+  "price_list_id": 1,
+  "product_id": 1,
+  "price": 3000
+}
+
+### List price list items
+GET {{baseUrl}}/price_lists/1/items
+Authorization: bearer {{token}}
+
+### Delete a price list item
+DELETE {{baseUrl}}/price_lists/1/items/1
+Authorization: bearer {{token}}

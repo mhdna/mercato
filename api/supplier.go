@@ -68,8 +68,8 @@ func (server *Server) getSupplier(ctx *gin.Context) {
 }
 
 type listSupplierRequest struct {
-	PageSize int32 `form:"page_size,default=10" binding:"min=5,max=10"`
-	PageID   int32 `form:"page_id,default=1" binding:"min=1"`
+	PageSize int32 `form:"page_size,default=10" binding:"min=5,max=100"`
+	PageID   int32 `form:"page_id,default=0" binding:"min=0"`
 }
 
 func (server *Server) listSuppliers(ctx *gin.Context) {
@@ -89,7 +89,16 @@ func (server *Server) listSuppliers(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusOK, suppliers)
+	total, err := server.store.CountSuppliers(ctx)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"suppliers": suppliers,
+		"total":     total,
+	})
 }
 
 // type updateSupplierRequest struct {

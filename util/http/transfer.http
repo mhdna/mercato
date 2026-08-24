@@ -1,0 +1,45 @@
+### Create a transfer
+POST {{baseUrl}}/transfers
+Content-Type: application/json
+Authorization: bearer {{token}}
+
+{
+  "from_inventory_id": 1,
+  "to_inventory_id": 2,
+  "type": "products"
+}
+
+### Get a transfer by id
+GET {{baseUrl}}/transfers/1
+Authorization: bearer {{token}}
+
+### List transfers
+GET {{baseUrl}}/transfers?page_size=10&page_id=0
+Authorization: bearer {{token}}
+
+### Update a transfer
+PUT {{baseUrl}}/transfers
+Content-Type: application/json
+Authorization: bearer {{token}}
+
+{
+  "id": 1,
+  "from_inventory_id": 1,
+  "to_inventory_id": 3,
+  "type": "assets"
+}
+
+### Create a transfer item
+POST {{baseUrl}}/transfer_items
+Content-Type: application/json
+Authorization: bearer {{token}}
+
+{
+  "transfer_id": 1,
+  "product_id": 1,
+  "quantity": 50
+}
+
+### List transfer items
+GET {{baseUrl}}/transfer_items/1
+Authorization: bearer {{token}}

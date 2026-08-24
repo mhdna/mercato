@@ -1,0 +1,28 @@
+### Create a client
+POST {{baseUrl}}/clients
+Content-Type: application/json
+Authorization: bearer {{token}}
+
+{
+  "name": "Jane Doe",
+  "phone": "+905551112233"
+}
+
+### Update a client
+PUT {{baseUrl}}/clients
+Content-Type: application/json
+Authorization: bearer {{token}}
+
+{
+  "id": 1,
+  "name": "Jane Doe Updated",
+  "Phone": "+905551112233"
+}
+
+### Get a client by id
+GET {{baseUrl}}/clients/1
+Authorization: bearer {{token}}
+
+### List clients
+GET {{baseUrl}}/clients/?page_size=10&page_id=0
+Authorization: bearer {{token}}

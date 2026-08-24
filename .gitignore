@@ -4,3 +4,16 @@ ui-5-2/
 ui-beufy/
 commerce/
 old-commerce/
+
+# local env / secrets
+.env
+app.env
+ui/.env
+
+# OS / editor cruft
+.DS_Store
+
+# accidental local artifacts
+/f
+/kashi
+hexdump_session.log

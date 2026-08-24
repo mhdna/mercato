@@ -20,7 +20,7 @@ type createSupplierRequest struct {
 func (server *Server) createSupplier(ctx *gin.Context) {
 	var req createSupplierRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
@@ -36,7 +36,7 @@ func (server *Server) createSupplier(ctx *gin.Context) {
 
 	supplier, err := server.store.CreateSupplier(ctx, arg)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 	ctx.JSON(http.StatusOK, supplier)
@@ -49,18 +49,18 @@ type getSupplierRequest struct {
 func (server *Server) getSupplier(ctx *gin.Context) {
 	var req getSupplierRequest
 	if err := ctx.ShouldBindUri(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
 	supplier, err := server.store.GetSupplier(ctx, req.ID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			ctx.JSON(http.StatusNotFound, errorResponse(err))
+			server.writeError(ctx, http.StatusNotFound, err)
 			return
 		}
 
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -75,7 +75,7 @@ type listSupplierRequest struct {
 func (server *Server) listSuppliers(ctx *gin.Context) {
 	var req listSupplierRequest
 	if err := ctx.ShouldBindQuery(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
@@ -85,13 +85,13 @@ func (server *Server) listSuppliers(ctx *gin.Context) {
 	}
 	suppliers, err := server.store.ListSuppliers(ctx, arg)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 
 	total, err := server.store.CountSuppliers(ctx)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -110,7 +110,7 @@ func (server *Server) listSuppliers(ctx *gin.Context) {
 // func (server *Server) updateSupplier(ctx *gin.Context) {
 // 	var req updateClientRequest
 // 	if err := ctx.ShouldBindJSON(&req); err != nil {
-// 		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+// 		server.writeError(ctx, http.StatusBadRequest, err)
 // 		return
 // 	}
 
@@ -122,10 +122,10 @@ func (server *Server) listSuppliers(ctx *gin.Context) {
 // 	client, err := server.store.UpdateClient(ctx, arg)
 // 	if err != nil {
 // 		if err == sql.ErrNoRows {
-// 			ctx.JSON(http.StatusBadRequest, errorResponse(err))
+// 			server.writeError(ctx, http.StatusBadRequest, err)
 // 			return
 // 		}
-// 		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+// 		server.writeError(ctx, http.StatusInternalServerError, err)
 // 		return
 // 	}
 // 	ctx.JSON(http.StatusOK, client)

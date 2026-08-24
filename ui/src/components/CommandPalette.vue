@@ -2,8 +2,8 @@
   <v-command-palette
     v-model:search="search"
     height="495"
-    :items="items"
     hotkey="ctrl+k"
+    :items="items"
     :no-data-text="'No commands found'"
     placeholder="Search commands..."
     @click:item="onItemClick"
@@ -45,8 +45,7 @@
       }
     }
 
-    items.push({ type: 'divider' })
-    items.push({ type: 'subheader', title: 'More' })
+    items.push({ type: 'divider' }, { type: 'subheader', title: 'More' })
     for (const item of appendItems) {
       items.push({
         title: item.title,

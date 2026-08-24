@@ -3,7 +3,7 @@
     <table class="heatmap-table">
       <thead>
         <tr>
-          <th class="sticky-col day-col"></th>
+          <th class="sticky-col day-col" />
           <th v-for="month in months" :key="month">{{ month }}</th>
         </tr>
       </thead>
@@ -24,47 +24,63 @@
 </template>
 
 <script setup>
-import { computed } from "vue";
+  import { computed, ref, watch } from 'vue'
+  import { useDailyIncome } from '@/composables/useDailyIncome'
+  import { useIncomeFilters } from '@/pages/dashboard/composables/useIncomeFilters'
 
-const months = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
-  "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec",
-];
-const daysInMonth = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  const months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ]
+  const currentYear = new Date().getFullYear()
+  const isLeapYear = currentYear % 4 === 0 && (currentYear % 100 !== 0 || currentYear % 400 === 0)
+  const daysInMonth = [31, isLeapYear ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 
-const rand = () => Math.floor(1000 + Math.random() * 3000);
+  const { getDailyIncome } = useDailyIncome()
+  const { selectedBranchId } = useIncomeFilters()
 
-// data[monthIndex][day] = number
-const data = months.map((_, mi) =>
-  Array.from({ length: daysInMonth[mi] }, () => rand())
-);
+  // data[monthIndex][day] = number, cents from the API converted to whole
+  // currency units for display, same shape the heatmap always rendered.
+  const data = ref(months.map((_, mi) => Array.from({ length: daysInMonth[mi] }, () => 0)))
 
-const get = (mi, day) => data[mi][day - 1] ?? 0;
+  async function load () {
+    const days = await getDailyIncome(currentYear, selectedBranchId.value).catch(() => [])
+    const next = months.map((_, mi) => Array.from({ length: daysInMonth[mi] }, () => 0))
+    for (const entry of days) {
+      const d = new Date(entry.day)
+      next[d.getUTCMonth()][d.getUTCDate() - 1] = entry.total / 100
+    }
+    data.value = next
+  }
 
-const allValues = computed(() => data.flat());
-const min = computed(() => Math.min(...allValues.value));
-const max = computed(() => Math.max(...allValues.value));
+  watch(selectedBranchId, load, { immediate: true })
 
-const format = (v) => "$" + v.toLocaleString();
+  const get = (mi, day) => data.value[mi][day - 1] ?? 0
 
-const cellStyle = (v) => {
-  const t = (v - min.value) / (max.value - min.value || 1);
-  const alpha = 0.08 + t * 0.85;
-  return {
-    backgroundColor: `rgba(var(--v-theme-primary), ${alpha})`,
-    color: t > 0.55 ? "#fff" : "inherit",
-  };
-};
+  const allValues = computed(() => data.value.flat())
+  const min = computed(() => Math.min(...allValues.value))
+  const max = computed(() => Math.max(...allValues.value))
+
+  const format = v => '$' + v.toLocaleString()
+
+  function cellStyle (v) {
+    const t = (v - min.value) / (max.value - min.value || 1)
+    const alpha = 0.08 + t * 0.85
+    return {
+      backgroundColor: `rgba(var(--v-theme-primary), ${alpha})`,
+      color: t > 0.55 ? '#fff' : 'inherit',
+    }
+  }
 </script>
 
 <style scoped>

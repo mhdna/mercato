@@ -72,6 +72,17 @@
               />
             </v-col>
             <v-col cols="6" md="3">
+              <v-select
+                v-model="invoiceTypeId.value.value"
+                clearable
+                density="compact"
+                :item-title="t => t.name"
+                :item-value="t => t.id"
+                :items="invoiceTypes"
+                label="Invoice Type (optional)"
+              />
+            </v-col>
+            <v-col cols="6" md="3">
               <v-text-field
                 v-model.number="discount.value.value"
                 density="compact"
@@ -176,6 +187,7 @@
   import { useCashboxes } from '@/composables/useCashboxes'
   import { useClients } from '@/composables/useClients'
   import { useInventories } from '@/composables/useInventories'
+  import { useInvoiceTypes } from '@/composables/useInvoiceTypes'
   import { usePriceLists } from '@/composables/usePriceLists'
   import { useProducts } from '@/composables/useProducts'
   import { useSalesInvoices } from '@/composables/useSalesInvoices'
@@ -189,6 +201,7 @@
   const { inventories, fetchInventories } = useInventories()
   const { clients, fetchClients } = useClients()
   const { priceLists, fetchPriceLists } = usePriceLists()
+  const { invoiceTypes, fetchInvoiceTypes } = useInvoiceTypes()
   const { products, fetchProducts } = useProducts()
 
   fetchCashboxes()
@@ -197,6 +210,7 @@
   fetchInventories()
   fetchClients()
   fetchPriceLists()
+  fetchInvoiceTypes()
   fetchProducts()
 
   const openShifts = computed(() => shifts.value.filter(s => !s.is_closed))
@@ -245,6 +259,7 @@
   const inventoryId = useField('inventoryId')
   const clientId = useField('clientId')
   const priceListId = useField('priceListId')
+  const invoiceTypeId = useField('invoiceTypeId')
   const discount = useField('discount')
 
   let lineKey = 0
@@ -309,6 +324,7 @@
         discounted_total: itemsTotal.value,
         grand_total: grandTotal.value,
         price_list_id: values.priceListId || null,
+        invoice_type_id: values.invoiceTypeId || null,
         items,
       })
       closeDialog()

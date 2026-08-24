@@ -7,10 +7,12 @@ package db
 import (
 	"database/sql"
 	"database/sql/driver"
+	"encoding/json"
 	"fmt"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/sqlc-dev/pqtype"
 )
 
 type CouponStatus string
@@ -293,11 +295,76 @@ type AttributesValue struct {
 	Value       string `json:"value"`
 }
 
-type Barcode struct {
-	Barcode   int64     `json:"barcode"`
-	ProductID int64     `json:"product_id"`
-	Version   int32     `json:"version"`
-	CreatedAt time.Time `json:"created_at"`
+type Branch struct {
+	ID         int64        `json:"id"`
+	Name       string       `json:"name"`
+	Code       string       `json:"code"`
+	ApiKeyHash string       `json:"api_key_hash"`
+	IsActive   bool         `json:"is_active"`
+	LastSeenAt sql.NullTime `json:"last_seen_at"`
+	CreatedAt  time.Time    `json:"created_at"`
+}
+
+type BranchCommand struct {
+	ID          int64                 `json:"id"`
+	BranchID    int64                 `json:"branch_id"`
+	Type        string                `json:"type"`
+	Payload     json.RawMessage       `json:"payload"`
+	Status      string                `json:"status"`
+	Result      pqtype.NullRawMessage `json:"result"`
+	Error       sql.NullString        `json:"error"`
+	IssuedBy    int64                 `json:"issued_by"`
+	CreatedAt   time.Time             `json:"created_at"`
+	CompletedAt sql.NullTime          `json:"completed_at"`
+}
+
+type BranchInvoice struct {
+	ID                     int64          `json:"id"`
+	BranchID               int64          `json:"branch_id"`
+	ClientRef              string         `json:"client_ref"`
+	Kind                   string         `json:"kind"`
+	BranchInvoiceCode      string         `json:"branch_invoice_code"`
+	BranchCashboxAccountID int64          `json:"branch_cashbox_account_id"`
+	BranchShiftID          int64          `json:"branch_shift_id"`
+	BranchInventoryID      int64          `json:"branch_inventory_id"`
+	BranchClientID         sql.NullInt64  `json:"branch_client_id"`
+	RelatedClientRef       sql.NullString `json:"related_client_ref"`
+	Discount               int16          `json:"discount"`
+	Subtotal               int64          `json:"subtotal"`
+	DiscountedTotal        int64          `json:"discounted_total"`
+	GrandTotal             int64          `json:"grand_total"`
+	LoyaltyPointsDelta     int64          `json:"loyalty_points_delta"`
+	OccurredAt             time.Time      `json:"occurred_at"`
+	ReceivedAt             time.Time      `json:"received_at"`
+}
+
+type BranchInvoiceItem struct {
+	ID              int64 `json:"id"`
+	BranchInvoiceID int64 `json:"branch_invoice_id"`
+	BranchProductID int64 `json:"branch_product_id"`
+	UnitPrice       int64 `json:"unit_price"`
+	LineTotal       int64 `json:"line_total"`
+	Discount        int16 `json:"discount"`
+	Quantity        int64 `json:"quantity"`
+}
+
+type BranchSetting struct {
+	BranchID            int64           `json:"branch_id"`
+	BranchName          string          `json:"branch_name"`
+	TaxRate             float64         `json:"tax_rate"`
+	RoundingMode        string          `json:"rounding_mode"`
+	RoundingCurrency    string          `json:"rounding_currency"`
+	ExchangeRate        int64           `json:"exchange_rate"`
+	ExchangeWindowHours int64           `json:"exchange_window_hours"`
+	MarketName          string          `json:"market_name"`
+	MarketPhone         string          `json:"market_phone"`
+	MarketDescription   string          `json:"market_description"`
+	ReturnPolicy        string          `json:"return_policy"`
+	Website             string          `json:"website"`
+	Instagram           string          `json:"instagram"`
+	SocialPlatforms     json.RawMessage `json:"social_platforms"`
+	SocialHandles       json.RawMessage `json:"social_handles"`
+	UpdatedAt           time.Time       `json:"updated_at"`
 }
 
 type Cashbox struct {
@@ -309,8 +376,12 @@ type Cashbox struct {
 }
 
 type CashboxAccount struct {
-	ID   int64  `json:"id"`
-	Name string `json:"name"`
+	ID           int64     `json:"id"`
+	Name         string    `json:"name"`
+	CurrencyCode string    `json:"currency_code"`
+	SortOrder    int32     `json:"sort_order"`
+	Color        string    `json:"color"`
+	UpdatedAt    time.Time `json:"updated_at"`
 }
 
 type Client struct {
@@ -320,6 +391,13 @@ type Client struct {
 	TotalLoyaltyPoints int64     `json:"total_loyalty_points"`
 	ValidLoyaltyPoints int64     `json:"valid_loyalty_points"`
 	CreatedAt          time.Time `json:"created_at"`
+	UpdatedAt          time.Time `json:"updated_at"`
+}
+
+type ClientLink struct {
+	BranchID       int64 `json:"branch_id"`
+	BranchClientID int64 `json:"branch_client_id"`
+	ClientID       int64 `json:"client_id"`
 }
 
 type Color struct {
@@ -340,11 +418,15 @@ type Coupon struct {
 }
 
 type Currency struct {
-	Code                   string `json:"code"`
-	Name                   string `json:"name"`
-	Symbol                 string `json:"symbol"`
-	IsDefault              bool   `json:"is_default"`
-	ValueInDefaultCurrency int64  `json:"value_in_default_currency"`
+	Code                   string    `json:"code"`
+	Name                   string    `json:"name"`
+	Symbol                 string    `json:"symbol"`
+	IsDefault              bool      `json:"is_default"`
+	ValueInDefaultCurrency int64     `json:"value_in_default_currency"`
+	IsActive               bool      `json:"is_active"`
+	UnitsPerUsdMicros      int64     `json:"units_per_usd_micros"`
+	CashRoundingUnit       int64     `json:"cash_rounding_unit"`
+	UpdatedAt              time.Time `json:"updated_at"`
 }
 
 type DiscountList struct {
@@ -417,13 +499,15 @@ type Invoice struct {
 	DiscountedTotal int64     `json:"discounted_total"`
 	GrandTotal      int64     `json:"grand_total"`
 	CreatedAt       time.Time `json:"created_at"`
+	InvoiceTypeID   int64     `json:"invoice_type_id"`
 }
 
 type InvoiceIndex struct {
-	Year      int32     `json:"year"`
-	CashboxID int64     `json:"cashbox_id"`
-	LastIndex int64     `json:"last_index"`
-	Type      IndexType `json:"type"`
+	Year          int32     `json:"year"`
+	CashboxID     int64     `json:"cashbox_id"`
+	LastIndex     int64     `json:"last_index"`
+	Type          IndexType `json:"type"`
+	InvoiceTypeID int64     `json:"invoice_type_id"`
 }
 
 type InvoiceProduct struct {
@@ -433,6 +517,15 @@ type InvoiceProduct struct {
 	LineTotal int64 `json:"line_total"`
 	Discount  int16 `json:"discount"`
 	Quantity  int64 `json:"quantity"`
+}
+
+type InvoiceType struct {
+	ID        int64     `json:"id"`
+	Name      string    `json:"name"`
+	Code      string    `json:"code"`
+	IsDefault bool      `json:"is_default"`
+	IsActive  bool      `json:"is_active"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 type Permission struct {
@@ -478,20 +571,22 @@ type ProductSupplierCost struct {
 	CreatedAt         time.Time `json:"created_at"`
 }
 
+type ProductVariant struct {
+	ID        int64         `json:"id"`
+	ProductID int64         `json:"product_id"`
+	ColorID   sql.NullInt64 `json:"color_id"`
+	SizeID    sql.NullInt64 `json:"size_id"`
+	Barcode   string        `json:"barcode"`
+	Price     sql.NullInt64 `json:"price"`
+	IsActive  bool          `json:"is_active"`
+	CreatedAt time.Time     `json:"created_at"`
+	UpdatedAt time.Time     `json:"updated_at"`
+}
+
 type ProductsAttribute struct {
 	AttributeID      int64 `json:"attribute_id"`
 	AttributeValueID int64 `json:"attribute_value_id"`
 	ProductID        int64 `json:"product_id"`
-}
-
-type ProductsColor struct {
-	ProductID int64 `json:"product_id"`
-	ColorID   int64 `json:"color_id"`
-}
-
-type ProductsSize struct {
-	ProductID int64 `json:"product_id"`
-	SizeID    int64 `json:"size_id"`
 }
 
 type Purchase struct {

@@ -18,6 +18,7 @@ import '@/plugins/echarts'
 
 // Fonts
 import '@fontsource/roboto'
+import '@/styles/global.scss'
 
 // Styles
 import 'unfonts.css'

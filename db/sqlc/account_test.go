@@ -21,7 +21,10 @@ func createRandomAccount(t *testing.T) CashboxAccount {
 	// 	Balance:        balance,
 	// }
 
-	account, err := testQueries.CreateCashboxAccount(context.Background(), cashboxAccountName)
+	account, err := testQueries.CreateCashboxAccount(context.Background(), CreateCashboxAccountParams{
+		Name:         cashboxAccountName,
+		CurrencyCode: "USD",
+	})
 	require.NoError(t, err)
 	require.Equal(t, account.Name, cashboxAccountName)
 	// require.Equal(t, account.Type, arg.Type)

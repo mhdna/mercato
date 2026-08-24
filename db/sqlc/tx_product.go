@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"strconv"
@@ -24,9 +25,7 @@ type CreateProductTxParams struct {
 type CreateProductTxResult struct {
 	Product           Product             `json:"product"`
 	ProductAttributes []ProductsAttribute `json:"product_attributes"`
-	Barcode           Barcode             `json:"barcode"`
-	ProductColor      *ProductsColor      `json:"product_color,omitempty"`
-	ProductSize       *ProductsSize       `json:"product_size,omitempty"`
+	Variant           ProductVariant      `json:"variant"`
 }
 
 func generateEAN13(itemNumber int64) int64 {
@@ -45,63 +44,69 @@ func generateEAN13(itemNumber int64) int64 {
 	return result
 }
 
+// CreateProductTx creates a product together with its first variant. A
+// product is never created without at least one sellable variant — a
+// product with zero variants has no barcode a till could ring up, so
+// there'd be nothing to actually sell.
 func (store *SQLStore) CreateProductTx(ctx context.Context, arg CreateProductTxParams) (CreateProductTxResult, error) {
 	var result CreateProductTxResult
 
 	err := store.execTx(ctx, func(q *Queries) error {
 		var err error
 
-		createProductArg := CreateProductParams{
+		product, err := q.CreateProduct(ctx, CreateProductParams{
 			Code:        arg.Code,
 			Name:        arg.Name,
 			Description: arg.Description,
-		}
-
-		product, err := q.CreateProduct(ctx, createProductArg)
+		})
 		if err != nil {
 			return err
 		}
 
 		productAttributes := []ProductsAttribute{}
-
 		for _, a := range arg.AttributeValues {
-			// make sure attribute value exists
-			upsertAttributeValueArg := UpsertAttributeValueParams{
+			attributeValue, err := q.UpsertAttributeValue(ctx, UpsertAttributeValueParams{
 				AttributeID: a.AttributeID,
 				Value:       a.Value,
-			}
-			attributeValue, err := q.UpsertAttributeValue(ctx, upsertAttributeValueArg)
+			})
 			if err != nil {
 				return err
 			}
 
-			// then add attribute value to product
-			addAttributeArg := CreateProductAttributeParams{
+			productAttribute, err := q.CreateProductAttribute(ctx, CreateProductAttributeParams{
 				ProductID:        product.ID,
 				AttributeID:      a.AttributeID,
 				AttributeValueID: attributeValue.ID,
-			}
-			fmt.Println(a.AttributeID)
-			fmt.Println(a.ID)
-			fmt.Println(product.ID)
-			productAttribute, err := q.CreateProductAttribute(ctx, addAttributeArg)
-
+			})
 			if err != nil {
 				return err
 			}
 			productAttributes = append(productAttributes, productAttribute)
 		}
 
-		var barcode Barcode
+		colorID := sql.NullInt64{}
+		if arg.ColorID != nil {
+			colorID = sql.NullInt64{Int64: *arg.ColorID, Valid: true}
+		}
+		sizeID := sql.NullInt64{}
+		if arg.SizeID != nil {
+			sizeID = sql.NullInt64{Int64: *arg.SizeID, Valid: true}
+		}
+		price := sql.NullInt64{}
+		if arg.Price != 0 {
+			price = sql.NullInt64{Int64: arg.Price, Valid: true}
+		}
+
+		var variant ProductVariant
 
 		if arg.Barcode != nil {
-			barcodeParams := CreateBarcodeParams{
+			variant, err = q.CreateProductVariant(ctx, CreateProductVariantParams{
 				ProductID: product.ID,
-				Barcode:   *arg.Barcode,
-				// ColorID:   sql.NullInt64{Valid: true, Int64: *arg.ColorID},
-				// SizeID:    sql.NullInt64{Valid: true, Int64: *arg.SizeID},
-			}
-			barcode, err = q.CreateBarcode(ctx, barcodeParams)
+				ColorID:   colorID,
+				SizeID:    sizeID,
+				Barcode:   strconv.FormatInt(*arg.Barcode, 10),
+				Price:     price,
+			})
 			if err != nil {
 				return err
 			}
@@ -114,15 +119,18 @@ func (store *SQLStore) CreateProductTx(ctx context.Context, arg CreateProductTxP
 				}
 
 				barcodeValue := generateEAN13(itemNumber)
-				barcode, err = q.CreateBarcode(ctx, CreateBarcodeParams{
-					Barcode: barcodeValue, ProductID: product.ID,
+				variant, err = q.CreateProductVariant(ctx, CreateProductVariantParams{
+					ProductID: product.ID,
+					ColorID:   colorID,
+					SizeID:    sizeID,
+					Barcode:   strconv.FormatInt(barcodeValue, 10),
+					Price:     price,
 				})
 				if err == nil {
 					inserted = true
 					break
 				}
 
-				// TODO: centralize error handling
 				var pqErr *pq.Error
 				if !errors.As(err, &pqErr) || pqErr.Code != "23505" {
 					return err
@@ -133,31 +141,9 @@ func (store *SQLStore) CreateProductTx(ctx context.Context, arg CreateProductTxP
 			}
 		}
 
-		if arg.ColorID != nil {
-			productColor, err := q.CreateProductColor(ctx, CreateProductColorParams{
-				ProductID: product.ID,
-				ColorID:   *arg.ColorID,
-			})
-			if err != nil {
-				return err
-			}
-			result.ProductColor = &productColor
-		}
-
-		if arg.SizeID != nil {
-			productSize, err := q.CreateProductSize(ctx, CreateProductSizeParams{
-				ProductID: product.ID,
-				SizeID:    *arg.SizeID,
-			})
-			if err != nil {
-				return err
-			}
-			result.ProductSize = &productSize
-		}
-
 		result.Product = product
 		result.ProductAttributes = productAttributes
-		result.Barcode = barcode
+		result.Variant = variant
 
 		return nil
 	})

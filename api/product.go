@@ -36,7 +36,7 @@ type createProductRequest struct {
 func (server *Server) createProduct(ctx *gin.Context) {
 	var req createProductRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
@@ -70,13 +70,111 @@ func (server *Server) createProduct(ctx *gin.Context) {
 		if pqErr, ok := err.(*pq.Error); ok {
 			switch pqErr.Code.Name() {
 			case "foreign_key_violation", "unique_violation":
-				ctx.JSON(http.StatusForbidden, errorResponse(err))
+				server.writeError(ctx, http.StatusForbidden, err)
 			}
 		}
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
+	server.branchHub.broadcastAll(branchWSMessage{Type: "products_updated"})
 	ctx.JSON(http.StatusOK, product)
+}
+
+type updateProductRequest struct {
+	ID          int64  `json:"id" binding:"required,min=1"`
+	Code        string `json:"code" binding:"required"`
+	Name        string `json:"name" binding:"required"`
+	Description string `json:"description"`
+}
+
+// updateProduct edits the shared product-level fields (name/code/
+// description) — not any variant's own price/barcode/color/size, which is
+// updateProductVariant's job below. The two are separate endpoints because
+// they're separate rows now: a product can have several variants, and
+// editing "the product" shouldn't require picking one of them.
+func (server *Server) updateProduct(ctx *gin.Context) {
+	var req updateProductRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		server.writeError(ctx, http.StatusBadRequest, err)
+		return
+	}
+
+	if err := server.store.UpdateProduct(ctx, db.UpdateProductParams{
+		ID:          req.ID,
+		Code:        req.Code,
+		Name:        req.Name,
+		Description: req.Description,
+	}); err != nil {
+		if err == sql.ErrNoRows {
+			server.writeError(ctx, http.StatusNotFound, err)
+			return
+		}
+		server.writeError(ctx, http.StatusInternalServerError, err)
+		return
+	}
+
+	product, err := server.store.GetProduct(ctx, req.ID)
+	if err != nil {
+		server.writeError(ctx, http.StatusInternalServerError, err)
+		return
+	}
+
+	server.branchHub.broadcastAll(branchWSMessage{Type: "products_updated"})
+	ctx.JSON(http.StatusOK, product)
+}
+
+type updateProductVariantRequest struct {
+	ID       int64  `json:"id" binding:"required,min=1"`
+	ColorID  *int64 `json:"color_id"`
+	SizeID   *int64 `json:"size_id"`
+	Barcode  string `json:"barcode" binding:"required"`
+	Price    *int64 `json:"price"`
+	IsActive bool   `json:"is_active"`
+}
+
+func (server *Server) updateProductVariant(ctx *gin.Context) {
+	var req updateProductVariantRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		server.writeError(ctx, http.StatusBadRequest, err)
+		return
+	}
+
+	colorID := sql.NullInt64{}
+	if req.ColorID != nil {
+		colorID = sql.NullInt64{Int64: *req.ColorID, Valid: true}
+	}
+	sizeID := sql.NullInt64{}
+	if req.SizeID != nil {
+		sizeID = sql.NullInt64{Int64: *req.SizeID, Valid: true}
+	}
+	price := sql.NullInt64{}
+	if req.Price != nil {
+		price = sql.NullInt64{Int64: *req.Price, Valid: true}
+	}
+
+	variant, err := server.store.UpdateProductVariant(ctx, db.UpdateProductVariantParams{
+		ID:       req.ID,
+		ColorID:  colorID,
+		SizeID:   sizeID,
+		Barcode:  req.Barcode,
+		Price:    price,
+		IsActive: req.IsActive,
+	})
+	if err != nil {
+		if err == sql.ErrNoRows {
+			server.writeError(ctx, http.StatusNotFound, err)
+			return
+		}
+		if pqErr, ok := err.(*pq.Error); ok && pqErr.Code.Name() == "unique_violation" {
+			server.writeError(ctx, http.StatusForbidden, err)
+			return
+		}
+		server.writeError(ctx, http.StatusInternalServerError, err)
+		return
+	}
+
+	server.branchHub.broadcastAll(branchWSMessage{Type: "products_updated"})
+	server.writeJSON(ctx, http.StatusOK, envelope{"variant": variant})
 }
 
 type getProductRequest struct {
@@ -86,24 +184,24 @@ type getProductRequest struct {
 func (server *Server) getProduct(ctx *gin.Context) {
 	var req getProductRequest
 	if err := ctx.ShouldBindUri(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
 	product, err := server.store.GetProduct(ctx, req.ID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			ctx.JSON(http.StatusNotFound, errorResponse(err))
+			server.writeError(ctx, http.StatusNotFound, err)
 			return
 		}
 
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 
 	attributes, err := server.store.GetProductAttributes(ctx, req.ID)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -122,7 +220,7 @@ type listProductRequest struct {
 func (server *Server) listProducts(ctx *gin.Context) {
 	var req listProductRequest
 	if err := ctx.ShouldBindQuery(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
@@ -132,13 +230,13 @@ func (server *Server) listProducts(ctx *gin.Context) {
 	}
 	products, err := server.store.ListProducts(ctx, arg)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 
 	total, err := server.store.CountProducts(ctx)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -155,18 +253,18 @@ type deleteProductRequest struct {
 func (server *Server) deleteProduct(ctx *gin.Context) {
 	var req deleteProductRequest
 	if err := ctx.ShouldBindUri(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
 	err := server.store.DeleteProduct(ctx, req.ID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			ctx.JSON(http.StatusNotFound, errorResponse(err))
+			server.writeError(ctx, http.StatusNotFound, err)
 			return
 		}
 
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 

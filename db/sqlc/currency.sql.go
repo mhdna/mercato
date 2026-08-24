@@ -7,6 +7,7 @@ package db
 
 import (
 	"context"
+	"time"
 )
 
 const countCurrencies = `-- name: CountCurrencies :one
@@ -25,10 +26,12 @@ INSERT INTO currencies (
   name,
   code,
   symbol,
-  value_in_default_currency 
-) 
-VALUES ( $1, $2, $3, $4 )
-RETURNING code, name, symbol, is_default, value_in_default_currency
+  value_in_default_currency,
+  units_per_usd_micros,
+  cash_rounding_unit
+)
+VALUES ( $1, $2, $3, $4, $5, $6 )
+RETURNING code, name, symbol, is_default, value_in_default_currency, is_active, units_per_usd_micros, cash_rounding_unit, updated_at
 `
 
 type CreateCurrencyParams struct {
@@ -36,6 +39,8 @@ type CreateCurrencyParams struct {
 	Code                   string `json:"code"`
 	Symbol                 string `json:"symbol"`
 	ValueInDefaultCurrency int64  `json:"value_in_default_currency"`
+	UnitsPerUsdMicros      int64  `json:"units_per_usd_micros"`
+	CashRoundingUnit       int64  `json:"cash_rounding_unit"`
 }
 
 func (q *Queries) CreateCurrency(ctx context.Context, arg CreateCurrencyParams) (Currency, error) {
@@ -44,6 +49,8 @@ func (q *Queries) CreateCurrency(ctx context.Context, arg CreateCurrencyParams) 
 		arg.Code,
 		arg.Symbol,
 		arg.ValueInDefaultCurrency,
+		arg.UnitsPerUsdMicros,
+		arg.CashRoundingUnit,
 	)
 	var i Currency
 	err := row.Scan(
@@ -52,6 +59,10 @@ func (q *Queries) CreateCurrency(ctx context.Context, arg CreateCurrencyParams) 
 		&i.Symbol,
 		&i.IsDefault,
 		&i.ValueInDefaultCurrency,
+		&i.IsActive,
+		&i.UnitsPerUsdMicros,
+		&i.CashRoundingUnit,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
@@ -67,7 +78,7 @@ func (q *Queries) DeleteCurrency(ctx context.Context, code string) error {
 }
 
 const getCurrency = `-- name: GetCurrency :one
-SELECT code, name, symbol, is_default, value_in_default_currency FROM currencies
+SELECT code, name, symbol, is_default, value_in_default_currency, is_active, units_per_usd_micros, cash_rounding_unit, updated_at FROM currencies
 WHERE code = $1 LIMIT 1
 `
 
@@ -80,12 +91,16 @@ func (q *Queries) GetCurrency(ctx context.Context, code string) (Currency, error
 		&i.Symbol,
 		&i.IsDefault,
 		&i.ValueInDefaultCurrency,
+		&i.IsActive,
+		&i.UnitsPerUsdMicros,
+		&i.CashRoundingUnit,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
 
 const getDefaultCurrency = `-- name: GetDefaultCurrency :one
-SELECT code, name, symbol, is_default, value_in_default_currency FROM currencies
+SELECT code, name, symbol, is_default, value_in_default_currency, is_active, units_per_usd_micros, cash_rounding_unit, updated_at FROM currencies
 WHERE is_default = true
 `
 
@@ -98,12 +113,16 @@ func (q *Queries) GetDefaultCurrency(ctx context.Context) (Currency, error) {
 		&i.Symbol,
 		&i.IsDefault,
 		&i.ValueInDefaultCurrency,
+		&i.IsActive,
+		&i.UnitsPerUsdMicros,
+		&i.CashRoundingUnit,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
 
 const listAllCurrencies = `-- name: ListAllCurrencies :many
-SELECT code, name, symbol, is_default, value_in_default_currency FROM currencies
+SELECT code, name, symbol, is_default, value_in_default_currency, is_active, units_per_usd_micros, cash_rounding_unit, updated_at FROM currencies
 ORDER BY code
 `
 
@@ -122,6 +141,10 @@ func (q *Queries) ListAllCurrencies(ctx context.Context) ([]Currency, error) {
 			&i.Symbol,
 			&i.IsDefault,
 			&i.ValueInDefaultCurrency,
+			&i.IsActive,
+			&i.UnitsPerUsdMicros,
+			&i.CashRoundingUnit,
+			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -137,7 +160,7 @@ func (q *Queries) ListAllCurrencies(ctx context.Context) ([]Currency, error) {
 }
 
 const listCurrencies = `-- name: ListCurrencies :many
-SELECT code, name, symbol, is_default, value_in_default_currency FROM currencies
+SELECT code, name, symbol, is_default, value_in_default_currency, is_active, units_per_usd_micros, cash_rounding_unit, updated_at FROM currencies
 ORDER BY code
 LIMIT $1
 OFFSET $2
@@ -163,6 +186,49 @@ func (q *Queries) ListCurrencies(ctx context.Context, arg ListCurrenciesParams) 
 			&i.Symbol,
 			&i.IsDefault,
 			&i.ValueInDefaultCurrency,
+			&i.IsActive,
+			&i.UnitsPerUsdMicros,
+			&i.CashRoundingUnit,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listCurrenciesUpdatedSince = `-- name: ListCurrenciesUpdatedSince :many
+SELECT code, name, symbol, is_default, value_in_default_currency, is_active, units_per_usd_micros, cash_rounding_unit, updated_at FROM currencies
+WHERE updated_at > $1
+ORDER BY updated_at
+`
+
+func (q *Queries) ListCurrenciesUpdatedSince(ctx context.Context, updatedAt time.Time) ([]Currency, error) {
+	rows, err := q.db.QueryContext(ctx, listCurrenciesUpdatedSince, updatedAt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Currency{}
+	for rows.Next() {
+		var i Currency
+		if err := rows.Scan(
+			&i.Code,
+			&i.Name,
+			&i.Symbol,
+			&i.IsDefault,
+			&i.ValueInDefaultCurrency,
+			&i.IsActive,
+			&i.UnitsPerUsdMicros,
+			&i.CashRoundingUnit,
+			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -181,9 +247,13 @@ const updateCurrency = `-- name: UpdateCurrency :one
 UPDATE currencies
 SET name = $2,
 symbol = $3,
-value_in_default_currency = $4
+value_in_default_currency = $4,
+is_active = $5,
+units_per_usd_micros = $6,
+cash_rounding_unit = $7,
+updated_at = now()
 WHERE code = $1
-RETURNING code, name, symbol, is_default, value_in_default_currency
+RETURNING code, name, symbol, is_default, value_in_default_currency, is_active, units_per_usd_micros, cash_rounding_unit, updated_at
 `
 
 type UpdateCurrencyParams struct {
@@ -191,6 +261,9 @@ type UpdateCurrencyParams struct {
 	Name                   string `json:"name"`
 	Symbol                 string `json:"symbol"`
 	ValueInDefaultCurrency int64  `json:"value_in_default_currency"`
+	IsActive               bool   `json:"is_active"`
+	UnitsPerUsdMicros      int64  `json:"units_per_usd_micros"`
+	CashRoundingUnit       int64  `json:"cash_rounding_unit"`
 }
 
 func (q *Queries) UpdateCurrency(ctx context.Context, arg UpdateCurrencyParams) (Currency, error) {
@@ -199,6 +272,9 @@ func (q *Queries) UpdateCurrency(ctx context.Context, arg UpdateCurrencyParams) 
 		arg.Name,
 		arg.Symbol,
 		arg.ValueInDefaultCurrency,
+		arg.IsActive,
+		arg.UnitsPerUsdMicros,
+		arg.CashRoundingUnit,
 	)
 	var i Currency
 	err := row.Scan(
@@ -207,6 +283,10 @@ func (q *Queries) UpdateCurrency(ctx context.Context, arg UpdateCurrencyParams) 
 		&i.Symbol,
 		&i.IsDefault,
 		&i.ValueInDefaultCurrency,
+		&i.IsActive,
+		&i.UnitsPerUsdMicros,
+		&i.CashRoundingUnit,
+		&i.UpdatedAt,
 	)
 	return i, err
 }

@@ -17,25 +17,25 @@ type returnInvoiceItemRequest struct {
 }
 
 type createReturnInvoiceRequest struct {
-	CashboxID        int64                       `json:"cashbox_id" binding:"required"`
-	CashboxAccountID int64                       `json:"cashbox_account_id" binding:"required"`
-	ShiftID          int64                       `json:"shift_id" binding:"required"`
-	InventoryID      int64                       `json:"inventory_id" binding:"required"`
-	Year             int32                       `json:"year" binding:"required"`
-	ClientID         int64                       `json:"client_id" binding:"required"`
-	SalesInvoiceID   int64                       `json:"sales_invoice_id" binding:"required"`
-	Discount         int16                       `json:"discount"`
-	GrandTotal       int64                       `json:"grand_total" binding:"required"`
-	Subtotal         int64                       `json:"sub_total" binding:"required"`
-	DiscountedTotal  int64                       `json:"discounted_total" binding:"required"`
+	CashboxID        int64                      `json:"cashbox_id" binding:"required"`
+	CashboxAccountID int64                      `json:"cashbox_account_id" binding:"required"`
+	ShiftID          int64                      `json:"shift_id" binding:"required"`
+	InventoryID      int64                      `json:"inventory_id" binding:"required"`
+	Year             int32                      `json:"year" binding:"required"`
+	ClientID         int64                      `json:"client_id" binding:"required"`
+	SalesInvoiceID   int64                      `json:"sales_invoice_id" binding:"required"`
+	Discount         int16                      `json:"discount"`
+	GrandTotal       int64                      `json:"grand_total" binding:"required"`
+	Subtotal         int64                      `json:"sub_total" binding:"required"`
+	DiscountedTotal  int64                      `json:"discounted_total" binding:"required"`
 	Items            []returnInvoiceItemRequest `json:"items" binding:"required,min=1,dive"`
-	PriceListID      *int64                      `json:"price_list_id"`
+	PriceListID      *int64                     `json:"price_list_id"`
 }
 
 func (server *Server) createReturnInvoice(ctx *gin.Context) {
 	var req createReturnInvoiceRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
@@ -73,7 +73,7 @@ func (server *Server) createReturnInvoice(ctx *gin.Context) {
 
 	returnInvoice, err := server.store.ReturnInvoiceTx(ctx, arg)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 	ctx.JSON(http.StatusOK, returnInvoice)
@@ -86,18 +86,18 @@ type getReturnInvoiceRequest struct {
 func (server *Server) getReturnInvoice(ctx *gin.Context) {
 	var req getReturnInvoiceRequest
 	if err := ctx.ShouldBindUri(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
 	invoice, err := server.store.GetInvoice(ctx, req.ID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			ctx.JSON(http.StatusNotFound, errorResponse(err))
+			server.writeError(ctx, http.StatusNotFound, err)
 			return
 		}
 
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -112,7 +112,7 @@ type listReturnInvoiceRequest struct {
 func (server *Server) listReturnInvoices(ctx *gin.Context) {
 	var req listReturnInvoiceRequest
 	if err := ctx.ShouldBindQuery(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
@@ -122,7 +122,7 @@ func (server *Server) listReturnInvoices(ctx *gin.Context) {
 	}
 	invoices, err := server.store.ListInvoices(ctx, arg)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 

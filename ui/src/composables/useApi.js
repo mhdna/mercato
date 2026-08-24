@@ -15,7 +15,7 @@ export async function authFetch (url, options = {}) {
   const authStore = useAuthStore()
 
   const request = token => {
-    const headers = { ...(options.headers || {}) }
+    const headers = { ...options.headers }
     if (token) {
       headers.Authorization = `Bearer ${token}`
     }

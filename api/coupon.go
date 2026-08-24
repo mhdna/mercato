@@ -21,13 +21,13 @@ type createCouponRequest struct {
 func (server *Server) createCoupon(ctx *gin.Context) {
 	var req createCouponRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
 	validUntil, err := time.Parse(time.RFC3339, req.ValidUntil)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
@@ -42,7 +42,7 @@ func (server *Server) createCoupon(ctx *gin.Context) {
 
 	coupon, err := server.store.CreateCoupon(ctx, arg)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 	ctx.JSON(http.StatusOK, coupon)
@@ -55,17 +55,17 @@ type getCouponRequest struct {
 func (server *Server) getCoupon(ctx *gin.Context) {
 	var req getCouponRequest
 	if err := ctx.ShouldBindUri(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
 	coupon, err := server.store.GetCoupon(ctx, req.Code)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			ctx.JSON(http.StatusNotFound, errorResponse(err))
+			server.writeError(ctx, http.StatusNotFound, err)
 			return
 		}
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -80,7 +80,7 @@ type listCouponsRequest struct {
 func (server *Server) listCoupons(ctx *gin.Context) {
 	var req listCouponsRequest
 	if err := ctx.ShouldBindQuery(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
@@ -90,13 +90,13 @@ func (server *Server) listCoupons(ctx *gin.Context) {
 	}
 	coupons, err := server.store.ListCoupons(ctx, arg)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 
 	total, err := server.store.CountCoupons(ctx)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -110,13 +110,13 @@ type deactivateCouponRequest struct {
 func (server *Server) deactivateCoupon(ctx *gin.Context) {
 	var req deactivateCouponRequest
 	if err := ctx.ShouldBindUri(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
 	err := server.store.DeactivateCoupon(ctx, req.Code)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 	ctx.JSON(http.StatusOK, gin.H{"message": "coupon deactivated"})

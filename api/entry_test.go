@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/golang/mock/gomock"
 	mockdb "github.com/mhdna/kashi/db/mock"
@@ -111,6 +112,8 @@ func TestCreateEntryAPI(t *testing.T) {
 			request, err := http.NewRequest(http.MethodPost, "/entries", bytes.NewReader(body))
 			require.NoError(t, err)
 
+			addAuthorization(t, request, server.tokenMaker, authorizationTypeBearer, "user", time.Minute)
+
 			server.router.ServeHTTP(recorder, request)
 			tc.checkResponse(t, recorder)
 		})
@@ -197,6 +200,8 @@ func TestGetEntryAPI(t *testing.T) {
 			request, err := http.NewRequest(http.MethodGet, url, nil)
 			require.NoError(t, err)
 
+			addAuthorization(t, request, server.tokenMaker, authorizationTypeBearer, "user", time.Minute)
+
 			server.router.ServeHTTP(recorder, request)
 			tc.checkResponse(t, recorder)
 		})
@@ -273,6 +278,8 @@ func TestListEntriesAPI(t *testing.T) {
 
 			request, err := http.NewRequest(http.MethodGet, tc.query, nil)
 			require.NoError(t, err)
+
+			addAuthorization(t, request, server.tokenMaker, authorizationTypeBearer, "user", time.Minute)
 
 			server.router.ServeHTTP(recorder, request)
 			tc.checkResponse(t, recorder)

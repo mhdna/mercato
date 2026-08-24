@@ -27,9 +27,12 @@ RETURNING *;
 
 -- name: CreateCashboxAccount :one
 INSERT INTO cashbox_accounts (
-  name
-) 
-VALUES ($1)
+  name,
+  currency_code,
+  sort_order,
+  color
+)
+VALUES ($1, $2, $3, $4)
 RETURNING *;
 
 -- name: GetCashboxAccount :one
@@ -39,9 +42,18 @@ LIMIT 1;
 
 -- name: UpdateCashboxAccount :one
 UPDATE cashbox_accounts
-SET name = $2
+SET name = $2,
+currency_code = $3,
+sort_order = $4,
+color = $5,
+updated_at = now()
 WHERE id = $1
 RETURNING *;
+
+-- name: ListCashboxAccountsUpdatedSince :many
+SELECT * FROM cashbox_accounts
+WHERE updated_at > $1
+ORDER BY updated_at;
 
 -- name: GetCashboxAccountBalance :one
 SELECT * FROM shifts_accounts_balances

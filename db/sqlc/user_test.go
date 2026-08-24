@@ -15,7 +15,7 @@ func createRandomUser(t *testing.T) User {
 	arg := CreateUserParams{
 		Name:         util.RandomName(),
 		Email:        util.RandomEmail(),
-		PasswordHash: []byte(hashedPassword),
+		PasswordHash: hashedPassword,
 		Activated:    true,
 	}
 
@@ -71,7 +71,8 @@ func TestUpdateUser(t *testing.T) {
 		ID:           user.ID,
 		Name:         util.RandomName(),
 		Email:        util.RandomEmail(),
-		PasswordHash: []byte(util.RandomString(32)),
+		PasswordHash: util.RandomString(32),
+		Activated:    user.Activated,
 	}
 
 	err := testQueries.UpdateUser(context.Background(), arg)
@@ -83,7 +84,7 @@ func TestUpdateUser(t *testing.T) {
 	require.Equal(t, arg.Name, updated.Name)
 	require.Equal(t, arg.Email, updated.Email)
 	require.Equal(t, arg.PasswordHash, updated.PasswordHash)
-	require.Equal(t, user.Activated, updated.Activated)
+	require.Equal(t, arg.Activated, updated.Activated)
 }
 
 func TestDeleteUser(t *testing.T) {

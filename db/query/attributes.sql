@@ -23,7 +23,7 @@ WHERE id = $1;
 SELECT a.*, av.*
 FROM attributes a
 INNER JOIN attributes_values av
-ON a.name = av.attribute
+ON a.id = av.attribute_id
 ORDER BY value
 LIMIT $1
 OFFSET $2;

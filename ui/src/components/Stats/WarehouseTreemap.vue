@@ -5,7 +5,7 @@
     :option="option"
     theme="dark"
   />
-    <!-- :loading="loading" -->
+  <!-- :loading="loading" -->
 </template>
 
 <script setup>

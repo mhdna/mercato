@@ -15,7 +15,7 @@ type createColorRequest struct {
 func (server *Server) createColor(ctx *gin.Context) {
 	var req createColorRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
@@ -26,7 +26,7 @@ func (server *Server) createColor(ctx *gin.Context) {
 
 	color, err := server.store.CreateColor(ctx, arg)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 	ctx.JSON(http.StatusOK, color)
@@ -35,7 +35,7 @@ func (server *Server) createColor(ctx *gin.Context) {
 func (server *Server) listColors(ctx *gin.Context) {
 	colors, err := server.store.ListColors(ctx)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 

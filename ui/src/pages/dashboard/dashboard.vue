@@ -4,7 +4,7 @@
       <v-tabs v-model="tab" color="primary">
         <v-tab class="px-8" value="overview">Overview</v-tab>
         <v-tab class="d-flex align-center justify-space-between" value="income">
-          <div>Daily Income</div>
+          <div>Branches Daily Income</div>
         </v-tab>
         <v-tab
           class="d-flex align-center justify-space-between px-6 pe-8"
@@ -19,7 +19,7 @@
           value="health"
         >
           <div class="me-4">Health</div>
-          <v-badge color="green-darken-2" class="mb-1" />
+          <v-badge class="mb-1" color="green-darken-2" />
         </v-tab>
         <v-tab value="demand">Demand</v-tab>
       </v-tabs>
@@ -37,11 +37,11 @@
         <branch-menu />
         <v-btn-toggle
           v-model="period"
+          class="me-4 mt-2"
           density="compact"
+          mandatory
           rounded="lg"
           variant="outlined"
-          class="me-4 mt-2"
-          mandatory
         >
           <!-- <v-btn value="this-month">Monthly</v-btn> -->
           <v-btn value="yesterday">Yesterday</v-btn>
@@ -63,18 +63,18 @@
 </template>
 
 <script setup>
-import { defineAsyncComponent, ref } from "vue";
-import FilterBtn from "../FilterBtn.vue";
-import BranchMenu from "@/components/Buttons/BranchMenu.vue";
+  import { defineAsyncComponent, ref } from 'vue'
+  import BranchMenu from '@/components/Buttons/BranchMenu.vue'
+  import FilterBtn from '../FilterBtn.vue'
 
-const tab = ref("overview");
+  const tab = ref('overview')
 
-const tabComponents = {
-  overview: defineAsyncComponent(() => import("./tabs/OverviewTab.vue")),
-  alerts: defineAsyncComponent(() => import("./tabs/AlertsTab.vue")),
-  income: defineAsyncComponent(() => import("./tabs/IncomeTab.vue")),
-  sales: defineAsyncComponent(() => import("./tabs/SalesAnalyticsTab.vue")),
-  health: defineAsyncComponent(() => import("./tabs/HealthTab.vue")),
-  demand: defineAsyncComponent(() => import("./tabs/DemandTab.vue")),
-};
+  const tabComponents = {
+    overview: defineAsyncComponent(() => import('./tabs/OverviewTab.vue')),
+    alerts: defineAsyncComponent(() => import('./tabs/AlertsTab.vue')),
+    income: defineAsyncComponent(() => import('./tabs/IncomeTab.vue')),
+    sales: defineAsyncComponent(() => import('./tabs/SalesAnalyticsTab.vue')),
+    health: defineAsyncComponent(() => import('./tabs/HealthTab.vue')),
+    demand: defineAsyncComponent(() => import('./tabs/DemandTab.vue')),
+  }
 </script>

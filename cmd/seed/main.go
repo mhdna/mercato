@@ -190,12 +190,12 @@ func seedSuppliers(ctx context.Context, store db.Store) []int64 {
 		lng := rand.Float64()*360 - 180
 
 		supplier, err := store.CreateSupplier(ctx, db.CreateSupplierParams{
-			Name:               name,
-			Phone:              phone,
-			Country:            country,
-			Address:            fmt.Sprintf("%d Main St, City", rand.Intn(9999)+1),
-			AddressLatitude:    nullFloat64(lat),
-			AddressLongitude:   nullFloat64(lng),
+			Name:             name,
+			Phone:            phone,
+			Country:          country,
+			Address:          fmt.Sprintf("%d Main St, City", rand.Intn(9999)+1),
+			AddressLatitude:  nullFloat64(lat),
+			AddressLongitude: nullFloat64(lng),
 		})
 		if err != nil {
 			log.Printf("warning: failed to create supplier %s: %v", name, err)
@@ -426,7 +426,7 @@ func seedCashboxAccounts(ctx context.Context, store db.Store) []int64 {
 	names := []string{"Cash", "Card", "Bank Transfer", "Mobile Wallet"}
 	accountIDs := make([]int64, 0, len(names))
 	for _, name := range names {
-		account, err := store.CreateCashboxAccount(ctx, name)
+		account, err := store.CreateCashboxAccount(ctx, db.CreateCashboxAccountParams{Name: name, CurrencyCode: "USD"})
 		if err != nil {
 			log.Printf("warning: failed to create cashbox account %s: %v", name, err)
 			continue

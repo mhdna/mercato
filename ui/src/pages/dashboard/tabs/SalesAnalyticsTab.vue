@@ -29,10 +29,10 @@
   ]
 
   const data = {
-    categories: [{ label: "Men's Wear", value: 340 }, { label: "Women's Wear", value: 280 }, { label: "Kids' Wear", value: 175 }, { label: 'Footwear', value: 155 }, { label: 'Accessories', value: 110 }, { label: 'Sportswear', value: 85 }],
+    categories: [{ label: 'Men\'s Wear', value: 340 }, { label: 'Women\'s Wear', value: 280 }, { label: 'Kids\' Wear', value: 175 }, { label: 'Footwear', value: 155 }, { label: 'Accessories', value: 110 }, { label: 'Sportswear', value: 85 }],
     subcategories: [{ label: 'Shirts', value: 190 }, { label: 'Pants', value: 160 }, { label: 'Dresses', value: 145 }, { label: 'Jackets', value: 120 }, { label: 'Shoes', value: 100 }, { label: 'Bags', value: 85 }, { label: 'Hats', value: 55 }],
     kinds: [{ label: 'Casual', value: 310 }, { label: 'Formal', value: 220 }, { label: 'Athletic', value: 175 }, { label: 'Luxury', value: 120 }, { label: 'Seasonal', value: 80 }],
-    brands: [{ label: 'Nike', value: 280 }, { label: 'Adidas', value: 240 }, { label: 'Zara', value: 210 }, { label: 'H&M', value: 185 }, { label: "Levi's", value: 140 }, { label: 'Gucci', value: 110 }, { label: 'Prada', value: 85 }],
+    brands: [{ label: 'Nike', value: 280 }, { label: 'Adidas', value: 240 }, { label: 'Zara', value: 210 }, { label: 'H&M', value: 185 }, { label: 'Levi\'s', value: 140 }, { label: 'Gucci', value: 110 }, { label: 'Prada', value: 85 }],
   }
 
   function tableItems (key) {

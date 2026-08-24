@@ -1,5 +1,5 @@
 <template>
-  <v-card flat class="d-flex" style="gap: 0">
+  <v-card class="d-flex" flat style="gap: 0">
     <ChartCard :option="charts.revenue" title="Revenue" />
     <ChartCard :option="charts.expenses" title="Expenses" />
     <ChartCard :option="charts.profit" title="Profit" />

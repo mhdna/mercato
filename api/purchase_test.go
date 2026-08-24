@@ -103,6 +103,8 @@ func TestCreatePurchaseAPI(t *testing.T) {
 			request, err := http.NewRequest(http.MethodPost, "/purchases", bytes.NewReader(body))
 			require.NoError(t, err)
 
+			addAuthorization(t, request, server.tokenMaker, authorizationTypeBearer, "user", time.Minute)
+
 			server.router.ServeHTTP(recorder, request)
 			tc.checkResponse(t, recorder)
 		})
@@ -189,6 +191,8 @@ func TestGetPurchaseAPI(t *testing.T) {
 			request, err := http.NewRequest(http.MethodGet, url, nil)
 			require.NoError(t, err)
 
+			addAuthorization(t, request, server.tokenMaker, authorizationTypeBearer, "user", time.Minute)
+
 			server.router.ServeHTTP(recorder, request)
 			tc.checkResponse(t, recorder)
 		})
@@ -216,6 +220,10 @@ func TestListPurchasesAPI(t *testing.T) {
 					ListPurchases(gomock.Any(), gomock.Any()).
 					Times(1).
 					Return(purchases, nil)
+				store.EXPECT().
+					CountPurchases(gomock.Any()).
+					Times(1).
+					Return(int64(n), nil)
 			},
 			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
 				require.Equal(t, http.StatusOK, recorder.Code)
@@ -265,6 +273,8 @@ func TestListPurchasesAPI(t *testing.T) {
 			request, err := http.NewRequest(http.MethodGet, tc.query, nil)
 			require.NoError(t, err)
 
+			addAuthorization(t, request, server.tokenMaker, authorizationTypeBearer, "user", time.Minute)
+
 			server.router.ServeHTTP(recorder, request)
 			tc.checkResponse(t, recorder)
 		})
@@ -286,9 +296,13 @@ func requireBodyMatchPurchases(t *testing.T, body *bytes.Buffer, purchases []db.
 	data, err := io.ReadAll(body)
 	require.NoError(t, err)
 
-	var gotPurchases []db.Purchase
-	err = json.Unmarshal(data, &gotPurchases)
+	// listPurchases responds with {"purchases": [...], "total": ...}, not a bare array.
+	var resp struct {
+		Purchases []db.Purchase `json:"purchases"`
+	}
+	err = json.Unmarshal(data, &resp)
 	require.NoError(t, err)
+	gotPurchases := resp.Purchases
 	require.Equal(t, len(purchases), len(gotPurchases))
 	for i := range purchases {
 		require.Equal(t, purchases[i].ID, gotPurchases[i].ID)

@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/golang/mock/gomock"
 	mockdb "github.com/mhdna/kashi/db/mock"
@@ -105,6 +106,8 @@ func TestCreateTransferAPI(t *testing.T) {
 			request, err := http.NewRequest(http.MethodPost, "/transfers", bytes.NewReader(body))
 			require.NoError(t, err)
 
+			addAuthorization(t, request, server.tokenMaker, authorizationTypeBearer, "user", time.Minute)
+
 			server.router.ServeHTTP(recorder, request)
 			tc.checkResponse(t, recorder)
 		})
@@ -191,6 +194,8 @@ func TestGetTransferAPI(t *testing.T) {
 			request, err := http.NewRequest(http.MethodGet, url, nil)
 			require.NoError(t, err)
 
+			addAuthorization(t, request, server.tokenMaker, authorizationTypeBearer, "user", time.Minute)
+
 			server.router.ServeHTTP(recorder, request)
 			tc.checkResponse(t, recorder)
 		})
@@ -218,6 +223,10 @@ func TestListTransfersAPI(t *testing.T) {
 					ListTransfers(gomock.Any(), gomock.Any()).
 					Times(1).
 					Return(transfers, nil)
+				store.EXPECT().
+					CountTransfers(gomock.Any()).
+					Times(1).
+					Return(int64(n), nil)
 			},
 			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
 				require.Equal(t, http.StatusOK, recorder.Code)
@@ -266,6 +275,8 @@ func TestListTransfersAPI(t *testing.T) {
 
 			request, err := http.NewRequest(http.MethodGet, tc.query, nil)
 			require.NoError(t, err)
+
+			addAuthorization(t, request, server.tokenMaker, authorizationTypeBearer, "user", time.Minute)
 
 			server.router.ServeHTTP(recorder, request)
 			tc.checkResponse(t, recorder)
@@ -353,6 +364,8 @@ func TestUpdateTransferAPI(t *testing.T) {
 			request, err := http.NewRequest(http.MethodPut, "/transfers", bytes.NewReader(body))
 			require.NoError(t, err)
 
+			addAuthorization(t, request, server.tokenMaker, authorizationTypeBearer, "user", time.Minute)
+
 			server.router.ServeHTTP(recorder, request)
 			tc.checkResponse(t, recorder)
 		})
@@ -376,9 +389,13 @@ func requireBodyMatchTransfers(t *testing.T, body *bytes.Buffer, transfers []db.
 	data, err := io.ReadAll(body)
 	require.NoError(t, err)
 
-	var gotTransfers []db.Transfer
-	err = json.Unmarshal(data, &gotTransfers)
+	// listTransfers responds with {"transfers": [...], "total": ...}, not a bare array.
+	var resp struct {
+		Transfers []db.Transfer `json:"transfers"`
+	}
+	err = json.Unmarshal(data, &resp)
 	require.NoError(t, err)
+	gotTransfers := resp.Transfers
 	require.Equal(t, len(transfers), len(gotTransfers))
 	for i := range transfers {
 		require.Equal(t, transfers[i].ID, gotTransfers[i].ID)

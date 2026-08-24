@@ -17,13 +17,13 @@ type createPurchaseRequest struct {
 func (server *Server) createPurchase(ctx *gin.Context) {
 	var req createPurchaseRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
 	purchasedAt, err := time.Parse(time.RFC3339, req.PurchasedAt)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
@@ -34,7 +34,7 @@ func (server *Server) createPurchase(ctx *gin.Context) {
 
 	purchase, err := server.store.CreatePurchase(ctx, arg)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 	ctx.JSON(http.StatusOK, purchase)
@@ -47,17 +47,17 @@ type getPurchaseRequest struct {
 func (server *Server) getPurchase(ctx *gin.Context) {
 	var req getPurchaseRequest
 	if err := ctx.ShouldBindUri(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
 	purchase, err := server.store.GetPurchase(ctx, req.ID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			ctx.JSON(http.StatusNotFound, errorResponse(err))
+			server.writeError(ctx, http.StatusNotFound, err)
 			return
 		}
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -72,7 +72,7 @@ type listPurchasesRequest struct {
 func (server *Server) listPurchases(ctx *gin.Context) {
 	var req listPurchasesRequest
 	if err := ctx.ShouldBindQuery(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
@@ -82,13 +82,13 @@ func (server *Server) listPurchases(ctx *gin.Context) {
 	}
 	purchases, err := server.store.ListPurchases(ctx, arg)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 
 	total, err := server.store.CountPurchases(ctx)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -107,7 +107,7 @@ type addPurchaseItemRequest struct {
 func (server *Server) addPurchaseItem(ctx *gin.Context) {
 	var req addPurchaseItemRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
@@ -131,7 +131,7 @@ func (server *Server) addPurchaseItem(ctx *gin.Context) {
 
 	item, err := server.store.AddPurchaseItem(ctx, arg)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 	ctx.JSON(http.StatusOK, item)

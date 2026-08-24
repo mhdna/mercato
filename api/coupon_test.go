@@ -114,6 +114,8 @@ func TestCreateCouponAPI(t *testing.T) {
 			request, err := http.NewRequest(http.MethodPost, "/coupons", bytes.NewReader(body))
 			require.NoError(t, err)
 
+			addAuthorization(t, request, server.tokenMaker, authorizationTypeBearer, "user", time.Minute)
+
 			server.router.ServeHTTP(recorder, request)
 			tc.checkResponse(t, recorder)
 		})
@@ -188,6 +190,8 @@ func TestGetCouponAPI(t *testing.T) {
 			request, err := http.NewRequest(http.MethodGet, url, nil)
 			require.NoError(t, err)
 
+			addAuthorization(t, request, server.tokenMaker, authorizationTypeBearer, "user", time.Minute)
+
 			server.router.ServeHTTP(recorder, request)
 			tc.checkResponse(t, recorder)
 		})
@@ -215,6 +219,10 @@ func TestListCouponsAPI(t *testing.T) {
 					ListCoupons(gomock.Any(), gomock.Any()).
 					Times(1).
 					Return(coupons, nil)
+				store.EXPECT().
+					CountCoupons(gomock.Any()).
+					Times(1).
+					Return(int64(n), nil)
 			},
 			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
 				require.Equal(t, http.StatusOK, recorder.Code)
@@ -263,6 +271,8 @@ func TestListCouponsAPI(t *testing.T) {
 
 			request, err := http.NewRequest(http.MethodGet, tc.query, nil)
 			require.NoError(t, err)
+
+			addAuthorization(t, request, server.tokenMaker, authorizationTypeBearer, "user", time.Minute)
 
 			server.router.ServeHTTP(recorder, request)
 			tc.checkResponse(t, recorder)
@@ -336,6 +346,8 @@ func TestDeactivateCouponAPI(t *testing.T) {
 			request, err := http.NewRequest(http.MethodPut, url, nil)
 			require.NoError(t, err)
 
+			addAuthorization(t, request, server.tokenMaker, authorizationTypeBearer, "user", time.Minute)
+
 			server.router.ServeHTTP(recorder, request)
 			tc.checkResponse(t, recorder)
 		})
@@ -360,9 +372,13 @@ func requireBodyMatchCoupons(t *testing.T, body *bytes.Buffer, coupons []db.Coup
 	data, err := io.ReadAll(body)
 	require.NoError(t, err)
 
-	var gotCoupons []db.Coupon
-	err = json.Unmarshal(data, &gotCoupons)
+	// listCoupons responds with {"coupons": [...], "total": ...}, not a bare array.
+	var resp struct {
+		Coupons []db.Coupon `json:"coupons"`
+	}
+	err = json.Unmarshal(data, &resp)
 	require.NoError(t, err)
+	gotCoupons := resp.Coupons
 	require.Equal(t, len(coupons), len(gotCoupons))
 	for i := range coupons {
 		require.Equal(t, coupons[i].Code, gotCoupons[i].Code)

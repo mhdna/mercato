@@ -15,7 +15,7 @@ type createShiftRequest struct {
 func (server *Server) createShift(ctx *gin.Context) {
 	var req createShiftRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
@@ -23,7 +23,7 @@ func (server *Server) createShift(ctx *gin.Context) {
 
 	shift, err := server.store.CreateShift(ctx, cashboxID)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 	ctx.JSON(http.StatusOK, shift)
@@ -36,18 +36,18 @@ type getShiftRequest struct {
 func (server *Server) getShift(ctx *gin.Context) {
 	var req getShiftRequest
 	if err := ctx.ShouldBindUri(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
 	shift, err := server.store.GetShift(ctx, req.ID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			ctx.JSON(http.StatusNotFound, errorResponse(err))
+			server.writeError(ctx, http.StatusNotFound, err)
 			return
 		}
 
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -62,7 +62,7 @@ type listShifts struct {
 func (server *Server) listShifts(ctx *gin.Context) {
 	var req listShifts
 	if err := ctx.ShouldBindQuery(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
@@ -72,13 +72,13 @@ func (server *Server) listShifts(ctx *gin.Context) {
 	}
 	shifts, err := server.store.ListShifts(ctx, arg)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 
 	total, err := server.store.CountShifts(ctx)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -92,7 +92,7 @@ type CloseShiftRequest struct {
 func (server *Server) CloseShift(ctx *gin.Context) {
 	var req CloseShiftRequest
 	if err := ctx.ShouldBindUri(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
@@ -101,10 +101,10 @@ func (server *Server) CloseShift(ctx *gin.Context) {
 	err := server.store.CloseShift(ctx, shiftID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			ctx.JSON(http.StatusBadRequest, errorResponse(err))
+			server.writeError(ctx, http.StatusBadRequest, err)
 			return
 		}
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 	ctx.JSON(http.StatusOK, gin.H{"message": "closed shift"})

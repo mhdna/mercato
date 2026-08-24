@@ -16,7 +16,7 @@ type createCashboxRequest struct {
 func (server *Server) createCashbox(ctx *gin.Context) {
 	var req createCashboxRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
@@ -27,7 +27,7 @@ func (server *Server) createCashbox(ctx *gin.Context) {
 
 	cashbox, err := server.store.CreateCashbox(ctx, arg)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 	ctx.JSON(http.StatusOK, cashbox)
@@ -40,18 +40,18 @@ type getCashboxRequest struct {
 func (server *Server) getCashbox(ctx *gin.Context) {
 	var req getCashboxRequest
 	if err := ctx.ShouldBindUri(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
 	cashbox, err := server.store.GetCashbox(ctx, req.ID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			ctx.JSON(http.StatusNotFound, errorResponse(err))
+			server.writeError(ctx, http.StatusNotFound, err)
 			return
 		}
 
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -66,7 +66,7 @@ type listCashboxesRequest struct {
 func (server *Server) listCashboxes(ctx *gin.Context) {
 	var req listCashboxesRequest
 	if err := ctx.ShouldBindQuery(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
@@ -76,7 +76,7 @@ func (server *Server) listCashboxes(ctx *gin.Context) {
 	}
 	cashboxes, err := server.store.ListCashboxes(ctx, arg)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -92,7 +92,7 @@ type updateCashboxRequest struct {
 func (server *Server) updateCashbox(ctx *gin.Context) {
 	var req updateCashboxRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
@@ -104,10 +104,10 @@ func (server *Server) updateCashbox(ctx *gin.Context) {
 	cashbox, err := server.store.UpdateCashbox(ctx, arg)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			ctx.JSON(http.StatusBadRequest, errorResponse(err))
+			server.writeError(ctx, http.StatusBadRequest, err)
 			return
 		}
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 	ctx.JSON(http.StatusOK, cashbox)

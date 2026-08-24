@@ -9,21 +9,33 @@ import (
 )
 
 type createCashboxAccountRequest struct {
-	Name string `json:"name" binding:"required"`
+	Name         string `json:"name" binding:"required"`
+	CurrencyCode string `json:"currency_code"`
+	SortOrder    int32  `json:"sort_order"`
+	Color        string `json:"color"`
 }
 
 func (server *Server) createCashboxAccount(ctx *gin.Context) {
 	var req createCashboxAccountRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
+	}
+	if req.CurrencyCode == "" {
+		req.CurrencyCode = "USD"
 	}
 
-	cashboxAccount, err := server.store.CreateCashboxAccount(ctx, req.Name)
+	cashboxAccount, err := server.store.CreateCashboxAccount(ctx, db.CreateCashboxAccountParams{
+		Name:         req.Name,
+		CurrencyCode: req.CurrencyCode,
+		SortOrder:    req.SortOrder,
+		Color:        req.Color,
+	})
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
+	server.branchHub.broadcastAll(branchWSMessage{Type: "cashbox_account_updated"})
 	ctx.JSON(http.StatusOK, cashboxAccount)
 }
 
@@ -35,7 +47,7 @@ type listCashboxAccountsRequest struct {
 func (server *Server) listCashboxAccounts(ctx *gin.Context) {
 	var req listCashboxAccountsRequest
 	if err := ctx.ShouldBindQuery(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
@@ -45,7 +57,7 @@ func (server *Server) listCashboxAccounts(ctx *gin.Context) {
 	}
 	cashboxAccounts, err := server.store.ListCashboxAccounts(ctx, arg)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -53,30 +65,40 @@ func (server *Server) listCashboxAccounts(ctx *gin.Context) {
 }
 
 type updateCashboxAccountRequest struct {
-	ID   int64  `json:"id" binding:"required,min=1"`
-	Name string `json:"name" binding:"required"`
+	ID           int64  `json:"id" binding:"required,min=1"`
+	Name         string `json:"name" binding:"required"`
+	CurrencyCode string `json:"currency_code"`
+	SortOrder    int32  `json:"sort_order"`
+	Color        string `json:"color"`
 }
 
 func (server *Server) updateCashboxAccount(ctx *gin.Context) {
 	var req updateCashboxAccountRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
+	}
+	if req.CurrencyCode == "" {
+		req.CurrencyCode = "USD"
 	}
 
 	arg := db.UpdateCashboxAccountParams{
-		ID:   req.ID,
-		Name: req.Name,
+		ID:           req.ID,
+		Name:         req.Name,
+		CurrencyCode: req.CurrencyCode,
+		SortOrder:    req.SortOrder,
+		Color:        req.Color,
 	}
 	cashboxAccount, err := server.store.UpdateCashboxAccount(ctx, arg)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			ctx.JSON(http.StatusBadRequest, errorResponse(err))
+			server.writeError(ctx, http.StatusBadRequest, err)
 			return
 		}
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
+	server.branchHub.broadcastAll(branchWSMessage{Type: "cashbox_account_updated"})
 	ctx.JSON(http.StatusOK, cashboxAccount)
 }
 
@@ -89,7 +111,7 @@ type addCashboxAccountBalance struct {
 func (server *Server) addCashboxAccountBalance(ctx *gin.Context) {
 	var req addCashboxAccountBalance
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
@@ -101,10 +123,10 @@ func (server *Server) addCashboxAccountBalance(ctx *gin.Context) {
 	cashboxBalance, err := server.store.AddCashboxAccountBalance(ctx, arg)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			ctx.JSON(http.StatusBadRequest, errorResponse(err))
+			server.writeError(ctx, http.StatusBadRequest, err)
 			return
 		}
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 	ctx.JSON(http.StatusOK, cashboxBalance)

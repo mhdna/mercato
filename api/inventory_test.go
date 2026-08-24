@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/golang/mock/gomock"
 	mockdb "github.com/mhdna/kashi/db/mock"
@@ -96,6 +97,8 @@ func TestGetInventoryAPI(t *testing.T) {
 			url := fmt.Sprintf("/inventories/%d", tc.inventoryID)
 			request, err := http.NewRequest(http.MethodGet, url, nil)
 			require.NoError(t, err)
+
+			addAuthorization(t, request, server.tokenMaker, authorizationTypeBearer, "user", time.Minute)
 
 			server.router.ServeHTTP(recorder, request)
 			tc.checkResponse(t, recorder)

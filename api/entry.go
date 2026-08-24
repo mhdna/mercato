@@ -19,7 +19,7 @@ type createEntryRequest struct {
 func (server *Server) createEntry(ctx *gin.Context) {
 	var req createEntryRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
@@ -33,7 +33,7 @@ func (server *Server) createEntry(ctx *gin.Context) {
 
 	entry, err := server.store.CreateEntryItem(ctx, arg)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 	ctx.JSON(http.StatusOK, entry)
@@ -46,17 +46,17 @@ type getEntryRequest struct {
 func (server *Server) getEntry(ctx *gin.Context) {
 	var req getEntryRequest
 	if err := ctx.ShouldBindUri(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
 	entry, err := server.store.GetEntry(ctx, req.ID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			ctx.JSON(http.StatusNotFound, errorResponse(err))
+			server.writeError(ctx, http.StatusNotFound, err)
 			return
 		}
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -72,7 +72,7 @@ type listEntriesRequest struct {
 func (server *Server) listEntries(ctx *gin.Context) {
 	var req listEntriesRequest
 	if err := ctx.ShouldBindQuery(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
@@ -83,7 +83,7 @@ func (server *Server) listEntries(ctx *gin.Context) {
 	}
 	entries, err := server.store.ListEntries(ctx, arg)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 

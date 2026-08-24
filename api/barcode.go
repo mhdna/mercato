@@ -7,6 +7,11 @@ import (
 	db "github.com/mhdna/kashi/db/sqlc"
 )
 
+// listBarcodes lists product variants (each variant's barcode is a real
+// per-SKU barcode now — see product_variants, which replaced the old
+// one-barcode-per-product table). Kept at this URL/name since it's the
+// existing UI-facing "browse barcodes" endpoint, just backed by the new
+// table.
 type ListBarcodeRequest struct {
 	PageSize int32 `form:"page_size,default=10" binding:"min=5,max=10"`
 	PageID   int32 `form:"page_id,default=0" binding:"min=0"`
@@ -15,18 +20,24 @@ type ListBarcodeRequest struct {
 func (server *Server) listBarcodes(ctx *gin.Context) {
 	var req ListBarcodeRequest
 	if err := ctx.ShouldBindQuery(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
-	arg := db.ListBarcodesParams{
+	variants, err := server.store.ListProductVariants(ctx, db.ListProductVariantsParams{
 		Limit:  req.PageSize,
 		Offset: req.PageID,
-	}
-	barcodes, err := server.store.ListBarcodes(ctx, arg)
+	})
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
-	ctx.JSON(http.StatusOK, barcodes)
+
+	total, err := server.store.CountProductVariants(ctx)
+	if err != nil {
+		server.writeError(ctx, http.StatusInternalServerError, err)
+		return
+	}
+
+	server.writeJSON(ctx, http.StatusOK, envelope{"variants": variants, "total": total})
 }

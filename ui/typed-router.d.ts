@@ -24,6 +24,8 @@ declare module 'vue-router/auto-routes' {
     '/Attendance': RouteRecordInfo<'/Attendance', '/Attendance', Record<never, never>, Record<never, never>>,
     '/barcode-printing': RouteRecordInfo<'/barcode-printing', '/barcode-printing', Record<never, never>, Record<never, never>>,
     '/barcodes': RouteRecordInfo<'/barcodes', '/barcodes', Record<never, never>, Record<never, never>>,
+    '/branch-invoices': RouteRecordInfo<'/branch-invoices', '/branch-invoices', Record<never, never>, Record<never, never>>,
+    '/branches': RouteRecordInfo<'/branches', '/branches', Record<never, never>, Record<never, never>>,
     '/calendar': RouteRecordInfo<'/calendar', '/calendar', Record<never, never>, Record<never, never>>,
     '/client-page': RouteRecordInfo<'/client-page', '/client-page', Record<never, never>, Record<never, never>>,
     '/clients': RouteRecordInfo<'/clients', '/clients', Record<never, never>, Record<never, never>>,
@@ -49,6 +51,7 @@ declare module 'vue-router/auto-routes' {
     '/FilterBtn': RouteRecordInfo<'/FilterBtn', '/FilterBtn', Record<never, never>, Record<never, never>>,
     '/inventory': RouteRecordInfo<'/inventory', '/inventory', Record<never, never>, Record<never, never>>,
     '/inventory-analysis': RouteRecordInfo<'/inventory-analysis', '/inventory-analysis', Record<never, never>, Record<never, never>>,
+    '/invoice-types': RouteRecordInfo<'/invoice-types', '/invoice-types', Record<never, never>, Record<never, never>>,
     '/Login': RouteRecordInfo<'/Login', '/Login', Record<never, never>, Record<never, never>>,
     '/products': RouteRecordInfo<'/products', '/products', Record<never, never>, Record<never, never>>,
     '/purchase-invoice': RouteRecordInfo<'/purchase-invoice', '/purchase-invoice', Record<never, never>, Record<never, never>>,
@@ -96,6 +99,14 @@ declare module 'vue-router/auto-routes' {
     }
     'src/pages/barcodes.vue': {
       routes: '/barcodes'
+      views: never
+    }
+    'src/pages/branch-invoices.vue': {
+      routes: '/branch-invoices'
+      views: never
+    }
+    'src/pages/branches.vue': {
+      routes: '/branches'
       views: never
     }
     'src/pages/calendar.vue': {
@@ -196,6 +207,10 @@ declare module 'vue-router/auto-routes' {
     }
     'src/pages/inventory-analysis.vue': {
       routes: '/inventory-analysis'
+      views: never
+    }
+    'src/pages/invoice-types.vue': {
+      routes: '/invoice-types'
       views: never
     }
     'src/pages/Login.vue': {

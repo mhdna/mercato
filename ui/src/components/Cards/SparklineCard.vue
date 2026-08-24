@@ -38,41 +38,41 @@
   </v-card>
 </template>
 <script setup>
-import { computed, ref } from "vue";
+  import { computed, ref } from 'vue'
 
-const props = defineProps({
-  title: {
-    type: String,
-    required: true,
-  },
-  icon: {
-    type: String,
-    required: true,
-  },
-  unit: {
-    type: String,
-    required: true,
-  },
-});
+  const props = defineProps({
+    title: {
+      type: String,
+      required: true,
+    },
+    icon: {
+      type: String,
+      required: true,
+    },
+    unit: {
+      type: String,
+      required: true,
+    },
+  })
 
-const exhale = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-const checking = ref(false);
-const heartbeats = ref([]);
-const avg = computed(() => {
-  const sum = heartbeats.value.reduce((acc, cur) => acc + cur, 0);
-  const length = heartbeats.value.length;
-  if (!sum && !length) return 0;
-  return Math.ceil(sum / length);
-});
+  const exhale = ms => new Promise(resolve => setTimeout(resolve, ms))
+  const checking = ref(false)
+  const heartbeats = ref([])
+  const avg = computed(() => {
+    const sum = heartbeats.value.reduce((acc, cur) => acc + cur, 0)
+    const length = heartbeats.value.length
+    if (!sum && !length) return 0
+    return Math.ceil(sum / length)
+  })
 
-function heartbeat() {
-  return Math.ceil(Math.random() * (1_111_120 - 80) + 80);
-}
-async function takePulse(inhale = true) {
-  checking.value = true;
-  inhale && (await exhale(100_000));
-  heartbeats.value = Array.from({ length: 20 }, heartbeat);
-  checking.value = false;
-}
-takePulse(false);
+  function heartbeat () {
+    return Math.ceil(Math.random() * (1_111_120 - 80) + 80)
+  }
+  async function takePulse (inhale = true) {
+    checking.value = true
+    inhale && (await exhale(100_000))
+    heartbeats.value = Array.from({ length: 20 }, heartbeat)
+    checking.value = false
+  }
+  takePulse(false)
 </script>

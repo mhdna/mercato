@@ -40,13 +40,13 @@ func newUserResponse(user db.User) userResponse {
 func (server *Server) createUser(ctx *gin.Context) {
 	var req createUserRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
 	hashPassword, err := util.HashPassword(req.Password)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -62,10 +62,10 @@ func (server *Server) createUser(ctx *gin.Context) {
 		if pqErr, ok := err.(*pq.Error); ok {
 			switch pqErr.Code.Name() {
 			case "foreign_key_violation", "unique_violation":
-				ctx.JSON(http.StatusForbidden, errorResponse(err))
+				server.writeError(ctx, http.StatusForbidden, err)
 			}
 		}
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 	rsp := newUserResponse(user)
@@ -80,18 +80,18 @@ type getUserRequest struct {
 func (server *Server) getUser(ctx *gin.Context) {
 	var req getUserRequest
 	if err := ctx.ShouldBindUri(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
 	user, err := server.store.GetUser(ctx, req.ID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			ctx.JSON(http.StatusNotFound, errorResponse(err))
+			server.writeError(ctx, http.StatusNotFound, err)
 			return
 		}
 
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -106,7 +106,7 @@ type listUsersRequest struct {
 func (server *Server) listUsers(ctx *gin.Context) {
 	var req listUsersRequest
 	if err := ctx.ShouldBindQuery(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
@@ -116,7 +116,7 @@ func (server *Server) listUsers(ctx *gin.Context) {
 	}
 	users, err := server.store.ListUsers(ctx, arg)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -134,13 +134,13 @@ type updateUserRequest struct {
 func (server *Server) updateUser(ctx *gin.Context) {
 	var req updateUserRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
 	hashPassword, err := util.HashPassword(req.Password)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -155,10 +155,10 @@ func (server *Server) updateUser(ctx *gin.Context) {
 	err = server.store.UpdateUser(ctx, arg)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			ctx.JSON(http.StatusBadRequest, errorResponse(err))
+			server.writeError(ctx, http.StatusBadRequest, err)
 			return
 		}
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 	ctx.JSON(http.StatusOK, gin.H{"message": "user updated"})
@@ -171,13 +171,13 @@ type deleteUserRequest struct {
 func (server *Server) deleteUser(ctx *gin.Context) {
 	var req deleteUserRequest
 	if err := ctx.ShouldBindUri(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
 	err := server.store.DeleteUser(ctx, req.ID)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 	ctx.JSON(http.StatusOK, gin.H{"message": "user deleted"})
@@ -200,21 +200,21 @@ type loginUserResponse struct {
 func (server *Server) loginUser(ctx *gin.Context) {
 	var req loginUserRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 	user, err := server.store.GetUserByUsername(ctx, req.Name)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			ctx.JSON(http.StatusNotFound, errorResponse(err))
+			server.writeError(ctx, http.StatusNotFound, err)
 			return
 		}
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 	err = util.CheckPassword(req.Password, user.PasswordHash)
 	if err != nil {
-		ctx.JSON(http.StatusUnauthorized, errorResponse(err))
+		server.writeError(ctx, http.StatusUnauthorized, err)
 		return
 	}
 	accessToken, accessPayload, err := server.tokenMaker.CreateToken(
@@ -222,7 +222,7 @@ func (server *Server) loginUser(ctx *gin.Context) {
 		server.config.AccessTokenDuration,
 	)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 	refreshToken, refreshPayload, err := server.tokenMaker.CreateToken(
@@ -230,7 +230,7 @@ func (server *Server) loginUser(ctx *gin.Context) {
 		server.config.RefreshTokenDuration,
 	)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -244,7 +244,7 @@ func (server *Server) loginUser(ctx *gin.Context) {
 		ExpiresAt:    refreshPayload.ExpiredAt,
 	})
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -272,38 +272,38 @@ type renewAccessTokenResponse struct {
 func (server *Server) renewAccessToken(ctx *gin.Context) {
 	var req renewAccessTokenRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
 	refreshPayload, err := server.tokenMaker.VerifyToken(req.RefreshToken)
 	if err != nil {
-		ctx.JSON(http.StatusUnauthorized, errorResponse(err))
+		server.writeError(ctx, http.StatusUnauthorized, err)
 		return
 	}
 
 	session, err := server.store.GetSession(ctx, refreshPayload.ID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			ctx.JSON(http.StatusNotFound, errorResponse(err))
+			server.writeError(ctx, http.StatusNotFound, err)
 			return
 		}
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 
 	if session.IsBlocked {
-		ctx.JSON(http.StatusUnauthorized, errorResponse(token.ErrInvalidToken))
+		server.writeError(ctx, http.StatusUnauthorized, token.ErrInvalidToken)
 		return
 	}
 
 	if session.Username != refreshPayload.Username {
-		ctx.JSON(http.StatusUnauthorized, errorResponse(token.ErrInvalidToken))
+		server.writeError(ctx, http.StatusUnauthorized, token.ErrInvalidToken)
 		return
 	}
 
 	if session.RefreshToken != req.RefreshToken {
-		ctx.JSON(http.StatusUnauthorized, errorResponse(token.ErrInvalidToken))
+		server.writeError(ctx, http.StatusUnauthorized, token.ErrInvalidToken)
 		return
 	}
 
@@ -312,7 +312,7 @@ func (server *Server) renewAccessToken(ctx *gin.Context) {
 		server.config.AccessTokenDuration,
 	)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 

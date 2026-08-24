@@ -2,80 +2,67 @@ package db
 
 import (
 	"context"
-	"fmt"
+	"strconv"
 	"testing"
 
 	"github.com/mhdna/kashi/util"
 	"github.com/stretchr/testify/require"
 )
 
-func TestCreateProductTx(t *testing.T) {
+func TestCreateProductTxGeneratesUniqueBarcodeWhenNoneGiven(t *testing.T) {
 	store := NewStore(testDB)
 
-	n := 5
-	names := make([]string, n)
-	codes := make([]string, n)
-	descriptions := make([]string, n)
-	discounts := make([]int16, n)
-	attributeValuesArray := make([][]AttributesValue, n)
+	result, err := store.CreateProductTx(context.Background(), CreateProductTxParams{
+		Code:        util.RandomString(8),
+		Name:        util.RandomString(20),
+		Description: util.RandomString(50),
+		Price:       util.RandomAmount(),
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, result.Product)
+	require.NotEmpty(t, result.Variant)
+	require.Equal(t, result.Product.ID, result.Variant.ProductID)
+	require.NotEmpty(t, result.Variant.Barcode)
+	require.True(t, result.Variant.Price.Valid)
 
-	for i := range n {
-		names[i] = util.RandomString(20)
-		codes[i] = util.RandomString(8)
-		descriptions[i] = util.RandomString(200)
-		discounts[i] = util.RandomDiscount()
-		attributeValuesArray[i] = createRandomAttributeValues(t)
-	}
+	// The variant must actually be retrievable by the barcode that came back
+	// — proves it was written to product_variants, not silently dropped.
+	fetched, err := testQueries.GetProductVariantByBarcode(context.Background(), result.Variant.Barcode)
+	require.NoError(t, err)
+	require.Equal(t, result.Variant.ID, fetched.ID)
+}
 
-	errs := make(chan error)
+func TestCreateProductTxUsesGivenBarcode(t *testing.T) {
+	store := NewStore(testDB)
 
-	type indexedResult struct {
-		res CreateProductTxResult
-		idx int
-	}
+	barcode := util.RandomInt(1_000_000_000, 9_000_000_000)
+	result, err := store.CreateProductTx(context.Background(), CreateProductTxParams{
+		Code:        util.RandomString(8),
+		Name:        util.RandomString(20),
+		Description: util.RandomString(50),
+		Barcode:     &barcode,
+	})
+	require.NoError(t, err)
+	require.Equal(t, strconv.FormatInt(barcode, 10), result.Variant.Barcode)
+}
 
-	results := make(chan indexedResult)
+func TestCreateProductTxAssignsColorAndSize(t *testing.T) {
+	store := NewStore(testDB)
 
-	for i := range n {
-		go func(idx int) {
-			res, err := store.CreateProductTx(context.Background(), CreateProductTxParams{
-				Code:            codes[idx],
-				Name:            names[idx],
-				Description:     descriptions[idx],
-				Discount:        discounts[idx],
-				AttributeValues: attributeValuesArray[idx],
-			})
+	color, err := testQueries.CreateColor(context.Background(), CreateColorParams{
+		Name:     util.RandomString(10),
+		HexValue: "#" + util.RandomString(6),
+	})
+	require.NoError(t, err)
 
-			errs <- err
-			results <- indexedResult{idx: idx, res: res}
-		}(i)
-	}
-
-	for range n {
-		err := <-errs
-		require.NoError(t, err)
-
-		indexedRes := <-results
-		res := indexedRes.res
-		idx := indexedRes.idx
-
-		resProduct := res.Product
-		require.NotEmpty(t, resProduct)
-		require.Equal(t, codes[idx], resProduct.Code)
-		require.Equal(t, descriptions[idx], resProduct.Description)
-		require.NotZero(t, resProduct.ID)
-		require.NotZero(t, resProduct.CreatedAt)
-		fmt.Println(">> tx product:", res.Product.Code)
-
-		resProductAttributes := res.ProductAttributes
-		for _, attributeValue := range attributeValuesArray[idx] {
-			for _, resProductAttribute := range resProductAttributes {
-				if resProductAttribute.AttributeID == attributeValue.AttributeID {
-					fmt.Println(">> attribute:", resProductAttribute.AttributeID, attributeValue.AttributeID, resProductAttribute.AttributeValueID, attributeValue.ID)
-					require.Equal(t, attributeValue.AttributeID, resProductAttribute.AttributeID)
-					require.Equal(t, attributeValue.ID, resProductAttribute.AttributeValueID)
-				}
-			}
-		}
-	}
+	result, err := store.CreateProductTx(context.Background(), CreateProductTxParams{
+		Code:        util.RandomString(8),
+		Name:        util.RandomString(20),
+		Description: util.RandomString(50),
+		ColorID:     &color.ID,
+	})
+	require.NoError(t, err)
+	require.True(t, result.Variant.ColorID.Valid)
+	require.Equal(t, color.ID, result.Variant.ColorID.Int64)
+	require.False(t, result.Variant.SizeID.Valid)
 }

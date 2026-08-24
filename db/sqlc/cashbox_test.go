@@ -85,8 +85,9 @@ func TestUpdateCashboxAccount(t *testing.T) {
 	account := createRandomAccount(t)
 
 	arg := UpdateCashboxAccountParams{
-		ID:   account.ID,
-		Name: util.RandomName(),
+		ID:           account.ID,
+		Name:         util.RandomName(),
+		CurrencyCode: "USD",
 	}
 
 	updated, err := testQueries.UpdateCashboxAccount(context.Background(), arg)

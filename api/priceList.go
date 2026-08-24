@@ -20,7 +20,7 @@ type createPriceListRequest struct {
 func (server *Server) createPriceList(ctx *gin.Context) {
 	var req createPriceListRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
@@ -34,7 +34,7 @@ func (server *Server) createPriceList(ctx *gin.Context) {
 
 	priceList, err := server.store.CreatePriceList(ctx, arg)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 	ctx.JSON(http.StatusOK, priceList)
@@ -47,18 +47,18 @@ type getPriceListRequest struct {
 func (server *Server) getPriceList(ctx *gin.Context) {
 	var req getPriceListRequest
 	if err := ctx.ShouldBindUri(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
 	priceList, err := server.store.GetPriceList(ctx, req.ID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			ctx.JSON(http.StatusNotFound, errorResponse(err))
+			server.writeError(ctx, http.StatusNotFound, err)
 			return
 		}
 
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -73,7 +73,7 @@ type listPriceListsRequest struct {
 func (server *Server) listPriceLists(ctx *gin.Context) {
 	var req listPriceListsRequest
 	if err := ctx.ShouldBindQuery(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
@@ -83,7 +83,7 @@ func (server *Server) listPriceLists(ctx *gin.Context) {
 	}
 	priceLists, err := server.store.ListPriceLists(ctx, arg)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -99,7 +99,7 @@ type createPriceListItemRequest struct {
 func (server *Server) createPriceListItem(ctx *gin.Context) {
 	var req createPriceListItemRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
@@ -111,7 +111,7 @@ func (server *Server) createPriceListItem(ctx *gin.Context) {
 
 	item, err := server.store.CreatePriceListItem(ctx, arg)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 	ctx.JSON(http.StatusOK, item)
@@ -124,13 +124,13 @@ type listPriceListItemsRequest struct {
 func (server *Server) listPriceListItems(ctx *gin.Context) {
 	var req listPriceListItemsRequest
 	if err := ctx.ShouldBindUri(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
 	items, err := server.store.ListPriceListItems(ctx, req.PriceListID)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 	ctx.JSON(http.StatusOK, items)
@@ -144,7 +144,7 @@ type deletePriceListItemRequest struct {
 func (server *Server) deletePriceListItem(ctx *gin.Context) {
 	var req deletePriceListItemRequest
 	if err := ctx.ShouldBindUri(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
@@ -153,7 +153,7 @@ func (server *Server) deletePriceListItem(ctx *gin.Context) {
 		ProductID:   req.ProductID,
 	})
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 	ctx.JSON(http.StatusOK, gin.H{"status": "deleted"})

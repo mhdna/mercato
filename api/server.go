@@ -14,6 +14,7 @@ type Server struct {
 	store      db.Store
 	tokenMaker token.Maker
 	router     *gin.Engine
+	branchHub  *branchHub
 }
 
 func NewServer(config util.Config, store db.Store) (*Server, error) {
@@ -26,6 +27,7 @@ func NewServer(config util.Config, store db.Store) (*Server, error) {
 		config:     config,
 		store:      store,
 		tokenMaker: tokenMaker,
+		branchHub:  newBranchHub(),
 	}
 
 	server.setupRoutes()
@@ -37,7 +39,7 @@ func (server *Server) setupRoutes() {
 	router := gin.Default()
 	router.Use(corsMiddleware())
 
-	authRoutes := router.Group("/").Use(authMiddleware(server.tokenMaker))
+	authRoutes := router.Group("/").Use(server.authMiddleware())
 
 	authRoutes.POST("/inventories", server.createInventory)
 	authRoutes.GET("/inventories/:id", server.getInventory)
@@ -45,8 +47,10 @@ func (server *Server) setupRoutes() {
 	authRoutes.PUT("/inventories", server.updateInventory)
 	authRoutes.DELETE("/inventories/:id", server.deleteInventory)
 	authRoutes.POST("/products", server.createProduct)
+	authRoutes.PUT("/products", server.updateProduct)
 	authRoutes.GET("/products/:id", server.getProduct)
 	authRoutes.GET("/products", server.listProducts)
+	authRoutes.PUT("/product_variants", server.updateProductVariant)
 	authRoutes.GET("/barcodes", server.listBarcodes)
 	authRoutes.DELETE("/products/:id", server.deleteProduct)
 	authRoutes.POST("/attributes/batch", server.createAttributeValues)
@@ -64,6 +68,7 @@ func (server *Server) setupRoutes() {
 	authRoutes.POST("/clients", server.createClient)
 	authRoutes.PUT("/clients", server.updateClient)
 	authRoutes.GET("/clients/:id", server.getClient)
+	authRoutes.GET("/clients/:id/loyalty_total", server.getClientLoyaltyTotal)
 	authRoutes.GET("/clients/", server.listClients)
 	authRoutes.DELETE("/clients/:id", server.deleteClient)
 	authRoutes.POST("/currencies", server.createCurrency)
@@ -103,6 +108,11 @@ func (server *Server) setupRoutes() {
 	authRoutes.POST("/return_invoices", server.createReturnInvoice)
 	authRoutes.GET("/return_invoices/:id", server.getReturnInvoice)
 	authRoutes.GET("/return_invoices", server.listReturnInvoices)
+
+	authRoutes.POST("/invoice_types", server.createInvoiceType)
+	authRoutes.GET("/invoice_types/:id", server.getInvoiceType)
+	authRoutes.GET("/invoice_types", server.listInvoiceTypes)
+	authRoutes.PUT("/invoice_types", server.updateInvoiceType)
 
 	authRoutes.POST("/price_lists", server.createPriceList)
 	authRoutes.GET("/price_lists/:id", server.getPriceList)
@@ -152,13 +162,37 @@ func (server *Server) setupRoutes() {
 	authRoutes.GET("/purchases", server.listPurchases)
 	authRoutes.POST("/purchases/items", server.addPurchaseItem)
 
+	authRoutes.POST("/branches", server.createBranch)
+	authRoutes.GET("/branches", server.listBranches)
+	authRoutes.POST("/branches/:id/activate", server.setBranchActive(true))
+	authRoutes.POST("/branches/:id/deactivate", server.setBranchActive(false))
+	authRoutes.POST("/branches/:id/rotate_key", server.rotateBranchKey)
+
+	authRoutes.GET("/branch_invoices", server.listBranchInvoices)
+	authRoutes.GET("/branch_invoices/:id/items", server.listBranchInvoiceItems)
+	authRoutes.GET("/branch_invoices/daily_income", server.dailyIncome)
+	authRoutes.GET("/branches/:id/settings", server.getBranchSettings)
+	authRoutes.POST("/branches/:id/commands", server.createBranchCommand)
+	authRoutes.GET("/branches/:id/commands", server.listBranchCommands)
+
+	// branchRoutes is authenticated with a per-branch API key rather than a
+	// PASETO user token — see branchAuthMiddleware. Kept under its own path
+	// prefix so branch-facing request/response shapes (branch_id, client_ref
+	// idempotency, etc.) never collide with the human-operator endpoints above.
+	branchRoutes := router.Group("/branch").Use(server.branchAuthMiddleware())
+	branchRoutes.GET("/health", server.branchHealth)
+	branchRoutes.POST("/sales_invoices", server.createBranchSalesInvoice)
+	branchRoutes.POST("/return_invoices", server.createBranchReturnInvoice)
+	branchRoutes.GET("/sync/changes", server.branchSyncChanges)
+	branchRoutes.GET("/ws", server.branchWS)
+	branchRoutes.PUT("/settings", server.putBranchSettings)
+	branchRoutes.POST("/clients", server.putBranchClient)
+	branchRoutes.GET("/commands/pending", server.branchPendingCommands)
+	branchRoutes.POST("/commands/:id/ack", server.ackBranchCommand)
+
 	server.router = router
 }
 
 func (server *Server) Start(address string) error {
 	return server.router.Run(address)
-}
-
-func errorResponse(err error) *gin.H {
-	return &gin.H{"error": err.Error()}
 }

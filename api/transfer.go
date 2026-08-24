@@ -17,7 +17,7 @@ type createTransferRequest struct {
 func (server *Server) createTransfer(ctx *gin.Context) {
 	var req createTransferRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
@@ -29,7 +29,7 @@ func (server *Server) createTransfer(ctx *gin.Context) {
 
 	transfer, err := server.store.CreateTransfer(ctx, arg)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 	ctx.JSON(http.StatusOK, transfer)
@@ -42,17 +42,17 @@ type getTransferRequest struct {
 func (server *Server) getTransfer(ctx *gin.Context) {
 	var req getTransferRequest
 	if err := ctx.ShouldBindUri(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
 	transfer, err := server.store.GetTransfer(ctx, req.ID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			ctx.JSON(http.StatusNotFound, errorResponse(err))
+			server.writeError(ctx, http.StatusNotFound, err)
 			return
 		}
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -67,7 +67,7 @@ type listTransfersRequest struct {
 func (server *Server) listTransfers(ctx *gin.Context) {
 	var req listTransfersRequest
 	if err := ctx.ShouldBindQuery(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
@@ -77,13 +77,13 @@ func (server *Server) listTransfers(ctx *gin.Context) {
 	}
 	transfers, err := server.store.ListTransfers(ctx, arg)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 
 	total, err := server.store.CountTransfers(ctx)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -100,7 +100,7 @@ type updateTransferRequest struct {
 func (server *Server) updateTransfer(ctx *gin.Context) {
 	var req updateTransferRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
@@ -112,7 +112,7 @@ func (server *Server) updateTransfer(ctx *gin.Context) {
 	}
 	err := server.store.UpdateTransfer(ctx, arg)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 	ctx.JSON(http.StatusOK, gin.H{"message": "transfer updated"})
@@ -128,7 +128,7 @@ type createTransferItemRequest struct {
 func (server *Server) createTransferItem(ctx *gin.Context) {
 	var req createTransferItemRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
@@ -147,7 +147,7 @@ func (server *Server) createTransferItem(ctx *gin.Context) {
 
 	item, err := server.store.CreateTransferItem(ctx, arg)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 	ctx.JSON(http.StatusOK, item)
@@ -160,13 +160,13 @@ type listTransferItemsRequest struct {
 func (server *Server) listTransferItems(ctx *gin.Context) {
 	var req listTransferItemsRequest
 	if err := ctx.ShouldBindUri(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
 	items, err := server.store.ListTransferItems(ctx, req.TransferID)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 

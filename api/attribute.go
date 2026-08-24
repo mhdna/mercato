@@ -16,12 +16,12 @@ type createAttributeValueRequest struct {
 func (server *Server) createAttributeValue(ctx *gin.Context) {
 	var req createAttributeValueRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 	attribute, err := server.store.GetAttribute(ctx, req.Attribute)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -31,7 +31,7 @@ func (server *Server) createAttributeValue(ctx *gin.Context) {
 	}
 	attributeValue, err := server.store.UpsertAttributeValue(ctx, arg)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 	ctx.JSON(http.StatusOK, attributeValue)
@@ -44,7 +44,7 @@ type createAttributeValuesRequest struct {
 func (server *Server) createAttributeValues(ctx *gin.Context) {
 	var req createAttributeValuesRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
@@ -52,7 +52,7 @@ func (server *Server) createAttributeValues(ctx *gin.Context) {
 	for _, item := range req.Items {
 		attribute, err := server.store.GetAttribute(ctx, item.Attribute)
 		if err != nil {
-			ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+			server.writeError(ctx, http.StatusInternalServerError, err)
 			return
 		}
 
@@ -62,7 +62,7 @@ func (server *Server) createAttributeValues(ctx *gin.Context) {
 		}
 		attributeValue, err := server.store.UpsertAttributeValue(ctx, arg)
 		if err != nil {
-			ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+			server.writeError(ctx, http.StatusInternalServerError, err)
 			return
 		}
 		results = append(results, attributeValue)
@@ -77,16 +77,16 @@ type getAttributeValue struct {
 func (server *Server) getAttributeValue(ctx *gin.Context) {
 	var req getAttributeValue
 	if err := ctx.ShouldBindUri(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 	attributeValue, err := server.store.GetAttributeValue(ctx, req.ID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			ctx.JSON(http.StatusNotFound, errorResponse(err))
+			server.writeError(ctx, http.StatusNotFound, err)
 			return
 		}
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 	ctx.JSON(http.StatusOK, attributeValue)
@@ -101,7 +101,7 @@ type listAttributeValuesRequest struct {
 func (server *Server) listAttributeValues(ctx *gin.Context) {
 	var req listAttributeValuesRequest
 	if err := ctx.ShouldBindQuery(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 	arg := db.ListAttributeValuesParams{
@@ -110,7 +110,7 @@ func (server *Server) listAttributeValues(ctx *gin.Context) {
 	}
 	attributeValues, err := server.store.ListAttributeValues(ctx, arg)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 	ctx.JSON(http.StatusOK, attributeValues)
@@ -124,7 +124,7 @@ type updateAttributeValueRequest struct {
 func (server *Server) updateAttributeValue(ctx *gin.Context) {
 	var req updateAttributeValueRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
@@ -135,10 +135,10 @@ func (server *Server) updateAttributeValue(ctx *gin.Context) {
 	attributeValue, err := server.store.UpdateAttributeValue(ctx, arg)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			ctx.JSON(http.StatusBadRequest, errorResponse(err))
+			server.writeError(ctx, http.StatusBadRequest, err)
 			return
 		}
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 	ctx.JSON(http.StatusOK, attributeValue)

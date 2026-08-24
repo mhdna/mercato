@@ -1,3 +1,15 @@
+AOM:
+Make sure everything is stored in cents.
+
+Ecom:
+- Search results based on history (autocomplete and results page)
+- Don't show deep search, that's dumb
+
+
+Control:
+- Sync quick access items and ability to change them
+- Syncing up dialog, you can't close shift until full synced, except with manager password
+
 Today:
 Finish creation of everything to the db
 
@@ -7,6 +19,8 @@ Architecture:
 Online -- Better for my resume. Easy access.
 
 GB:
+- Notifications of sent to centro blah blah.
+
 - Income
     - Selling Assets
     - Selling Goods

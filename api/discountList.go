@@ -20,7 +20,7 @@ type createDiscountListRequest struct {
 func (server *Server) createDiscountList(ctx *gin.Context) {
 	var req createDiscountListRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
@@ -34,7 +34,7 @@ func (server *Server) createDiscountList(ctx *gin.Context) {
 
 	discountList, err := server.store.CreateDiscountList(ctx, arg)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 	ctx.JSON(http.StatusOK, discountList)
@@ -47,17 +47,17 @@ type getDiscountListRequest struct {
 func (server *Server) getDiscountList(ctx *gin.Context) {
 	var req getDiscountListRequest
 	if err := ctx.ShouldBindUri(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
 	discountList, err := server.store.GetDiscountList(ctx, req.ID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			ctx.JSON(http.StatusNotFound, errorResponse(err))
+			server.writeError(ctx, http.StatusNotFound, err)
 			return
 		}
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 	ctx.JSON(http.StatusOK, discountList)
@@ -71,7 +71,7 @@ type listDiscountListsRequest struct {
 func (server *Server) listDiscountLists(ctx *gin.Context) {
 	var req listDiscountListsRequest
 	if err := ctx.ShouldBindQuery(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
@@ -81,13 +81,13 @@ func (server *Server) listDiscountLists(ctx *gin.Context) {
 	}
 	discountLists, err := server.store.ListDiscountLists(ctx, arg)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 
 	total, err := server.store.CountDiscountLists(ctx)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -106,7 +106,7 @@ type updateDiscountListRequest struct {
 func (server *Server) updateDiscountList(ctx *gin.Context) {
 	var req updateDiscountListRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
@@ -120,10 +120,10 @@ func (server *Server) updateDiscountList(ctx *gin.Context) {
 	})
 	if err != nil {
 		if err == sql.ErrNoRows {
-			ctx.JSON(http.StatusBadRequest, errorResponse(err))
+			server.writeError(ctx, http.StatusBadRequest, err)
 			return
 		}
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 	ctx.JSON(http.StatusOK, gin.H{"status": "updated"})
@@ -138,7 +138,7 @@ type createDiscountListItemRequest struct {
 func (server *Server) createDiscountListItem(ctx *gin.Context) {
 	var req createDiscountListItemRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
@@ -150,7 +150,7 @@ func (server *Server) createDiscountListItem(ctx *gin.Context) {
 
 	item, err := server.store.CreateDiscountListItem(ctx, arg)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 	ctx.JSON(http.StatusOK, item)
@@ -163,13 +163,13 @@ type listDiscountListItemsRequest struct {
 func (server *Server) listDiscountListItems(ctx *gin.Context) {
 	var req listDiscountListItemsRequest
 	if err := ctx.ShouldBindUri(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
 	items, err := server.store.ListDiscountListItems(ctx, req.DiscountListID)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 	ctx.JSON(http.StatusOK, items)
@@ -183,7 +183,7 @@ type deleteDiscountListItemRequest struct {
 func (server *Server) deleteDiscountListItem(ctx *gin.Context) {
 	var req deleteDiscountListItemRequest
 	if err := ctx.ShouldBindUri(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
@@ -192,7 +192,7 @@ func (server *Server) deleteDiscountListItem(ctx *gin.Context) {
 		ProductID:      req.ProductID,
 	})
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 	ctx.JSON(http.StatusOK, gin.H{"status": "deleted"})

@@ -17,7 +17,7 @@
 </template>
 
 <script setup>
-import SparklineCard from "@/components/Cards/SparklineCard.vue";
-import ChartsRow from "../ChartsRow.vue";
-import TablesRow from "../TablesRow.vue";
+  import SparklineCard from '@/components/Cards/SparklineCard.vue'
+  import ChartsRow from '../ChartsRow.vue'
+  import TablesRow from '../TablesRow.vue'
 </script>

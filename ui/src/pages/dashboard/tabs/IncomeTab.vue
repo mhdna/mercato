@@ -5,5 +5,5 @@
 </template>
 
 <script setup>
-import HeatmapTable from "@/components/Tables/HeatmapTable.vue";
+  import HeatmapTable from '@/components/Tables/HeatmapTable.vue'
 </script>

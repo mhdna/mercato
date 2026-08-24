@@ -17,7 +17,7 @@
         <CommandPalette />
         <SyncCard />
         <NotificationMenu class="me-4" />
-        <v-icon icon="mdi-translate" />
+        <!-- <v-icon icon="mdi-translate" /> -->
         <ToggleTheme />
         <v-avatar
           class="text-white"
@@ -31,7 +31,7 @@
       </template>
     </v-app-bar>
 
-    <NavigationDrawer v-model="showDrawer" :rail="isRail" :mobile="mobile" />
+    <NavigationDrawer v-model="showDrawer" :mobile="mobile" :rail="isRail" />
 
     <div class="page-wrapper">
       <div v-if="isNavigating" class="loading-overlay">
@@ -59,47 +59,47 @@
 </template>
 
 <script lang="ts" setup>
-import { ref } from "vue";
-import { useRoute, useRouter } from "vue-router";
-import { useDisplay } from "vuetify";
-import ToggleTheme from "@/components/Buttons/ToggleTheme.vue";
-import CommandPalette from "@/components/CommandPalette.vue";
-import NotificationMenu from "@/components/Menus/NotificationMenu.vue";
-import { useAuthStore } from "@/stores/auth";
+  import { ref } from 'vue'
+  import { useRoute, useRouter } from 'vue-router'
+  import { useDisplay } from 'vuetify'
+  import ToggleTheme from '@/components/Buttons/ToggleTheme.vue'
+  import CommandPalette from '@/components/CommandPalette.vue'
+  import NotificationMenu from '@/components/Menus/NotificationMenu.vue'
+  import { useAuthStore } from '@/stores/auth'
 
-const auth = useAuthStore();
+  const auth = useAuthStore()
 
-function handleLogout() {
-  auth.logout();
-  window.location.href = "/login";
-}
-
-const showDrawer = ref(false);
-const isRail = ref(false);
-const { mobile } = useDisplay();
-
-function toggleDrawer() {
-  if (mobile.value) {
-    showDrawer.value = !showDrawer.value;
-    isRail.value = false;
-  } else {
-    isRail.value = !isRail.value;
+  function handleLogout () {
+    auth.logout()
+    window.location.href = '/login'
   }
-}
 
-const router = useRouter();
-const route = useRoute();
-const isNavigating = ref(false);
-const pageTitle = ref(route.meta.title || "");
-let navStart = 0;
+  const showDrawer = ref(false)
+  const isRail = ref(false)
+  const { mobile } = useDisplay()
 
-router.beforeEach((to) => {
-  pageTitle.value = to.meta.title || "";
-});
+  function toggleDrawer () {
+    if (mobile.value) {
+      showDrawer.value = !showDrawer.value
+      isRail.value = false
+    } else {
+      isRail.value = !isRail.value
+    }
+  }
 
-router.afterEach(() => {
-  isNavigating.value = false;
-});
+  const router = useRouter()
+  const route = useRoute()
+  const isNavigating = ref(false)
+  const pageTitle = ref(route.meta.title || '')
+  const navStart = 0
+
+  router.beforeEach(to => {
+    pageTitle.value = to.meta.title || ''
+  })
+
+  router.afterEach(() => {
+    isNavigating.value = false
+  })
 </script>
 
 <style scoped>

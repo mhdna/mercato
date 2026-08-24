@@ -16,7 +16,7 @@ type createClientRequest struct {
 func (server *Server) createClient(ctx *gin.Context) {
 	var req createClientRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
@@ -27,9 +27,10 @@ func (server *Server) createClient(ctx *gin.Context) {
 
 	client, err := server.store.CreateClient(ctx, arg)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
+	server.branchHub.broadcastAll(branchWSMessage{Type: "client_updated"})
 	ctx.JSON(http.StatusOK, client)
 }
 
@@ -40,18 +41,18 @@ type getClientRequest struct {
 func (server *Server) getClient(ctx *gin.Context) {
 	var req getClientRequest
 	if err := ctx.ShouldBindUri(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
 	client, err := server.store.GetClient(ctx, req.ID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			ctx.JSON(http.StatusNotFound, errorResponse(err))
+			server.writeError(ctx, http.StatusNotFound, err)
 			return
 		}
 
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -66,7 +67,7 @@ type listClientsRequest struct {
 func (server *Server) listClients(ctx *gin.Context) {
 	var req listClientsRequest
 	if err := ctx.ShouldBindQuery(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
@@ -76,13 +77,13 @@ func (server *Server) listClients(ctx *gin.Context) {
 	}
 	clients, err := server.store.ListClients(ctx, arg)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 
 	total, err := server.store.CountClients(ctx)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -98,7 +99,7 @@ type updateClientRequest struct {
 func (server *Server) updateClient(ctx *gin.Context) {
 	var req updateClientRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
@@ -110,12 +111,13 @@ func (server *Server) updateClient(ctx *gin.Context) {
 	client, err := server.store.UpdateClient(ctx, arg)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			ctx.JSON(http.StatusBadRequest, errorResponse(err))
+			server.writeError(ctx, http.StatusBadRequest, err)
 			return
 		}
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
+	server.branchHub.broadcastAll(branchWSMessage{Type: "client_updated"})
 	ctx.JSON(http.StatusOK, client)
 }
 
@@ -126,14 +128,38 @@ type deleteClientRequest struct {
 func (server *Server) deleteClient(ctx *gin.Context) {
 	var req deleteClientRequest
 	if err := ctx.ShouldBindUri(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
 	err := server.store.DeleteClient(ctx, req.ID)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 	ctx.JSON(http.StatusOK, gin.H{"status": "deleted"})
+}
+
+type clientLoyaltyTotalRequest struct {
+	ID int64 `uri:"id" binding:"required,min=1"`
+}
+
+// getClientLoyaltyTotal is the redemption-time read: how many loyalty
+// points this client has earned across every branch they've ever bought
+// from, not just kashi's own directly-created invoices. See
+// SumClientLoyaltyPoints in db/query/client.sql.
+func (server *Server) getClientLoyaltyTotal(ctx *gin.Context) {
+	var req clientLoyaltyTotalRequest
+	if err := ctx.ShouldBindUri(&req); err != nil {
+		server.writeError(ctx, http.StatusBadRequest, err)
+		return
+	}
+
+	total, err := server.store.SumClientLoyaltyPoints(ctx, req.ID)
+	if err != nil {
+		server.writeError(ctx, http.StatusInternalServerError, err)
+		return
+	}
+
+	server.writeJSON(ctx, http.StatusOK, envelope{"client_id": req.ID, "loyalty_points_total": total})
 }

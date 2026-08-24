@@ -16,7 +16,7 @@ type createSizeRequest struct {
 func (server *Server) createSize(ctx *gin.Context) {
 	var req createSizeRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
@@ -28,7 +28,7 @@ func (server *Server) createSize(ctx *gin.Context) {
 
 	size, err := server.store.CreateSize(ctx, arg)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 	ctx.JSON(http.StatusOK, size)
@@ -37,7 +37,7 @@ func (server *Server) createSize(ctx *gin.Context) {
 func (server *Server) listSizes(ctx *gin.Context) {
 	sizes, err := server.store.ListSizes(ctx)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 

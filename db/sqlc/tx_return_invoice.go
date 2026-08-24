@@ -60,12 +60,18 @@ func (store *SQLStore) ReturnInvoiceTx(ctx context.Context, arg ReturnInvoiceTxP
 	err := store.execTx(ctx, func(q *Queries) error {
 		var err error
 
-		invoiceIndex, err := q.generateInvoiceIndex(ctx, arg.CashboxID, arg.Year, IndexTypeReturn)
+		salesInvoice, err := q.GetInvoice(ctx, arg.SalesInvoiceID)
+		if err != nil {
+			return err
+		}
+		invoiceTypeID := salesInvoice.InvoiceTypeID
+
+		invoiceIndex, err := q.generateInvoiceIndex(ctx, arg.CashboxID, arg.Year, IndexTypeReturn, invoiceTypeID)
 		if err != nil {
 			return err
 		}
 
-		invoiceCode, err := q.generateInvoiceNumber(ctx, EntryReferenceTypeReturnInvoice, invoiceIndex, arg.CashboxID, arg.Year)
+		invoiceCode, err := q.generateInvoiceNumber(ctx, EntryReferenceTypeReturnInvoice, invoiceIndex, arg.CashboxID, invoiceTypeID, arg.Year)
 		if err != nil {
 			return err
 		}
@@ -87,6 +93,7 @@ func (store *SQLStore) ReturnInvoiceTx(ctx context.Context, arg ReturnInvoiceTxP
 			Subtotal:        arg.SubTotal,
 			DiscountedTotal: arg.DiscountedTotal,
 			GrandTotal:      arg.GrandTotal,
+			InvoiceTypeID:   invoiceTypeID,
 		})
 		if err != nil {
 			return err

@@ -25,6 +25,11 @@ export const navItems = [
       },
       { title: 'Coupons', icon: 'mdi-ticket-percent', to: '/coupons' },
       { title: 'Shifts', icon: 'mdi-clock-outline', to: '/shifts' },
+      {
+        title: 'Invoice Types',
+        icon: 'mdi-tag-multiple',
+        to: '/invoice-types',
+      },
     ],
   },
   {
@@ -38,6 +43,8 @@ export const navItems = [
     ],
   },
   { title: 'Warehouses', icon: 'mdi-warehouse', to: '/warehouses' },
+  { title: 'Branches', icon: 'mdi-store-outline', to: '/branches' },
+  { title: 'Branch Invoices', icon: 'mdi-invoice', to: '/branch-invoices' },
   { title: 'Assets', icon: 'mdi-hammer-wrench', to: '/assets' },
   { title: 'Colors & Sizes', icon: 'mdi-palette', to: '/colors-sizes' },
   { title: 'Currencies', icon: 'mdi-currency-usd', to: '/currencies' },

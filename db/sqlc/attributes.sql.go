@@ -40,7 +40,7 @@ const listAttributeValues = `-- name: ListAttributeValues :many
 SELECT a.id, a.name, av.id, av.attribute_id, av.value
 FROM attributes a
 INNER JOIN attributes_values av
-ON a.name = av.attribute
+ON a.id = av.attribute_id
 ORDER BY value
 LIMIT $1
 OFFSET $2

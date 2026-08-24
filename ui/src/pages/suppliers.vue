@@ -80,8 +80,8 @@
   import { useField, useForm } from 'vee-validate'
   import { ref } from 'vue'
   import ServerSideTable from '@/components/Tables/ServerSideTable.vue'
-  import { API_BASE } from '@/config'
   import { authFetch } from '@/composables/useApi'
+  import { API_BASE } from '@/config'
 
   const apiURL = `${API_BASE}/suppliers`
   const headers = ref([

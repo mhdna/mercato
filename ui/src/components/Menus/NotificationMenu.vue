@@ -57,7 +57,7 @@
   const menu = ref(false)
   const message = ref(false)
   const hints = ref(true)
-  const stock = (product) => Math.floor(Math.random() * 25)
+  const stock = product => Math.floor(Math.random() * 25)
 
   const items = [
     { type: 'subheader', title: 'Low Stock Alerts' },

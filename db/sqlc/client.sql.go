@@ -7,6 +7,7 @@ package db
 
 import (
 	"context"
+	"time"
 )
 
 const addClientLoyaltyPoints = `-- name: AddClientLoyaltyPoints :exec
@@ -44,7 +45,7 @@ INSERT INTO clients (
   phone
 ) VALUES (
     $1, $2
-) RETURNING id, name, phone, total_loyalty_points, valid_loyalty_points, created_at
+) RETURNING id, name, phone, total_loyalty_points, valid_loyalty_points, created_at, updated_at
 `
 
 type CreateClientParams struct {
@@ -62,6 +63,7 @@ func (q *Queries) CreateClient(ctx context.Context, arg CreateClientParams) (Cli
 		&i.TotalLoyaltyPoints,
 		&i.ValidLoyaltyPoints,
 		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
@@ -77,7 +79,7 @@ func (q *Queries) DeleteClient(ctx context.Context, id int64) error {
 }
 
 const getClient = `-- name: GetClient :one
-SELECT id, name, phone, total_loyalty_points, valid_loyalty_points, created_at FROM clients
+SELECT id, name, phone, total_loyalty_points, valid_loyalty_points, created_at, updated_at FROM clients
 WHERE id = $1 LIMIT 1
 `
 
@@ -91,12 +93,50 @@ func (q *Queries) GetClient(ctx context.Context, id int64) (Client, error) {
 		&i.TotalLoyaltyPoints,
 		&i.ValidLoyaltyPoints,
 		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
 
+const getClientByPhone = `-- name: GetClientByPhone :one
+SELECT id, name, phone, total_loyalty_points, valid_loyalty_points, created_at, updated_at FROM clients
+WHERE phone = $1 LIMIT 1
+`
+
+func (q *Queries) GetClientByPhone(ctx context.Context, phone string) (Client, error) {
+	row := q.db.QueryRowContext(ctx, getClientByPhone, phone)
+	var i Client
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Phone,
+		&i.TotalLoyaltyPoints,
+		&i.ValidLoyaltyPoints,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getClientLink = `-- name: GetClientLink :one
+SELECT client_id FROM client_links
+WHERE branch_id = $1 AND branch_client_id = $2
+`
+
+type GetClientLinkParams struct {
+	BranchID       int64 `json:"branch_id"`
+	BranchClientID int64 `json:"branch_client_id"`
+}
+
+func (q *Queries) GetClientLink(ctx context.Context, arg GetClientLinkParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getClientLink, arg.BranchID, arg.BranchClientID)
+	var client_id int64
+	err := row.Scan(&client_id)
+	return client_id, err
+}
+
 const listClients = `-- name: ListClients :many
-SELECT id, name, phone, total_loyalty_points, valid_loyalty_points, created_at FROM clients
+SELECT id, name, phone, total_loyalty_points, valid_loyalty_points, created_at, updated_at FROM clients
 ORDER BY name
 LIMIT $1
 OFFSET $2
@@ -123,6 +163,7 @@ func (q *Queries) ListClients(ctx context.Context, arg ListClientsParams) ([]Cli
 			&i.TotalLoyaltyPoints,
 			&i.ValidLoyaltyPoints,
 			&i.CreatedAt,
+			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -137,12 +178,70 @@ func (q *Queries) ListClients(ctx context.Context, arg ListClientsParams) ([]Cli
 	return items, nil
 }
 
+const listClientsUpdatedSince = `-- name: ListClientsUpdatedSince :many
+SELECT id, name, phone, total_loyalty_points, valid_loyalty_points, created_at, updated_at FROM clients
+WHERE updated_at > $1
+ORDER BY updated_at
+`
+
+// Feeds the branch catch-up endpoint (see branch_catchup.go), same pattern
+// as currencies/cashbox_accounts/products.
+func (q *Queries) ListClientsUpdatedSince(ctx context.Context, updatedAt time.Time) ([]Client, error) {
+	rows, err := q.db.QueryContext(ctx, listClientsUpdatedSince, updatedAt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Client{}
+	for rows.Next() {
+		var i Client
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Phone,
+			&i.TotalLoyaltyPoints,
+			&i.ValidLoyaltyPoints,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const sumClientLoyaltyPoints = `-- name: SumClientLoyaltyPoints :one
+SELECT COALESCE(SUM(bi.loyalty_points_delta), 0)::bigint AS total
+FROM branch_invoices bi
+JOIN client_links cl ON cl.branch_id = bi.branch_id AND cl.branch_client_id = bi.branch_client_id
+WHERE cl.client_id = $1
+`
+
+// The redemption-time query: every branch's contribution to this client's
+// loyalty balance, added up. Each branch is decisive for what it reports
+// (loyalty_points_delta on branch_invoices) -- this never recomputes that
+// number, only sums what's already been reported.
+func (q *Queries) SumClientLoyaltyPoints(ctx context.Context, clientID int64) (int64, error) {
+	row := q.db.QueryRowContext(ctx, sumClientLoyaltyPoints, clientID)
+	var total int64
+	err := row.Scan(&total)
+	return total, err
+}
+
 const updateClient = `-- name: UpdateClient :one
-UPDATE clients 
+UPDATE clients
   SET name = $2,
-  phone = $3
+  phone = $3,
+  updated_at = now()
 WHERE id = $1
-RETURNING id, name, phone, total_loyalty_points, valid_loyalty_points, created_at
+RETURNING id, name, phone, total_loyalty_points, valid_loyalty_points, created_at, updated_at
 `
 
 type UpdateClientParams struct {
@@ -161,6 +260,24 @@ func (q *Queries) UpdateClient(ctx context.Context, arg UpdateClientParams) (Cli
 		&i.TotalLoyaltyPoints,
 		&i.ValidLoyaltyPoints,
 		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const upsertClientLink = `-- name: UpsertClientLink :exec
+INSERT INTO client_links (branch_id, branch_client_id, client_id)
+VALUES ($1, $2, $3)
+ON CONFLICT (branch_id, branch_client_id) DO UPDATE SET client_id = EXCLUDED.client_id
+`
+
+type UpsertClientLinkParams struct {
+	BranchID       int64 `json:"branch_id"`
+	BranchClientID int64 `json:"branch_client_id"`
+	ClientID       int64 `json:"client_id"`
+}
+
+func (q *Queries) UpsertClientLink(ctx context.Context, arg UpsertClientLinkParams) error {
+	_, err := q.db.ExecContext(ctx, upsertClientLink, arg.BranchID, arg.BranchClientID, arg.ClientID)
+	return err
 }

@@ -10,9 +10,10 @@ INSERT INTO invoices (
   discount,
   subtotal,
   discounted_total,
-  grand_total
+  grand_total,
+  invoice_type_id
 )
-VALUES ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+VALUES ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 RETURNING *;
 
 -- name: AddInvoiceProduct :one
@@ -58,17 +59,17 @@ LIMIT $1
 OFFSET $2;
 
 -- name: IncrementInvoicesIndex :one
-INSERT INTO invoice_indexes  (year, cashbox_id, type, last_index)
-VALUES ($1, $2, $3, 1)
-ON CONFLICT (year, cashbox_id)
-DO UPDATE SET last_index = invoice_indexes.last_index + 1
+INSERT INTO invoice_indexes  (year, cashbox_id, type, invoice_type_id, last_index)
+VALUES ($1, $2, $3, $4, 1)
+ON CONFLICT (year, cashbox_id, invoice_type_id)
+DO UPDATE SET last_index = invoice_indexes.last_index + 1, type = $3
 RETURNING last_index;
 
 -- name: DecrementInvoicesIndex :one
-INSERT INTO invoice_indexes  (year, cashbox_id, type, last_index)
-VALUES ($1, $2, $3, 1)
-ON CONFLICT (year, cashbox_id)
-DO UPDATE SET last_index = invoice_indexes.last_index - 1
+INSERT INTO invoice_indexes  (year, cashbox_id, type, invoice_type_id, last_index)
+VALUES ($1, $2, $3, $4, 1)
+ON CONFLICT (year, cashbox_id, invoice_type_id)
+DO UPDATE SET last_index = invoice_indexes.last_index - 1, type = $3
 RETURNING last_index;
 
 -- name: CountInvoices :one

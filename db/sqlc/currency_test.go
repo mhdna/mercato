@@ -15,6 +15,8 @@ func createRandomCurrency(t *testing.T) Currency {
 		Code:                   util.RandomCode(),
 		Symbol:                 util.RandomCode(),
 		ValueInDefaultCurrency: util.RandomAmount(),
+		UnitsPerUsdMicros:      1_000_000,
+		CashRoundingUnit:       1,
 	}
 
 	currency, err := testQueries.CreateCurrency(context.Background(), arg)

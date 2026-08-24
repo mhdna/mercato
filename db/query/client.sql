@@ -17,11 +17,42 @@ LIMIT $1
 OFFSET $2;
 
 -- name: UpdateClient :one
-UPDATE clients 
+UPDATE clients
   SET name = $2,
-  phone = $3
+  phone = $3,
+  updated_at = now()
 WHERE id = $1
 RETURNING *;
+
+-- name: GetClientByPhone :one
+SELECT * FROM clients
+WHERE phone = $1 LIMIT 1;
+
+-- name: ListClientsUpdatedSince :many
+-- Feeds the branch catch-up endpoint (see branch_catchup.go), same pattern
+-- as currencies/cashbox_accounts/products.
+SELECT * FROM clients
+WHERE updated_at > $1
+ORDER BY updated_at;
+
+-- name: UpsertClientLink :exec
+INSERT INTO client_links (branch_id, branch_client_id, client_id)
+VALUES ($1, $2, $3)
+ON CONFLICT (branch_id, branch_client_id) DO UPDATE SET client_id = EXCLUDED.client_id;
+
+-- name: GetClientLink :one
+SELECT client_id FROM client_links
+WHERE branch_id = $1 AND branch_client_id = $2;
+
+-- name: SumClientLoyaltyPoints :one
+-- The redemption-time query: every branch's contribution to this client's
+-- loyalty balance, added up. Each branch is decisive for what it reports
+-- (loyalty_points_delta on branch_invoices) -- this never recomputes that
+-- number, only sums what's already been reported.
+SELECT COALESCE(SUM(bi.loyalty_points_delta), 0)::bigint AS total
+FROM branch_invoices bi
+JOIN client_links cl ON cl.branch_id = bi.branch_id AND cl.branch_client_id = bi.branch_client_id
+WHERE cl.client_id = $1;
 
 -- name: DeleteClient :exec
 DELETE FROM clients

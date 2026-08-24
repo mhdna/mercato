@@ -17,7 +17,7 @@ type createExpenseRequest struct {
 func (server *Server) createExpense(ctx *gin.Context) {
 	var req createExpenseRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
@@ -29,7 +29,7 @@ func (server *Server) createExpense(ctx *gin.Context) {
 
 	expense, err := server.store.CreateExpense(ctx, arg)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 	ctx.JSON(http.StatusOK, expense)
@@ -42,17 +42,17 @@ type getExpenseRequest struct {
 func (server *Server) getExpense(ctx *gin.Context) {
 	var req getExpenseRequest
 	if err := ctx.ShouldBindUri(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
 	expense, err := server.store.GetExpense(ctx, req.ID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			ctx.JSON(http.StatusNotFound, errorResponse(err))
+			server.writeError(ctx, http.StatusNotFound, err)
 			return
 		}
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -67,7 +67,7 @@ type listExpensesRequest struct {
 func (server *Server) listExpenses(ctx *gin.Context) {
 	var req listExpensesRequest
 	if err := ctx.ShouldBindQuery(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
@@ -78,7 +78,7 @@ func (server *Server) listExpenses(ctx *gin.Context) {
 	}
 	expenses, err := server.store.ListExpenses(ctx, arg)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 

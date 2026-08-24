@@ -7,46 +7,390 @@ package db
 
 import (
 	"context"
+	"database/sql"
+	"time"
 )
 
-const createProductColor = `-- name: CreateProductColor :one
-INSERT INTO products_colors (
-  product_id,
-  color_id
-) VALUES (
-    $1, $2
-) RETURNING product_id, color_id
+const countProductVariants = `-- name: CountProductVariants :one
+SELECT COUNT(*) FROM product_variants
 `
 
-type CreateProductColorParams struct {
-	ProductID int64 `json:"product_id"`
-	ColorID   int64 `json:"color_id"`
+func (q *Queries) CountProductVariants(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countProductVariants)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
 }
 
-func (q *Queries) CreateProductColor(ctx context.Context, arg CreateProductColorParams) (ProductsColor, error) {
-	row := q.db.QueryRowContext(ctx, createProductColor, arg.ProductID, arg.ColorID)
-	var i ProductsColor
-	err := row.Scan(&i.ProductID, &i.ColorID)
+const createProductVariant = `-- name: CreateProductVariant :one
+INSERT INTO product_variants (
+  product_id,
+  color_id,
+  size_id,
+  barcode,
+  price
+) VALUES (
+  $1, $2, $3, $4, $5
+) RETURNING id, product_id, color_id, size_id, barcode, price, is_active, created_at, updated_at
+`
+
+type CreateProductVariantParams struct {
+	ProductID int64         `json:"product_id"`
+	ColorID   sql.NullInt64 `json:"color_id"`
+	SizeID    sql.NullInt64 `json:"size_id"`
+	Barcode   string        `json:"barcode"`
+	Price     sql.NullInt64 `json:"price"`
+}
+
+func (q *Queries) CreateProductVariant(ctx context.Context, arg CreateProductVariantParams) (ProductVariant, error) {
+	row := q.db.QueryRowContext(ctx, createProductVariant,
+		arg.ProductID,
+		arg.ColorID,
+		arg.SizeID,
+		arg.Barcode,
+		arg.Price,
+	)
+	var i ProductVariant
+	err := row.Scan(
+		&i.ID,
+		&i.ProductID,
+		&i.ColorID,
+		&i.SizeID,
+		&i.Barcode,
+		&i.Price,
+		&i.IsActive,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
 	return i, err
 }
 
-const createProductSize = `-- name: CreateProductSize :one
-INSERT INTO products_sizes (
-  product_id,
-  size_id
-) VALUES (
-    $1, $2
-) RETURNING product_id, size_id
+const getProductVariant = `-- name: GetProductVariant :one
+SELECT id, product_id, color_id, size_id, barcode, price, is_active, created_at, updated_at FROM product_variants
+WHERE id = $1 LIMIT 1
 `
 
-type CreateProductSizeParams struct {
-	ProductID int64 `json:"product_id"`
-	SizeID    int64 `json:"size_id"`
+func (q *Queries) GetProductVariant(ctx context.Context, id int64) (ProductVariant, error) {
+	row := q.db.QueryRowContext(ctx, getProductVariant, id)
+	var i ProductVariant
+	err := row.Scan(
+		&i.ID,
+		&i.ProductID,
+		&i.ColorID,
+		&i.SizeID,
+		&i.Barcode,
+		&i.Price,
+		&i.IsActive,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
 
-func (q *Queries) CreateProductSize(ctx context.Context, arg CreateProductSizeParams) (ProductsSize, error) {
-	row := q.db.QueryRowContext(ctx, createProductSize, arg.ProductID, arg.SizeID)
-	var i ProductsSize
-	err := row.Scan(&i.ProductID, &i.SizeID)
+const getProductVariantByBarcode = `-- name: GetProductVariantByBarcode :one
+SELECT id, product_id, color_id, size_id, barcode, price, is_active, created_at, updated_at FROM product_variants
+WHERE barcode = $1 LIMIT 1
+`
+
+func (q *Queries) GetProductVariantByBarcode(ctx context.Context, barcode string) (ProductVariant, error) {
+	row := q.db.QueryRowContext(ctx, getProductVariantByBarcode, barcode)
+	var i ProductVariant
+	err := row.Scan(
+		&i.ID,
+		&i.ProductID,
+		&i.ColorID,
+		&i.SizeID,
+		&i.Barcode,
+		&i.Price,
+		&i.IsActive,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const listProductVariants = `-- name: ListProductVariants :many
+SELECT product_variants.id, product_variants.product_id, product_variants.color_id, product_variants.size_id, product_variants.barcode, product_variants.price, product_variants.is_active, product_variants.created_at, product_variants.updated_at, products.id, products.code, products.name, products.description, products.is_active, products.created_at FROM product_variants
+INNER JOIN products ON products.id = product_variants.product_id
+ORDER BY product_variants.id
+LIMIT $1
+OFFSET $2
+`
+
+type ListProductVariantsParams struct {
+	Limit  int32 `json:"limit"`
+	Offset int32 `json:"offset"`
+}
+
+type ListProductVariantsRow struct {
+	ProductVariant ProductVariant `json:"product_variant"`
+	Product        Product        `json:"product"`
+}
+
+func (q *Queries) ListProductVariants(ctx context.Context, arg ListProductVariantsParams) ([]ListProductVariantsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listProductVariants, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListProductVariantsRow{}
+	for rows.Next() {
+		var i ListProductVariantsRow
+		if err := rows.Scan(
+			&i.ProductVariant.ID,
+			&i.ProductVariant.ProductID,
+			&i.ProductVariant.ColorID,
+			&i.ProductVariant.SizeID,
+			&i.ProductVariant.Barcode,
+			&i.ProductVariant.Price,
+			&i.ProductVariant.IsActive,
+			&i.ProductVariant.CreatedAt,
+			&i.ProductVariant.UpdatedAt,
+			&i.Product.ID,
+			&i.Product.Code,
+			&i.Product.Name,
+			&i.Product.Description,
+			&i.Product.IsActive,
+			&i.Product.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listProductVariantsByProduct = `-- name: ListProductVariantsByProduct :many
+SELECT id, product_id, color_id, size_id, barcode, price, is_active, created_at, updated_at FROM product_variants
+WHERE product_id = $1
+ORDER BY id
+`
+
+func (q *Queries) ListProductVariantsByProduct(ctx context.Context, productID int64) ([]ProductVariant, error) {
+	rows, err := q.db.QueryContext(ctx, listProductVariantsByProduct, productID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ProductVariant{}
+	for rows.Next() {
+		var i ProductVariant
+		if err := rows.Scan(
+			&i.ID,
+			&i.ProductID,
+			&i.ColorID,
+			&i.SizeID,
+			&i.Barcode,
+			&i.Price,
+			&i.IsActive,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listProductVariantsForSync = `-- name: ListProductVariantsForSync :many
+SELECT
+  product_variants.id,
+  product_variants.barcode,
+  product_variants.price,
+  product_variants.is_active,
+  product_variants.updated_at,
+  products.code,
+  products.name,
+  products.description,
+  colors.name AS color_name,
+  sizes.name AS size_name,
+  brand_val.value AS brand,
+  subcategory_val.value AS sub_category,
+  kind_val.value AS kind,
+  season_val.value AS season,
+  year_val.value AS year
+FROM product_variants
+JOIN products ON products.id = product_variants.product_id
+LEFT JOIN colors ON colors.id = product_variants.color_id
+LEFT JOIN sizes ON sizes.id = product_variants.size_id
+LEFT JOIN products_attributes brand_pa ON brand_pa.product_id = products.id AND brand_pa.attribute_id = 2
+LEFT JOIN attributes_values brand_val ON brand_val.id = brand_pa.attribute_value_id
+LEFT JOIN products_attributes subcategory_pa ON subcategory_pa.product_id = products.id AND subcategory_pa.attribute_id = 1
+LEFT JOIN attributes_values subcategory_val ON subcategory_val.id = subcategory_pa.attribute_value_id
+LEFT JOIN products_attributes kind_pa ON kind_pa.product_id = products.id AND kind_pa.attribute_id = 3
+LEFT JOIN attributes_values kind_val ON kind_val.id = kind_pa.attribute_value_id
+LEFT JOIN products_attributes season_pa ON season_pa.product_id = products.id AND season_pa.attribute_id = 7
+LEFT JOIN attributes_values season_val ON season_val.id = season_pa.attribute_value_id
+LEFT JOIN products_attributes year_pa ON year_pa.product_id = products.id AND year_pa.attribute_id = 6
+LEFT JOIN attributes_values year_val ON year_val.id = year_pa.attribute_value_id
+WHERE product_variants.updated_at > $1
+ORDER BY product_variants.updated_at
+`
+
+type ListProductVariantsForSyncRow struct {
+	ID          int64          `json:"id"`
+	Barcode     string         `json:"barcode"`
+	Price       sql.NullInt64  `json:"price"`
+	IsActive    bool           `json:"is_active"`
+	UpdatedAt   time.Time      `json:"updated_at"`
+	Code        string         `json:"code"`
+	Name        string         `json:"name"`
+	Description string         `json:"description"`
+	ColorName   sql.NullString `json:"color_name"`
+	SizeName    sql.NullString `json:"size_name"`
+	Brand       sql.NullString `json:"brand"`
+	SubCategory sql.NullString `json:"sub_category"`
+	Kind        sql.NullString `json:"kind"`
+	Season      sql.NullString `json:"season"`
+	Year        sql.NullString `json:"year"`
+}
+
+// Flattened for kashi-pos, which has no separate "product" row -- each
+// variant carries everything a branch needs to create or update its own
+// flat product row. Colors/sizes/attributes are resolved to their name
+// here (not sent as ids) since kashi-pos matches everything by name, not
+// by kashi's internal ids.
+//
+// Attribute ids (2=brand, 1=sub-category, 3=kind, 7=season, 6=year) match
+// the fixed seed in 000005_create_products_attributes_table.up.sql.
+// Editing a product's attributes doesn't currently bump
+// product_variants.updated_at (no endpoint does that edit yet -- see
+// api/product.go), so an attribute-only change wouldn't be picked up by
+// this filter if one ever existed; today attributes are only ever set at
+// creation time, in the same moment the variant's own updated_at is set,
+// so this doesn't miss anything in practice yet.
+func (q *Queries) ListProductVariantsForSync(ctx context.Context, updatedAt time.Time) ([]ListProductVariantsForSyncRow, error) {
+	rows, err := q.db.QueryContext(ctx, listProductVariantsForSync, updatedAt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListProductVariantsForSyncRow{}
+	for rows.Next() {
+		var i ListProductVariantsForSyncRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Barcode,
+			&i.Price,
+			&i.IsActive,
+			&i.UpdatedAt,
+			&i.Code,
+			&i.Name,
+			&i.Description,
+			&i.ColorName,
+			&i.SizeName,
+			&i.Brand,
+			&i.SubCategory,
+			&i.Kind,
+			&i.Season,
+			&i.Year,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listProductVariantsUpdatedSince = `-- name: ListProductVariantsUpdatedSince :many
+SELECT id, product_id, color_id, size_id, barcode, price, is_active, created_at, updated_at FROM product_variants
+WHERE updated_at > $1
+ORDER BY updated_at
+`
+
+func (q *Queries) ListProductVariantsUpdatedSince(ctx context.Context, updatedAt time.Time) ([]ProductVariant, error) {
+	rows, err := q.db.QueryContext(ctx, listProductVariantsUpdatedSince, updatedAt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ProductVariant{}
+	for rows.Next() {
+		var i ProductVariant
+		if err := rows.Scan(
+			&i.ID,
+			&i.ProductID,
+			&i.ColorID,
+			&i.SizeID,
+			&i.Barcode,
+			&i.Price,
+			&i.IsActive,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const updateProductVariant = `-- name: UpdateProductVariant :one
+UPDATE product_variants
+SET color_id = $2,
+size_id = $3,
+barcode = $4,
+price = $5,
+is_active = $6,
+updated_at = now()
+WHERE id = $1
+RETURNING id, product_id, color_id, size_id, barcode, price, is_active, created_at, updated_at
+`
+
+type UpdateProductVariantParams struct {
+	ID       int64         `json:"id"`
+	ColorID  sql.NullInt64 `json:"color_id"`
+	SizeID   sql.NullInt64 `json:"size_id"`
+	Barcode  string        `json:"barcode"`
+	Price    sql.NullInt64 `json:"price"`
+	IsActive bool          `json:"is_active"`
+}
+
+func (q *Queries) UpdateProductVariant(ctx context.Context, arg UpdateProductVariantParams) (ProductVariant, error) {
+	row := q.db.QueryRowContext(ctx, updateProductVariant,
+		arg.ID,
+		arg.ColorID,
+		arg.SizeID,
+		arg.Barcode,
+		arg.Price,
+		arg.IsActive,
+	)
+	var i ProductVariant
+	err := row.Scan(
+		&i.ID,
+		&i.ProductID,
+		&i.ColorID,
+		&i.SizeID,
+		&i.Barcode,
+		&i.Price,
+		&i.IsActive,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
 	return i, err
 }

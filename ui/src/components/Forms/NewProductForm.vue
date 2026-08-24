@@ -133,9 +133,9 @@
   import { useField, useForm } from 'vee-validate'
   import { ref } from 'vue'
   import ColorsSizesDialog from '@/components/Forms/ColorsSizesDialog.vue'
+  import { authFetch } from '@/composables/useApi'
   import { useColorsAndSizes } from '@/composables/useColorsAndSizes'
   import { API_BASE } from '@/config'
-  import { authFetch } from '@/composables/useApi'
 
   const emit = defineEmits(['created'])
 

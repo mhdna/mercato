@@ -5,34 +5,34 @@
  */
 
 // Composables
-import { createVuetify } from "vuetify";
-import { VCommandPalette } from "vuetify/labs/VCommandPalette";
+import { createVuetify } from 'vuetify'
+import { VCommandPalette } from 'vuetify/labs/VCommandPalette'
 import {
   VFileUpload,
   VFileUploadDropzone,
   VFileUploadItem,
   VFileUploadList,
-} from "vuetify/labs/VFileUpload";
-import { VIconBtn } from "vuetify/labs/VIconBtn";
+} from 'vuetify/labs/VFileUpload'
+import { VIconBtn } from 'vuetify/labs/VIconBtn'
 
-import { aliases, mdi } from "./icons";
+import { aliases, mdi } from './icons'
 // Styles
-import "vuetify/styles";
+import 'vuetify/styles'
 
-const getSystemTheme = () => {
-  if (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) {
-    return "dark";
+function getSystemTheme () {
+  if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+    return 'dark'
   }
-  return "light";
-};
+  return 'light'
+}
 
-const getInitialTheme = () => {
-  const saved = localStorage.getItem("theme");
+function getInitialTheme () {
+  const saved = localStorage.getItem('theme')
   if (saved) {
-    return saved;
+    return saved
   }
-  return getSystemTheme();
-};
+  return getSystemTheme()
+}
 
 // https://vuetifyjs.com/en/introduction/why-vuetify/#feature-guides
 export default createVuetify({
@@ -41,22 +41,24 @@ export default createVuetify({
     themes: {
       light: {
         colors: {
-          primary: "#3F51B5", // Indigo 500
+          primary: '#3F51B5', // Indigo 500
         },
       },
       dark: {
         dark: true,
         colors: {
-          primary: "#5C6BC0", // Indigo 400
+          background: '#000000',
+          primary: '#5C6BC0', // Indigo 400
+          surface: '#000000',
         },
       },
     },
   },
   typography: {
-    fontFamily: "'Roboto', sans-serif",
+    fontFamily: '\'Roboto\', sans-serif',
   },
   icons: {
-    defaultSet: "mdi",
+    defaultSet: 'mdi',
     aliases,
     sets: {
       mdi,
@@ -70,4 +72,4 @@ export default createVuetify({
     VFileUploadItem,
     VFileUploadList,
   },
-});
+})

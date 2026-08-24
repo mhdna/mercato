@@ -14,7 +14,7 @@ type posSettingsRequest struct {
 func (server *Server) posSettings(ctx *gin.Context) {
 	var req posSettingsRequest
 	if err := ctx.ShouldBind(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
@@ -23,19 +23,19 @@ func (server *Server) posSettings(ctx *gin.Context) {
 		Valid: true,
 	})
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 
 	cashboxAccounts, err := server.store.ListAllCashboxAccounts(ctx)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 
 	currencies, err := server.store.ListAllCurrencies(ctx)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 

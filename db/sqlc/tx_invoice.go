@@ -31,6 +31,7 @@ type SalesInvoiceTxParams struct {
 
 	CashboxAccountID int64         `json:"cashbox_account_id"`
 	PriceListID      sql.NullInt64 `json:"price_list_id"`
+	InvoiceTypeID    int64         `json:"invoice_type_id"`
 }
 
 type SalesInvoiceTxResult struct {
@@ -39,11 +40,12 @@ type SalesInvoiceTxResult struct {
 	Balance ShiftsAccountsBalance `json:"balance"`
 }
 
-func (q *Queries) generateInvoiceIndex(ctx context.Context, cashboxID int64, year int32, indexType IndexType) (int64, error) {
+func (q *Queries) generateInvoiceIndex(ctx context.Context, cashboxID int64, year int32, indexType IndexType, invoiceTypeID int64) (int64, error) {
 	arg := IncrementInvoicesIndexParams{
-		CashboxID: cashboxID,
-		Year:      year,
-		Type:      indexType,
+		CashboxID:     cashboxID,
+		Year:          year,
+		Type:          indexType,
+		InvoiceTypeID: invoiceTypeID,
 	}
 	index, err := q.IncrementInvoicesIndex(ctx, arg)
 	if err != nil {
@@ -52,7 +54,7 @@ func (q *Queries) generateInvoiceIndex(ctx context.Context, cashboxID int64, yea
 	return index, nil
 }
 
-func (q *Queries) generateInvoiceNumber(ctx context.Context, referenceType EntryReferenceType, invoiceIndex, cashboxID int64, year int32) (string, error) {
+func (q *Queries) generateInvoiceNumber(ctx context.Context, referenceType EntryReferenceType, invoiceIndex, cashboxID, invoiceTypeID int64, year int32) (string, error) {
 	var referenceCode string
 	var err error
 
@@ -61,6 +63,11 @@ func (q *Queries) generateInvoiceNumber(ctx context.Context, referenceType Entry
 		return "", err
 	}
 	cashboxCode := cashbox.Code
+
+	invoiceType, err := q.GetInvoiceType(ctx, invoiceTypeID)
+	if err != nil {
+		return "", err
+	}
 
 	switch referenceType {
 	case EntryReferenceTypeSalesInvoice:
@@ -71,7 +78,7 @@ func (q *Queries) generateInvoiceNumber(ctx context.Context, referenceType Entry
 		return "", errors.New("Invalid Reference Type")
 	}
 
-	return fmt.Sprintf("%s-%s-%d-%05d", cashboxCode, referenceCode, year, invoiceIndex), nil
+	return fmt.Sprintf("%s-%s-%s-%d-%05d", cashboxCode, invoiceType.Code, referenceCode, year, invoiceIndex), nil
 }
 
 func validateInvoiceAmounts(items []SalesInvoiceItem, discount int16, grandTotal, subTotal int64) error {
@@ -108,12 +115,12 @@ func (store *SQLStore) SalesInvoiceTx(ctx context.Context, arg SalesInvoiceTxPar
 	err := store.execTx(ctx, func(q *Queries) error {
 		var err error
 
-		invoiceIndex, err := q.generateInvoiceIndex(ctx, arg.CashboxID, arg.Year, IndexTypeSales)
+		invoiceIndex, err := q.generateInvoiceIndex(ctx, arg.CashboxID, arg.Year, IndexTypeSales, arg.InvoiceTypeID)
 		if err != nil {
 			return err
 		}
 
-		invoiceCode, err := q.generateInvoiceNumber(ctx, EntryReferenceTypeSalesInvoice, invoiceIndex, arg.CashboxID, arg.Year)
+		invoiceCode, err := q.generateInvoiceNumber(ctx, EntryReferenceTypeSalesInvoice, invoiceIndex, arg.CashboxID, arg.InvoiceTypeID, arg.Year)
 		if err != nil {
 			return err
 		}
@@ -135,6 +142,7 @@ func (store *SQLStore) SalesInvoiceTx(ctx context.Context, arg SalesInvoiceTxPar
 			Subtotal:        arg.SubTotal,
 			DiscountedTotal: arg.DiscountedTotal,
 			GrandTotal:      arg.GrandTotal,
+			InvoiceTypeID:   arg.InvoiceTypeID,
 		})
 		if err != nil {
 			return err

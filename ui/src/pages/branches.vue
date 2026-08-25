@@ -232,6 +232,7 @@
                 <td>{{ new Date(target.date_to).toLocaleDateString() }}</td>
                 <td>${{ (target.target_amount / 100).toLocaleString() }}</td>
                 <td class="text-end">
+                  <v-icon-btn icon="mdi-pencil" size="small" variant="text" @click="openEditTarget(target)" />
                   <v-icon-btn icon="mdi-delete" size="small" variant="text" @click="removeTarget(target)" />
                 </td>
               </tr>
@@ -267,7 +268,7 @@
                 v-model="targetForm.autoColor"
                 density="compact"
                 hide-details
-                label="Auto-assign color"
+                :label="editingTargetId ? 'Keep current color' : 'Auto-assign color'"
               />
               <v-text-field
                 v-if="!targetForm.autoColor"
@@ -279,8 +280,14 @@
                 variant="outlined"
               />
             </div>
-            <div class="d-flex justify-end field-full">
-              <v-btn color="primary" :loading="targetSaving" text="Add Target" type="submit" />
+            <div class="d-flex justify-end ga-2 field-full">
+              <v-btn v-if="editingTargetId" text="Cancel" variant="text" @click="resetTargetForm" />
+              <v-btn
+                color="primary"
+                :loading="targetSaving"
+                :text="editingTargetId ? 'Save Target' : 'Add Target'"
+                type="submit"
+              />
             </div>
           </form>
         </template>
@@ -415,6 +422,7 @@
   const {
     listBranchTargets,
     createBranchTarget,
+    updateBranchTarget,
     deleteBranchTarget,
   } = useBranchTargets()
   const {
@@ -596,13 +604,30 @@
   const targetsError = ref('')
   const targetSaving = ref(false)
   const targetForm = ref({ dateFrom: '', dateTo: '', targetAmount: null, autoColor: true, color: '#4C6EF5' })
+  const editingTargetId = ref(null)
+
+  function resetTargetForm () {
+    editingTargetId.value = null
+    targetForm.value = { dateFrom: '', dateTo: '', targetAmount: null, autoColor: true, color: '#4C6EF5' }
+  }
 
   async function openTargets (item) {
     targetsBranch.value = item
     targetsDialog.value = true
     targetsError.value = ''
-    targetForm.value = { dateFrom: '', dateTo: '', targetAmount: null, autoColor: true, color: '#4C6EF5' }
+    resetTargetForm()
     await loadTargets()
+  }
+
+  function openEditTarget (target) {
+    editingTargetId.value = target.id
+    targetForm.value = {
+      dateFrom: target.date_from.slice(0, 10),
+      dateTo: target.date_to.slice(0, 10),
+      targetAmount: target.target_amount / 100,
+      autoColor: true,
+      color: target.color || '#4C6EF5',
+    }
   }
 
   async function loadTargets () {
@@ -621,13 +646,18 @@
     targetSaving.value = true
     targetsError.value = ''
     try {
-      await createBranchTarget(targetsBranch.value.id, {
+      const payload = {
         dateFrom: targetForm.value.dateFrom,
         dateTo: targetForm.value.dateTo,
         targetAmount: Math.round(Number(targetForm.value.targetAmount) * 100),
         color: targetForm.value.autoColor ? '' : targetForm.value.color,
-      })
-      targetForm.value = { dateFrom: '', dateTo: '', targetAmount: null, autoColor: true, color: '#4C6EF5' }
+      }
+      if (editingTargetId.value) {
+        await updateBranchTarget(editingTargetId.value, payload)
+      } else {
+        await createBranchTarget(targetsBranch.value.id, payload)
+      }
+      resetTargetForm()
       await loadTargets()
     } catch (error) {
       targetsError.value = error.message
@@ -639,6 +669,7 @@
   async function removeTarget (target) {
     try {
       await deleteBranchTarget(target.id)
+      if (editingTargetId.value === target.id) resetTargetForm()
       await loadTargets()
     } catch (error) {
       targetsError.value = error.message

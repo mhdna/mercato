@@ -382,14 +382,27 @@ type BranchSetting struct {
 }
 
 type BranchTarget struct {
-	ID           int64     `json:"id"`
-	BranchID     int64     `json:"branch_id"`
-	DateFrom     time.Time `json:"date_from"`
-	DateTo       time.Time `json:"date_to"`
-	TargetAmount int64     `json:"target_amount"`
-	Color        string    `json:"color"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	ID           int64         `json:"id"`
+	BranchID     int64         `json:"branch_id"`
+	DateFrom     time.Time     `json:"date_from"`
+	DateTo       time.Time     `json:"date_to"`
+	TargetAmount int64         `json:"target_amount"`
+	Color        string        `json:"color"`
+	CreatedAt    time.Time     `json:"created_at"`
+	UpdatedAt    time.Time     `json:"updated_at"`
+	SeriesID     sql.NullInt64 `json:"series_id"`
+}
+
+type BranchTargetSeries struct {
+	ID            int64     `json:"id"`
+	BranchID      int64     `json:"branch_id"`
+	TargetAmount  int64     `json:"target_amount"`
+	Color         string    `json:"color"`
+	StartDay      int32     `json:"start_day"`
+	IntervalCount int32     `json:"interval_count"`
+	Active        bool      `json:"active"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
 }
 
 type Cashbox struct {

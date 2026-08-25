@@ -207,6 +207,10 @@ func (server *Server) setupRoutes() {
 	authRoutes.PUT("/branch_targets/:id", server.updateBranchTarget)
 	authRoutes.DELETE("/branch_targets/:id", server.deleteBranchTarget)
 
+	authRoutes.GET("/branches/:id/target_series", server.listBranchTargetSeries)
+	authRoutes.POST("/branches/:id/target_series", server.createBranchTargetSeries)
+	authRoutes.PUT("/target_series/:id/active", server.setBranchTargetSeriesActive)
+
 	authRoutes.GET("/branches/:id/salespersons", server.listSalespersons)
 	authRoutes.POST("/branches/:id/salespersons", server.createSalesperson)
 	authRoutes.PUT("/salespersons/:id", server.updateSalesperson)

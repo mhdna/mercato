@@ -34,6 +34,7 @@ func main() {
 
 	go runGatewayServer(config, store)
 	go runRecurringExpenseScheduler(context.Background(), store)
+	go api.RunBranchTargetSeriesScheduler(context.Background(), store)
 	// runGrpcServer(config, store)
 	runGinServer(config, store)
 }

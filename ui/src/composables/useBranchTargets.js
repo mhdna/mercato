@@ -64,5 +64,41 @@ export function useBranchTargets () {
     await requestJSON(`${API_BASE}/branch_targets/${id}`, { method: 'DELETE' })
   }
 
-  return { listBranchTargets, createBranchTarget, updateBranchTarget, deleteBranchTarget }
+  async function listBranchTargetSeries (branchId) {
+    const data = await requestJSON(`${API_BASE}/branches/${branchId}/target_series`)
+    return data?.series ?? []
+  }
+
+  // startDay: day-of-month a period starts on (1-31, clamped server-side
+  // in short months). intervalCount: how many months each period spans.
+  async function createBranchTargetSeries (branchId, { targetAmount, startDay, intervalCount, color }) {
+    return requestJSON(`${API_BASE}/branches/${branchId}/target_series`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        target_amount: targetAmount,
+        start_day: startDay,
+        interval_count: intervalCount,
+        color: color || undefined,
+      }),
+    })
+  }
+
+  async function setBranchTargetSeriesActive (id, active) {
+    return requestJSON(`${API_BASE}/target_series/${id}/active`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ active }),
+    })
+  }
+
+  return {
+    listBranchTargets,
+    createBranchTarget,
+    updateBranchTarget,
+    deleteBranchTarget,
+    listBranchTargetSeries,
+    createBranchTargetSeries,
+    setBranchTargetSeriesActive,
+  }
 }

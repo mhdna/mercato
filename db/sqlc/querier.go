@@ -49,6 +49,7 @@ type Querier interface {
 	CreateBranchLoan(ctx context.Context, arg CreateBranchLoanParams) (Loan, error)
 	CreateBranchSalesperson(ctx context.Context, arg CreateBranchSalespersonParams) (Salesperson, error)
 	CreateBranchTarget(ctx context.Context, arg CreateBranchTargetParams) (BranchTarget, error)
+	CreateBranchTargetSeries(ctx context.Context, arg CreateBranchTargetSeriesParams) (BranchTargetSeries, error)
 	CreateCashbox(ctx context.Context, arg CreateCashboxParams) (Cashbox, error)
 	CreateCashboxAccount(ctx context.Context, arg CreateCashboxAccountParams) (CashboxAccount, error)
 	CreateCentralLoan(ctx context.Context, arg CreateCentralLoanParams) (Loan, error)
@@ -61,6 +62,13 @@ type Querier interface {
 	CreateEntryItem(ctx context.Context, arg CreateEntryItemParams) (Entry, error)
 	CreateExpense(ctx context.Context, arg CreateExpenseParams) (Expense, error)
 	CreateExpenseCategory(ctx context.Context, arg CreateExpenseCategoryParams) (ExpenseCategory, error)
+	// Fires one period for a recurring series -- target_amount/color are
+	// passed in (a snapshot of the series at generation time) rather than
+	// joined live, so a later edit to the series template never rewrites a
+	// period that's already in progress or past, same as recurring_expenses'
+	// FireRecurringExpenseTx snapshotting its template's amount into the
+	// created expense row.
+	CreateGeneratedBranchTarget(ctx context.Context, arg CreateGeneratedBranchTargetParams) (BranchTarget, error)
 	CreateInventory(ctx context.Context, arg CreateInventoryParams) (Inventory, error)
 	CreateInvoice(ctx context.Context, arg CreateInvoiceParams) (Invoice, error)
 	CreateInvoiceType(ctx context.Context, arg CreateInvoiceTypeParams) (InvoiceType, error)
@@ -113,6 +121,7 @@ type Querier interface {
 	GetBranchLoanByClientRef(ctx context.Context, arg GetBranchLoanByClientRefParams) (Loan, error)
 	GetBranchSettings(ctx context.Context, branchID int64) (BranchSetting, error)
 	GetBranchTarget(ctx context.Context, id int64) (BranchTarget, error)
+	GetBranchTargetBySeriesAndStart(ctx context.Context, arg GetBranchTargetBySeriesAndStartParams) (BranchTarget, error)
 	GetCashbox(ctx context.Context, id int64) (Cashbox, error)
 	GetCashboxAccount(ctx context.Context, id int64) (CashboxAccount, error)
 	GetCashboxAccountBalance(ctx context.Context, arg GetCashboxAccountBalanceParams) (ShiftsAccountsBalance, error)
@@ -156,6 +165,7 @@ type Querier interface {
 	GetUser(ctx context.Context, id int64) (User, error)
 	GetUserByUsername(ctx context.Context, name string) (User, error)
 	IncrementInvoicesIndex(ctx context.Context, arg IncrementInvoicesIndexParams) (int64, error)
+	ListActiveBranchTargetSeries(ctx context.Context) ([]BranchTargetSeries, error)
 	ListAllCashboxAccounts(ctx context.Context) ([]CashboxAccount, error)
 	ListAllCurrencies(ctx context.Context) ([]Currency, error)
 	ListAssets(ctx context.Context, arg ListAssetsParams) ([]Asset, error)
@@ -170,6 +180,7 @@ type Querier interface {
 	// the admin UI's branch filter works (a dropdown with an "All branches"
 	// option, not a required selection).
 	ListBranchInvoices(ctx context.Context, arg ListBranchInvoicesParams) ([]BranchInvoice, error)
+	ListBranchTargetSeriesForBranch(ctx context.Context, branchID int64) ([]BranchTargetSeries, error)
 	ListBranchTargetsForBranch(ctx context.Context, branchID int64) ([]BranchTarget, error)
 	ListBranchTargetsUpdatedSince(ctx context.Context, arg ListBranchTargetsUpdatedSinceParams) ([]BranchTarget, error)
 	ListBranches(ctx context.Context) ([]Branch, error)
@@ -254,6 +265,7 @@ type Querier interface {
 	ListTransfers(ctx context.Context, arg ListTransfersParams) ([]Transfer, error)
 	ListUsers(ctx context.Context, arg ListUsersParams) ([]User, error)
 	SetBranchActive(ctx context.Context, arg SetBranchActiveParams) error
+	SetBranchTargetSeriesActive(ctx context.Context, arg SetBranchTargetSeriesActiveParams) (BranchTargetSeries, error)
 	SetRecurringExpenseActive(ctx context.Context, arg SetRecurringExpenseActiveParams) (RecurringExpense, error)
 	SetSalespersonActive(ctx context.Context, arg SetSalespersonActiveParams) (Salesperson, error)
 	// Net sales revenue: same grand_total-sum convention as ListDailyIncome in

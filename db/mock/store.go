@@ -590,6 +590,21 @@ func (mr *MockStoreMockRecorder) CreateBranchTarget(arg0, arg1 interface{}) *gom
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateBranchTarget", reflect.TypeOf((*MockStore)(nil).CreateBranchTarget), arg0, arg1)
 }
 
+// CreateBranchTargetSeries mocks base method.
+func (m *MockStore) CreateBranchTargetSeries(arg0 context.Context, arg1 db.CreateBranchTargetSeriesParams) (db.BranchTargetSeries, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CreateBranchTargetSeries", arg0, arg1)
+	ret0, _ := ret[0].(db.BranchTargetSeries)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CreateBranchTargetSeries indicates an expected call of CreateBranchTargetSeries.
+func (mr *MockStoreMockRecorder) CreateBranchTargetSeries(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateBranchTargetSeries", reflect.TypeOf((*MockStore)(nil).CreateBranchTargetSeries), arg0, arg1)
+}
+
 // CreateCashbox mocks base method.
 func (m *MockStore) CreateCashbox(arg0 context.Context, arg1 db.CreateCashboxParams) (db.Cashbox, error) {
 	m.ctrl.T.Helper()
@@ -768,6 +783,21 @@ func (m *MockStore) CreateExpenseCategory(arg0 context.Context, arg1 db.CreateEx
 func (mr *MockStoreMockRecorder) CreateExpenseCategory(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateExpenseCategory", reflect.TypeOf((*MockStore)(nil).CreateExpenseCategory), arg0, arg1)
+}
+
+// CreateGeneratedBranchTarget mocks base method.
+func (m *MockStore) CreateGeneratedBranchTarget(arg0 context.Context, arg1 db.CreateGeneratedBranchTargetParams) (db.BranchTarget, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CreateGeneratedBranchTarget", arg0, arg1)
+	ret0, _ := ret[0].(db.BranchTarget)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CreateGeneratedBranchTarget indicates an expected call of CreateGeneratedBranchTarget.
+func (mr *MockStoreMockRecorder) CreateGeneratedBranchTarget(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateGeneratedBranchTarget", reflect.TypeOf((*MockStore)(nil).CreateGeneratedBranchTarget), arg0, arg1)
 }
 
 // CreateInventory mocks base method.
@@ -1549,6 +1579,21 @@ func (mr *MockStoreMockRecorder) GetBranchTarget(arg0, arg1 interface{}) *gomock
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBranchTarget", reflect.TypeOf((*MockStore)(nil).GetBranchTarget), arg0, arg1)
 }
 
+// GetBranchTargetBySeriesAndStart mocks base method.
+func (m *MockStore) GetBranchTargetBySeriesAndStart(arg0 context.Context, arg1 db.GetBranchTargetBySeriesAndStartParams) (db.BranchTarget, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetBranchTargetBySeriesAndStart", arg0, arg1)
+	ret0, _ := ret[0].(db.BranchTarget)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetBranchTargetBySeriesAndStart indicates an expected call of GetBranchTargetBySeriesAndStart.
+func (mr *MockStoreMockRecorder) GetBranchTargetBySeriesAndStart(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBranchTargetBySeriesAndStart", reflect.TypeOf((*MockStore)(nil).GetBranchTargetBySeriesAndStart), arg0, arg1)
+}
+
 // GetCashbox mocks base method.
 func (m *MockStore) GetCashbox(arg0 context.Context, arg1 int64) (db.Cashbox, error) {
 	m.ctrl.T.Helper()
@@ -2194,6 +2239,21 @@ func (mr *MockStoreMockRecorder) IncrementInvoicesIndex(arg0, arg1 interface{}) 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IncrementInvoicesIndex", reflect.TypeOf((*MockStore)(nil).IncrementInvoicesIndex), arg0, arg1)
 }
 
+// ListActiveBranchTargetSeries mocks base method.
+func (m *MockStore) ListActiveBranchTargetSeries(arg0 context.Context) ([]db.BranchTargetSeries, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListActiveBranchTargetSeries", arg0)
+	ret0, _ := ret[0].([]db.BranchTargetSeries)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListActiveBranchTargetSeries indicates an expected call of ListActiveBranchTargetSeries.
+func (mr *MockStoreMockRecorder) ListActiveBranchTargetSeries(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListActiveBranchTargetSeries", reflect.TypeOf((*MockStore)(nil).ListActiveBranchTargetSeries), arg0)
+}
+
 // ListAllCashboxAccounts mocks base method.
 func (m *MockStore) ListAllCashboxAccounts(arg0 context.Context) ([]db.CashboxAccount, error) {
 	m.ctrl.T.Helper()
@@ -2327,6 +2387,21 @@ func (m *MockStore) ListBranchInvoices(arg0 context.Context, arg1 db.ListBranchI
 func (mr *MockStoreMockRecorder) ListBranchInvoices(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListBranchInvoices", reflect.TypeOf((*MockStore)(nil).ListBranchInvoices), arg0, arg1)
+}
+
+// ListBranchTargetSeriesForBranch mocks base method.
+func (m *MockStore) ListBranchTargetSeriesForBranch(arg0 context.Context, arg1 int64) ([]db.BranchTargetSeries, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListBranchTargetSeriesForBranch", arg0, arg1)
+	ret0, _ := ret[0].([]db.BranchTargetSeries)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListBranchTargetSeriesForBranch indicates an expected call of ListBranchTargetSeriesForBranch.
+func (mr *MockStoreMockRecorder) ListBranchTargetSeriesForBranch(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListBranchTargetSeriesForBranch", reflect.TypeOf((*MockStore)(nil).ListBranchTargetSeriesForBranch), arg0, arg1)
 }
 
 // ListBranchTargetsForBranch mocks base method.
@@ -3076,6 +3151,21 @@ func (m *MockStore) SetBranchActive(arg0 context.Context, arg1 db.SetBranchActiv
 func (mr *MockStoreMockRecorder) SetBranchActive(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetBranchActive", reflect.TypeOf((*MockStore)(nil).SetBranchActive), arg0, arg1)
+}
+
+// SetBranchTargetSeriesActive mocks base method.
+func (m *MockStore) SetBranchTargetSeriesActive(arg0 context.Context, arg1 db.SetBranchTargetSeriesActiveParams) (db.BranchTargetSeries, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SetBranchTargetSeriesActive", arg0, arg1)
+	ret0, _ := ret[0].(db.BranchTargetSeries)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SetBranchTargetSeriesActive indicates an expected call of SetBranchTargetSeriesActive.
+func (mr *MockStoreMockRecorder) SetBranchTargetSeriesActive(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetBranchTargetSeriesActive", reflect.TypeOf((*MockStore)(nil).SetBranchTargetSeriesActive), arg0, arg1)
 }
 
 // SetRecurringExpenseActive mocks base method.

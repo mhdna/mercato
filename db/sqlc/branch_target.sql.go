@@ -7,6 +7,7 @@ package db
 
 import (
 	"context"
+	"database/sql"
 	"time"
 )
 
@@ -20,7 +21,7 @@ INSERT INTO branch_targets (
 ) VALUES (
   $1, $2, $3, $4, $5
 )
-RETURNING id, branch_id, date_from, date_to, target_amount, color, created_at, updated_at
+RETURNING id, branch_id, date_from, date_to, target_amount, color, created_at, updated_at, series_id
 `
 
 type CreateBranchTargetParams struct {
@@ -49,6 +50,60 @@ func (q *Queries) CreateBranchTarget(ctx context.Context, arg CreateBranchTarget
 		&i.Color,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.SeriesID,
+	)
+	return i, err
+}
+
+const createGeneratedBranchTarget = `-- name: CreateGeneratedBranchTarget :one
+INSERT INTO branch_targets (
+  branch_id,
+  date_from,
+  date_to,
+  target_amount,
+  color,
+  series_id
+) VALUES (
+  $1, $2, $3, $4, $5, $6
+)
+RETURNING id, branch_id, date_from, date_to, target_amount, color, created_at, updated_at, series_id
+`
+
+type CreateGeneratedBranchTargetParams struct {
+	BranchID     int64         `json:"branch_id"`
+	DateFrom     time.Time     `json:"date_from"`
+	DateTo       time.Time     `json:"date_to"`
+	TargetAmount int64         `json:"target_amount"`
+	Color        string        `json:"color"`
+	SeriesID     sql.NullInt64 `json:"series_id"`
+}
+
+// Fires one period for a recurring series -- target_amount/color are
+// passed in (a snapshot of the series at generation time) rather than
+// joined live, so a later edit to the series template never rewrites a
+// period that's already in progress or past, same as recurring_expenses'
+// FireRecurringExpenseTx snapshotting its template's amount into the
+// created expense row.
+func (q *Queries) CreateGeneratedBranchTarget(ctx context.Context, arg CreateGeneratedBranchTargetParams) (BranchTarget, error) {
+	row := q.db.QueryRowContext(ctx, createGeneratedBranchTarget,
+		arg.BranchID,
+		arg.DateFrom,
+		arg.DateTo,
+		arg.TargetAmount,
+		arg.Color,
+		arg.SeriesID,
+	)
+	var i BranchTarget
+	err := row.Scan(
+		&i.ID,
+		&i.BranchID,
+		&i.DateFrom,
+		&i.DateTo,
+		&i.TargetAmount,
+		&i.Color,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.SeriesID,
 	)
 	return i, err
 }
@@ -64,7 +119,7 @@ func (q *Queries) DeleteBranchTarget(ctx context.Context, id int64) error {
 }
 
 const getBranchTarget = `-- name: GetBranchTarget :one
-SELECT id, branch_id, date_from, date_to, target_amount, color, created_at, updated_at FROM branch_targets
+SELECT id, branch_id, date_from, date_to, target_amount, color, created_at, updated_at, series_id FROM branch_targets
 WHERE id = $1 LIMIT 1
 `
 
@@ -80,12 +135,41 @@ func (q *Queries) GetBranchTarget(ctx context.Context, id int64) (BranchTarget, 
 		&i.Color,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.SeriesID,
+	)
+	return i, err
+}
+
+const getBranchTargetBySeriesAndStart = `-- name: GetBranchTargetBySeriesAndStart :one
+SELECT id, branch_id, date_from, date_to, target_amount, color, created_at, updated_at, series_id FROM branch_targets
+WHERE series_id = $1 AND date_from = $2
+LIMIT 1
+`
+
+type GetBranchTargetBySeriesAndStartParams struct {
+	SeriesID sql.NullInt64 `json:"series_id"`
+	DateFrom time.Time     `json:"date_from"`
+}
+
+func (q *Queries) GetBranchTargetBySeriesAndStart(ctx context.Context, arg GetBranchTargetBySeriesAndStartParams) (BranchTarget, error) {
+	row := q.db.QueryRowContext(ctx, getBranchTargetBySeriesAndStart, arg.SeriesID, arg.DateFrom)
+	var i BranchTarget
+	err := row.Scan(
+		&i.ID,
+		&i.BranchID,
+		&i.DateFrom,
+		&i.DateTo,
+		&i.TargetAmount,
+		&i.Color,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.SeriesID,
 	)
 	return i, err
 }
 
 const listBranchTargetsForBranch = `-- name: ListBranchTargetsForBranch :many
-SELECT id, branch_id, date_from, date_to, target_amount, color, created_at, updated_at FROM branch_targets
+SELECT id, branch_id, date_from, date_to, target_amount, color, created_at, updated_at, series_id FROM branch_targets
 WHERE branch_id = $1
 ORDER BY target_amount
 `
@@ -108,6 +192,7 @@ func (q *Queries) ListBranchTargetsForBranch(ctx context.Context, branchID int64
 			&i.Color,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.SeriesID,
 		); err != nil {
 			return nil, err
 		}
@@ -123,7 +208,7 @@ func (q *Queries) ListBranchTargetsForBranch(ctx context.Context, branchID int64
 }
 
 const listBranchTargetsUpdatedSince = `-- name: ListBranchTargetsUpdatedSince :many
-SELECT id, branch_id, date_from, date_to, target_amount, color, created_at, updated_at FROM branch_targets
+SELECT id, branch_id, date_from, date_to, target_amount, color, created_at, updated_at, series_id FROM branch_targets
 WHERE branch_id = $1 AND updated_at > $2
 ORDER BY updated_at
 `
@@ -151,6 +236,7 @@ func (q *Queries) ListBranchTargetsUpdatedSince(ctx context.Context, arg ListBra
 			&i.Color,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.SeriesID,
 		); err != nil {
 			return nil, err
 		}
@@ -195,7 +281,7 @@ SET date_from = $2,
     color = $5,
     updated_at = now()
 WHERE id = $1
-RETURNING id, branch_id, date_from, date_to, target_amount, color, created_at, updated_at
+RETURNING id, branch_id, date_from, date_to, target_amount, color, created_at, updated_at, series_id
 `
 
 type UpdateBranchTargetParams struct {
@@ -224,6 +310,7 @@ func (q *Queries) UpdateBranchTarget(ctx context.Context, arg UpdateBranchTarget
 		&i.Color,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.SeriesID,
 	)
 	return i, err
 }

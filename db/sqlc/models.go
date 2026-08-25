@@ -391,6 +391,7 @@ type BranchTarget struct {
 	CreatedAt    time.Time     `json:"created_at"`
 	UpdatedAt    time.Time     `json:"updated_at"`
 	SeriesID     sql.NullInt64 `json:"series_id"`
+	IsActive     bool          `json:"is_active"`
 }
 
 type BranchTargetSeries struct {

@@ -21,7 +21,7 @@ INSERT INTO branch_targets (
 ) VALUES (
   $1, $2, $3, $4, $5
 )
-RETURNING id, branch_id, date_from, date_to, target_amount, color, created_at, updated_at, series_id
+RETURNING id, branch_id, date_from, date_to, target_amount, color, created_at, updated_at, series_id, is_active
 `
 
 type CreateBranchTargetParams struct {
@@ -51,6 +51,7 @@ func (q *Queries) CreateBranchTarget(ctx context.Context, arg CreateBranchTarget
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.SeriesID,
+		&i.IsActive,
 	)
 	return i, err
 }
@@ -66,7 +67,7 @@ INSERT INTO branch_targets (
 ) VALUES (
   $1, $2, $3, $4, $5, $6
 )
-RETURNING id, branch_id, date_from, date_to, target_amount, color, created_at, updated_at, series_id
+RETURNING id, branch_id, date_from, date_to, target_amount, color, created_at, updated_at, series_id, is_active
 `
 
 type CreateGeneratedBranchTargetParams struct {
@@ -104,22 +105,13 @@ func (q *Queries) CreateGeneratedBranchTarget(ctx context.Context, arg CreateGen
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.SeriesID,
+		&i.IsActive,
 	)
 	return i, err
 }
 
-const deleteBranchTarget = `-- name: DeleteBranchTarget :exec
-DELETE FROM branch_targets
-WHERE id = $1
-`
-
-func (q *Queries) DeleteBranchTarget(ctx context.Context, id int64) error {
-	_, err := q.db.ExecContext(ctx, deleteBranchTarget, id)
-	return err
-}
-
 const getBranchTarget = `-- name: GetBranchTarget :one
-SELECT id, branch_id, date_from, date_to, target_amount, color, created_at, updated_at, series_id FROM branch_targets
+SELECT id, branch_id, date_from, date_to, target_amount, color, created_at, updated_at, series_id, is_active FROM branch_targets
 WHERE id = $1 LIMIT 1
 `
 
@@ -136,12 +128,13 @@ func (q *Queries) GetBranchTarget(ctx context.Context, id int64) (BranchTarget, 
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.SeriesID,
+		&i.IsActive,
 	)
 	return i, err
 }
 
 const getBranchTargetBySeriesAndStart = `-- name: GetBranchTargetBySeriesAndStart :one
-SELECT id, branch_id, date_from, date_to, target_amount, color, created_at, updated_at, series_id FROM branch_targets
+SELECT id, branch_id, date_from, date_to, target_amount, color, created_at, updated_at, series_id, is_active FROM branch_targets
 WHERE series_id = $1 AND date_from = $2
 LIMIT 1
 `
@@ -164,13 +157,14 @@ func (q *Queries) GetBranchTargetBySeriesAndStart(ctx context.Context, arg GetBr
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.SeriesID,
+		&i.IsActive,
 	)
 	return i, err
 }
 
 const listBranchTargetsForBranch = `-- name: ListBranchTargetsForBranch :many
-SELECT id, branch_id, date_from, date_to, target_amount, color, created_at, updated_at, series_id FROM branch_targets
-WHERE branch_id = $1
+SELECT id, branch_id, date_from, date_to, target_amount, color, created_at, updated_at, series_id, is_active FROM branch_targets
+WHERE branch_id = $1 AND is_active
 ORDER BY target_amount
 `
 
@@ -193,6 +187,7 @@ func (q *Queries) ListBranchTargetsForBranch(ctx context.Context, branchID int64
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.SeriesID,
+			&i.IsActive,
 		); err != nil {
 			return nil, err
 		}
@@ -208,7 +203,7 @@ func (q *Queries) ListBranchTargetsForBranch(ctx context.Context, branchID int64
 }
 
 const listBranchTargetsUpdatedSince = `-- name: ListBranchTargetsUpdatedSince :many
-SELECT id, branch_id, date_from, date_to, target_amount, color, created_at, updated_at, series_id FROM branch_targets
+SELECT id, branch_id, date_from, date_to, target_amount, color, created_at, updated_at, series_id, is_active FROM branch_targets
 WHERE branch_id = $1 AND updated_at > $2
 ORDER BY updated_at
 `
@@ -237,6 +232,7 @@ func (q *Queries) ListBranchTargetsUpdatedSince(ctx context.Context, arg ListBra
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.SeriesID,
+			&i.IsActive,
 		); err != nil {
 			return nil, err
 		}
@@ -249,6 +245,39 @@ func (q *Queries) ListBranchTargetsUpdatedSince(ctx context.Context, arg ListBra
 		return nil, err
 	}
 	return items, nil
+}
+
+const setBranchTargetActive = `-- name: SetBranchTargetActive :one
+UPDATE branch_targets
+SET is_active = $2,
+    updated_at = now()
+WHERE id = $1
+RETURNING id, branch_id, date_from, date_to, target_amount, color, created_at, updated_at, series_id, is_active
+`
+
+type SetBranchTargetActiveParams struct {
+	ID       int64 `json:"id"`
+	IsActive bool  `json:"is_active"`
+}
+
+// The sync-facing "delete" -- see 000046_branch_target_soft_delete.up.sql
+// for why this flips a flag instead of removing the row.
+func (q *Queries) SetBranchTargetActive(ctx context.Context, arg SetBranchTargetActiveParams) (BranchTarget, error) {
+	row := q.db.QueryRowContext(ctx, setBranchTargetActive, arg.ID, arg.IsActive)
+	var i BranchTarget
+	err := row.Scan(
+		&i.ID,
+		&i.BranchID,
+		&i.DateFrom,
+		&i.DateTo,
+		&i.TargetAmount,
+		&i.Color,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.SeriesID,
+		&i.IsActive,
+	)
+	return i, err
 }
 
 const sumBranchRevenueForRange = `-- name: SumBranchRevenueForRange :one
@@ -281,7 +310,7 @@ SET date_from = $2,
     color = $5,
     updated_at = now()
 WHERE id = $1
-RETURNING id, branch_id, date_from, date_to, target_amount, color, created_at, updated_at, series_id
+RETURNING id, branch_id, date_from, date_to, target_amount, color, created_at, updated_at, series_id, is_active
 `
 
 type UpdateBranchTargetParams struct {
@@ -311,6 +340,7 @@ func (q *Queries) UpdateBranchTarget(ctx context.Context, arg UpdateBranchTarget
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.SeriesID,
+		&i.IsActive,
 	)
 	return i, err
 }

@@ -16,7 +16,7 @@ WHERE id = $1 LIMIT 1;
 
 -- name: ListBranchTargetsForBranch :many
 SELECT * FROM branch_targets
-WHERE branch_id = $1
+WHERE branch_id = $1 AND is_active
 ORDER BY target_amount;
 
 -- name: UpdateBranchTarget :one
@@ -29,9 +29,14 @@ SET date_from = $2,
 WHERE id = $1
 RETURNING *;
 
--- name: DeleteBranchTarget :exec
-DELETE FROM branch_targets
-WHERE id = $1;
+-- name: SetBranchTargetActive :one
+-- The sync-facing "delete" -- see 000046_branch_target_soft_delete.up.sql
+-- for why this flips a flag instead of removing the row.
+UPDATE branch_targets
+SET is_active = $2,
+    updated_at = now()
+WHERE id = $1
+RETURNING *;
 
 -- name: ListBranchTargetsUpdatedSince :many
 SELECT * FROM branch_targets

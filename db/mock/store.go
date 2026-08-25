@@ -1202,20 +1202,6 @@ func (mr *MockStoreMockRecorder) DeleteAssetType(arg0, arg1 interface{}) *gomock
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteAssetType", reflect.TypeOf((*MockStore)(nil).DeleteAssetType), arg0, arg1)
 }
 
-// DeleteBranchTarget mocks base method.
-func (m *MockStore) DeleteBranchTarget(arg0 context.Context, arg1 int64) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DeleteBranchTarget", arg0, arg1)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// DeleteBranchTarget indicates an expected call of DeleteBranchTarget.
-func (mr *MockStoreMockRecorder) DeleteBranchTarget(arg0, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteBranchTarget", reflect.TypeOf((*MockStore)(nil).DeleteBranchTarget), arg0, arg1)
-}
-
 // DeleteClient mocks base method.
 func (m *MockStore) DeleteClient(arg0 context.Context, arg1 int64) error {
 	m.ctrl.T.Helper()
@@ -3151,6 +3137,21 @@ func (m *MockStore) SetBranchActive(arg0 context.Context, arg1 db.SetBranchActiv
 func (mr *MockStoreMockRecorder) SetBranchActive(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetBranchActive", reflect.TypeOf((*MockStore)(nil).SetBranchActive), arg0, arg1)
+}
+
+// SetBranchTargetActive mocks base method.
+func (m *MockStore) SetBranchTargetActive(arg0 context.Context, arg1 db.SetBranchTargetActiveParams) (db.BranchTarget, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SetBranchTargetActive", arg0, arg1)
+	ret0, _ := ret[0].(db.BranchTarget)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SetBranchTargetActive indicates an expected call of SetBranchTargetActive.
+func (mr *MockStoreMockRecorder) SetBranchTargetActive(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetBranchTargetActive", reflect.TypeOf((*MockStore)(nil).SetBranchTargetActive), arg0, arg1)
 }
 
 // SetBranchTargetSeriesActive mocks base method.

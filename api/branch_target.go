@@ -203,6 +203,12 @@ type deleteBranchTargetRequest struct {
 	ID int64 `uri:"id" binding:"required,min=1"`
 }
 
+// deleteBranchTarget flips is_active rather than removing the row -- see
+// 000046_branch_target_soft_delete.up.sql. Kashi's own UI (which reads
+// ListBranchTargetsForBranch) already filters inactive targets out, so
+// this still looks and behaves like a delete from the admin's side; the
+// row survives so kashi-pos's sync-since pull can see the change and
+// remove its local copy.
 func (server *Server) deleteBranchTarget(ctx *gin.Context) {
 	var req deleteBranchTargetRequest
 	if err := ctx.ShouldBindUri(&req); err != nil {
@@ -210,7 +216,10 @@ func (server *Server) deleteBranchTarget(ctx *gin.Context) {
 		return
 	}
 
-	if err := server.store.DeleteBranchTarget(ctx, req.ID); err != nil {
+	if _, err := server.store.SetBranchTargetActive(ctx, db.SetBranchTargetActiveParams{
+		ID:       req.ID,
+		IsActive: false,
+	}); err != nil {
 		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}

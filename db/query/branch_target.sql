@@ -67,6 +67,16 @@ SELECT * FROM branch_targets
 WHERE series_id = $1 AND date_from = $2
 LIMIT 1;
 
+-- name: DeactivateBranchTargetsBySeries :exec
+-- Part of deleting a whole recurring series (see DeleteBranchTargetSeriesTx
+-- in tx_branch_target_series.go) -- every period it ever generated needs
+-- to disappear the same way a single deleted target does, not just stop
+-- getting new ones.
+UPDATE branch_targets
+SET is_active = false,
+    updated_at = now()
+WHERE series_id = $1 AND is_active;
+
 -- name: SumBranchRevenueForRange :one
 -- Net sales revenue: same grand_total-sum convention as ListDailyIncome in
 -- branch_invoice.sql (returns already net out via their signed grand_total).

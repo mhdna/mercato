@@ -92,6 +92,27 @@ export function useBranchTargets () {
     })
   }
 
+  // Only affects periods generated after this call -- see the API's note
+  // on CreateGeneratedBranchTarget snapshotting a series' fields.
+  async function updateBranchTargetSeries (id, { targetAmount, startDay, intervalCount, color }) {
+    return requestJSON(`${API_BASE}/target_series/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        target_amount: targetAmount,
+        start_day: startDay,
+        interval_count: intervalCount,
+        color: color || undefined,
+      }),
+    })
+  }
+
+  // Removes the series and every period it ever generated -- not just one
+  // occurrence, the whole recurring schedule.
+  async function deleteBranchTargetSeries (id) {
+    await requestJSON(`${API_BASE}/target_series/${id}`, { method: 'DELETE' })
+  }
+
   return {
     listBranchTargets,
     createBranchTarget,
@@ -99,6 +120,8 @@ export function useBranchTargets () {
     deleteBranchTarget,
     listBranchTargetSeries,
     createBranchTargetSeries,
+    updateBranchTargetSeries,
+    deleteBranchTargetSeries,
     setBranchTargetSeriesActive,
   }
 }

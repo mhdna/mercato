@@ -1145,6 +1145,20 @@ func (mr *MockStoreMockRecorder) CreateUser(arg0, arg1 interface{}) *gomock.Call
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateUser", reflect.TypeOf((*MockStore)(nil).CreateUser), arg0, arg1)
 }
 
+// DeactivateBranchTargetsBySeries mocks base method.
+func (m *MockStore) DeactivateBranchTargetsBySeries(arg0 context.Context, arg1 sql.NullInt64) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeactivateBranchTargetsBySeries", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeactivateBranchTargetsBySeries indicates an expected call of DeactivateBranchTargetsBySeries.
+func (mr *MockStoreMockRecorder) DeactivateBranchTargetsBySeries(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeactivateBranchTargetsBySeries", reflect.TypeOf((*MockStore)(nil).DeactivateBranchTargetsBySeries), arg0, arg1)
+}
+
 // DeactivateCoupon mocks base method.
 func (m *MockStore) DeactivateCoupon(arg0 context.Context, arg1 string) error {
 	m.ctrl.T.Helper()
@@ -1200,6 +1214,36 @@ func (m *MockStore) DeleteAssetType(arg0 context.Context, arg1 int64) error {
 func (mr *MockStoreMockRecorder) DeleteAssetType(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteAssetType", reflect.TypeOf((*MockStore)(nil).DeleteAssetType), arg0, arg1)
+}
+
+// DeleteBranchTargetSeries mocks base method.
+func (m *MockStore) DeleteBranchTargetSeries(arg0 context.Context, arg1 int64) (db.BranchTargetSeries, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteBranchTargetSeries", arg0, arg1)
+	ret0, _ := ret[0].(db.BranchTargetSeries)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// DeleteBranchTargetSeries indicates an expected call of DeleteBranchTargetSeries.
+func (mr *MockStoreMockRecorder) DeleteBranchTargetSeries(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteBranchTargetSeries", reflect.TypeOf((*MockStore)(nil).DeleteBranchTargetSeries), arg0, arg1)
+}
+
+// DeleteBranchTargetSeriesTx mocks base method.
+func (m *MockStore) DeleteBranchTargetSeriesTx(arg0 context.Context, arg1 int64) (db.BranchTargetSeries, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteBranchTargetSeriesTx", arg0, arg1)
+	ret0, _ := ret[0].(db.BranchTargetSeries)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// DeleteBranchTargetSeriesTx indicates an expected call of DeleteBranchTargetSeriesTx.
+func (mr *MockStoreMockRecorder) DeleteBranchTargetSeriesTx(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteBranchTargetSeriesTx", reflect.TypeOf((*MockStore)(nil).DeleteBranchTargetSeriesTx), arg0, arg1)
 }
 
 // DeleteClient mocks base method.
@@ -1578,6 +1622,21 @@ func (m *MockStore) GetBranchTargetBySeriesAndStart(arg0 context.Context, arg1 d
 func (mr *MockStoreMockRecorder) GetBranchTargetBySeriesAndStart(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBranchTargetBySeriesAndStart", reflect.TypeOf((*MockStore)(nil).GetBranchTargetBySeriesAndStart), arg0, arg1)
+}
+
+// GetBranchTargetSeries mocks base method.
+func (m *MockStore) GetBranchTargetSeries(arg0 context.Context, arg1 int64) (db.BranchTargetSeries, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetBranchTargetSeries", arg0, arg1)
+	ret0, _ := ret[0].(db.BranchTargetSeries)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetBranchTargetSeries indicates an expected call of GetBranchTargetSeries.
+func (mr *MockStoreMockRecorder) GetBranchTargetSeries(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBranchTargetSeries", reflect.TypeOf((*MockStore)(nil).GetBranchTargetSeries), arg0, arg1)
 }
 
 // GetCashbox mocks base method.
@@ -3342,6 +3401,21 @@ func (m *MockStore) UpdateBranchTarget(arg0 context.Context, arg1 db.UpdateBranc
 func (mr *MockStoreMockRecorder) UpdateBranchTarget(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateBranchTarget", reflect.TypeOf((*MockStore)(nil).UpdateBranchTarget), arg0, arg1)
+}
+
+// UpdateBranchTargetSeries mocks base method.
+func (m *MockStore) UpdateBranchTargetSeries(arg0 context.Context, arg1 db.UpdateBranchTargetSeriesParams) (db.BranchTargetSeries, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateBranchTargetSeries", arg0, arg1)
+	ret0, _ := ret[0].(db.BranchTargetSeries)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// UpdateBranchTargetSeries indicates an expected call of UpdateBranchTargetSeries.
+func (mr *MockStoreMockRecorder) UpdateBranchTargetSeries(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateBranchTargetSeries", reflect.TypeOf((*MockStore)(nil).UpdateBranchTargetSeries), arg0, arg1)
 }
 
 // UpdateCashbox mocks base method.

@@ -53,6 +53,51 @@ func (q *Queries) CreateBranchTargetSeries(ctx context.Context, arg CreateBranch
 	return i, err
 }
 
+const deleteBranchTargetSeries = `-- name: DeleteBranchTargetSeries :one
+DELETE FROM branch_target_series
+WHERE id = $1
+RETURNING id, branch_id, target_amount, color, start_day, interval_count, active, created_at, updated_at
+`
+
+func (q *Queries) DeleteBranchTargetSeries(ctx context.Context, id int64) (BranchTargetSeries, error) {
+	row := q.db.QueryRowContext(ctx, deleteBranchTargetSeries, id)
+	var i BranchTargetSeries
+	err := row.Scan(
+		&i.ID,
+		&i.BranchID,
+		&i.TargetAmount,
+		&i.Color,
+		&i.StartDay,
+		&i.IntervalCount,
+		&i.Active,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getBranchTargetSeries = `-- name: GetBranchTargetSeries :one
+SELECT id, branch_id, target_amount, color, start_day, interval_count, active, created_at, updated_at FROM branch_target_series
+WHERE id = $1 LIMIT 1
+`
+
+func (q *Queries) GetBranchTargetSeries(ctx context.Context, id int64) (BranchTargetSeries, error) {
+	row := q.db.QueryRowContext(ctx, getBranchTargetSeries, id)
+	var i BranchTargetSeries
+	err := row.Scan(
+		&i.ID,
+		&i.BranchID,
+		&i.TargetAmount,
+		&i.Color,
+		&i.StartDay,
+		&i.IntervalCount,
+		&i.Active,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const listActiveBranchTargetSeries = `-- name: ListActiveBranchTargetSeries :many
 SELECT id, branch_id, target_amount, color, start_day, interval_count, active, created_at, updated_at FROM branch_target_series
 WHERE active
@@ -146,6 +191,50 @@ type SetBranchTargetSeriesActiveParams struct {
 
 func (q *Queries) SetBranchTargetSeriesActive(ctx context.Context, arg SetBranchTargetSeriesActiveParams) (BranchTargetSeries, error) {
 	row := q.db.QueryRowContext(ctx, setBranchTargetSeriesActive, arg.ID, arg.Active)
+	var i BranchTargetSeries
+	err := row.Scan(
+		&i.ID,
+		&i.BranchID,
+		&i.TargetAmount,
+		&i.Color,
+		&i.StartDay,
+		&i.IntervalCount,
+		&i.Active,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updateBranchTargetSeries = `-- name: UpdateBranchTargetSeries :one
+UPDATE branch_target_series
+SET target_amount = $2,
+    color = $3,
+    start_day = $4,
+    interval_count = $5,
+    updated_at = now()
+WHERE id = $1
+RETURNING id, branch_id, target_amount, color, start_day, interval_count, active, created_at, updated_at
+`
+
+type UpdateBranchTargetSeriesParams struct {
+	ID            int64  `json:"id"`
+	TargetAmount  int64  `json:"target_amount"`
+	Color         string `json:"color"`
+	StartDay      int32  `json:"start_day"`
+	IntervalCount int32  `json:"interval_count"`
+}
+
+// Only affects future periods -- see CreateGeneratedBranchTarget's note on
+// generation snapshotting a series' fields, never joining them live.
+func (q *Queries) UpdateBranchTargetSeries(ctx context.Context, arg UpdateBranchTargetSeriesParams) (BranchTargetSeries, error) {
+	row := q.db.QueryRowContext(ctx, updateBranchTargetSeries,
+		arg.ID,
+		arg.TargetAmount,
+		arg.Color,
+		arg.StartDay,
+		arg.IntervalCount,
+	)
 	var i BranchTargetSeries
 	err := row.Scan(
 		&i.ID,

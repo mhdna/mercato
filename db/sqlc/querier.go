@@ -91,10 +91,16 @@ type Querier interface {
 	CreateTransfer(ctx context.Context, arg CreateTransferParams) (Transfer, error)
 	CreateTransferItem(ctx context.Context, arg CreateTransferItemParams) (TransferItem, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
+	// Part of deleting a whole recurring series (see DeleteBranchTargetSeriesTx
+	// in tx_branch_target_series.go) -- every period it ever generated needs
+	// to disappear the same way a single deleted target does, not just stop
+	// getting new ones.
+	DeactivateBranchTargetsBySeries(ctx context.Context, seriesID sql.NullInt64) error
 	DeactivateCoupon(ctx context.Context, code string) error
 	DecrementInvoicesIndex(ctx context.Context, arg DecrementInvoicesIndexParams) (int64, error)
 	DeleteAsset(ctx context.Context, id int64) error
 	DeleteAssetType(ctx context.Context, id int64) error
+	DeleteBranchTargetSeries(ctx context.Context, id int64) (BranchTargetSeries, error)
 	DeleteClient(ctx context.Context, id int64) error
 	DeleteCurrency(ctx context.Context, code string) error
 	DeleteDiscountListItem(ctx context.Context, arg DeleteDiscountListItemParams) error
@@ -121,6 +127,7 @@ type Querier interface {
 	GetBranchSettings(ctx context.Context, branchID int64) (BranchSetting, error)
 	GetBranchTarget(ctx context.Context, id int64) (BranchTarget, error)
 	GetBranchTargetBySeriesAndStart(ctx context.Context, arg GetBranchTargetBySeriesAndStartParams) (BranchTarget, error)
+	GetBranchTargetSeries(ctx context.Context, id int64) (BranchTargetSeries, error)
 	GetCashbox(ctx context.Context, id int64) (Cashbox, error)
 	GetCashboxAccount(ctx context.Context, id int64) (CashboxAccount, error)
 	GetCashboxAccountBalance(ctx context.Context, arg GetCashboxAccountBalanceParams) (ShiftsAccountsBalance, error)
@@ -286,6 +293,9 @@ type Querier interface {
 	UpdateBranchLastSeenAt(ctx context.Context, id int64) error
 	UpdateBranchSalespersonName(ctx context.Context, arg UpdateBranchSalespersonNameParams) (Salesperson, error)
 	UpdateBranchTarget(ctx context.Context, arg UpdateBranchTargetParams) (BranchTarget, error)
+	// Only affects future periods -- see CreateGeneratedBranchTarget's note on
+	// generation snapshotting a series' fields, never joining them live.
+	UpdateBranchTargetSeries(ctx context.Context, arg UpdateBranchTargetSeriesParams) (BranchTargetSeries, error)
 	UpdateCashbox(ctx context.Context, arg UpdateCashboxParams) (Cashbox, error)
 	UpdateCashboxAccount(ctx context.Context, arg UpdateCashboxAccountParams) (CashboxAccount, error)
 	UpdateClient(ctx context.Context, arg UpdateClientParams) (Client, error)

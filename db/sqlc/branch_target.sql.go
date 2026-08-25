@@ -110,6 +110,22 @@ func (q *Queries) CreateGeneratedBranchTarget(ctx context.Context, arg CreateGen
 	return i, err
 }
 
+const deactivateBranchTargetsBySeries = `-- name: DeactivateBranchTargetsBySeries :exec
+UPDATE branch_targets
+SET is_active = false,
+    updated_at = now()
+WHERE series_id = $1 AND is_active
+`
+
+// Part of deleting a whole recurring series (see DeleteBranchTargetSeriesTx
+// in tx_branch_target_series.go) -- every period it ever generated needs
+// to disappear the same way a single deleted target does, not just stop
+// getting new ones.
+func (q *Queries) DeactivateBranchTargetsBySeries(ctx context.Context, seriesID sql.NullInt64) error {
+	_, err := q.db.ExecContext(ctx, deactivateBranchTargetsBySeries, seriesID)
+	return err
+}
+
 const getBranchTarget = `-- name: GetBranchTarget :one
 SELECT id, branch_id, date_from, date_to, target_amount, color, created_at, updated_at, series_id, is_active FROM branch_targets
 WHERE id = $1 LIMIT 1

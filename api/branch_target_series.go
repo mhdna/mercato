@@ -1,6 +1,7 @@
 package api
 
 import (
+	"database/sql"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -111,4 +112,86 @@ func (server *Server) setBranchTargetSeriesActive(ctx *gin.Context) {
 		return
 	}
 	ctx.JSON(http.StatusOK, series)
+}
+
+type updateBranchTargetSeriesRequest struct {
+	ID            int64  `uri:"id" binding:"required,min=1"`
+	TargetAmount  int64  `json:"target_amount" binding:"required,min=1"`
+	StartDay      int32  `json:"start_day" binding:"required,min=1,max=31"`
+	IntervalCount int32  `json:"interval_count" binding:"required,min=1"`
+	// Optional; blank keeps the series' current color rather than clearing it.
+	Color string `json:"color"`
+}
+
+// updateBranchTargetSeries only affects periods generated after this call
+// -- see the note on CreateGeneratedBranchTarget. There's no in-place
+// "edit progress" concept since periods are independent snapshots.
+func (server *Server) updateBranchTargetSeries(ctx *gin.Context) {
+	var req updateBranchTargetSeriesRequest
+	if err := ctx.ShouldBindUri(&req); err != nil {
+		server.writeError(ctx, http.StatusBadRequest, err)
+		return
+	}
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		server.writeError(ctx, http.StatusBadRequest, err)
+		return
+	}
+	if req.Color != "" && !hexColorPattern.MatchString(req.Color) {
+		server.writeError(ctx, http.StatusBadRequest, errInvalidBranchTargetColor)
+		return
+	}
+
+	color := req.Color
+	if color == "" {
+		existing, err := server.store.GetBranchTargetSeries(ctx, req.ID)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				server.writeError(ctx, http.StatusNotFound, err)
+				return
+			}
+			server.writeError(ctx, http.StatusInternalServerError, err)
+			return
+		}
+		color = existing.Color
+	}
+
+	series, err := server.store.UpdateBranchTargetSeries(ctx, db.UpdateBranchTargetSeriesParams{
+		ID:            req.ID,
+		TargetAmount:  req.TargetAmount,
+		Color:         color,
+		StartDay:      req.StartDay,
+		IntervalCount: req.IntervalCount,
+	})
+	if err != nil {
+		if err == sql.ErrNoRows {
+			server.writeError(ctx, http.StatusNotFound, err)
+			return
+		}
+		server.writeError(ctx, http.StatusInternalServerError, err)
+		return
+	}
+	ctx.JSON(http.StatusOK, series)
+}
+
+type deleteBranchTargetSeriesRequest struct {
+	ID int64 `uri:"id" binding:"required,min=1"`
+}
+
+// deleteBranchTargetSeries removes the series and deactivates every period
+// it ever generated (see DeleteBranchTargetSeriesTx) -- deleting the whole
+// recurring schedule at once, not just one already-generated occurrence.
+func (server *Server) deleteBranchTargetSeries(ctx *gin.Context) {
+	var req deleteBranchTargetSeriesRequest
+	if err := ctx.ShouldBindUri(&req); err != nil {
+		server.writeError(ctx, http.StatusBadRequest, err)
+		return
+	}
+
+	series, err := server.store.DeleteBranchTargetSeriesTx(ctx, req.ID)
+	if err != nil {
+		server.writeError(ctx, http.StatusInternalServerError, err)
+		return
+	}
+	server.branchHub.notify(series.BranchID, branchWSMessage{Type: "target_updated"})
+	ctx.JSON(http.StatusOK, envelope{"deleted": true})
 }

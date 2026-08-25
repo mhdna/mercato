@@ -31,6 +31,8 @@ type Querier interface {
 	CountDiscountLists(ctx context.Context) (int64, error)
 	CountInventories(ctx context.Context) (int64, error)
 	CountInvoices(ctx context.Context) (int64, error)
+	CountLoanPayments(ctx context.Context, loanID sql.NullInt64) (int64, error)
+	CountLoans(ctx context.Context, arg CountLoansParams) (int64, error)
 	CountProductVariants(ctx context.Context) (int64, error)
 	CountProducts(ctx context.Context) (int64, error)
 	CountPurchases(ctx context.Context) (int64, error)
@@ -44,8 +46,10 @@ type Querier interface {
 	CreateBranchExpense(ctx context.Context, arg CreateBranchExpenseParams) (BranchExpense, error)
 	CreateBranchInvoice(ctx context.Context, arg CreateBranchInvoiceParams) (BranchInvoice, error)
 	CreateBranchInvoiceItem(ctx context.Context, arg CreateBranchInvoiceItemParams) (BranchInvoiceItem, error)
+	CreateBranchLoan(ctx context.Context, arg CreateBranchLoanParams) (Loan, error)
 	CreateCashbox(ctx context.Context, arg CreateCashboxParams) (Cashbox, error)
 	CreateCashboxAccount(ctx context.Context, arg CreateCashboxAccountParams) (CashboxAccount, error)
+	CreateCentralLoan(ctx context.Context, arg CreateCentralLoanParams) (Loan, error)
 	CreateClient(ctx context.Context, arg CreateClientParams) (Client, error)
 	CreateColor(ctx context.Context, arg CreateColorParams) (Color, error)
 	CreateCoupon(ctx context.Context, arg CreateCouponParams) (Coupon, error)
@@ -54,9 +58,12 @@ type Querier interface {
 	CreateDiscountListItem(ctx context.Context, arg CreateDiscountListItemParams) (DiscountListItem, error)
 	CreateEntryItem(ctx context.Context, arg CreateEntryItemParams) (Entry, error)
 	CreateExpense(ctx context.Context, arg CreateExpenseParams) (Expense, error)
+	CreateExpenseCategory(ctx context.Context, arg CreateExpenseCategoryParams) (ExpenseCategory, error)
 	CreateInventory(ctx context.Context, arg CreateInventoryParams) (Inventory, error)
 	CreateInvoice(ctx context.Context, arg CreateInvoiceParams) (Invoice, error)
 	CreateInvoiceType(ctx context.Context, arg CreateInvoiceTypeParams) (InvoiceType, error)
+	CreateLoanCategory(ctx context.Context, arg CreateLoanCategoryParams) (LoanCategory, error)
+	CreateLoanPayment(ctx context.Context, arg CreateLoanPaymentParams) (LoanPayment, error)
 	CreatePriceList(ctx context.Context, arg CreatePriceListParams) (PriceList, error)
 	CreatePriceListItem(ctx context.Context, arg CreatePriceListItemParams) (PriceListItem, error)
 	CreateProduct(ctx context.Context, arg CreateProductParams) (Product, error)
@@ -81,8 +88,11 @@ type Querier interface {
 	DeleteClient(ctx context.Context, id int64) error
 	DeleteCurrency(ctx context.Context, code string) error
 	DeleteDiscountListItem(ctx context.Context, arg DeleteDiscountListItemParams) error
+	DeleteExpenseCategory(ctx context.Context, id int64) error
 	DeleteInventory(ctx context.Context, id int64) error
 	DeleteInventoryProduct(ctx context.Context, arg DeleteInventoryProductParams) error
+	DeleteLoanCategory(ctx context.Context, id int64) error
+	DeleteLoanPayment(ctx context.Context, id int64) error
 	DeletePriceListItem(ctx context.Context, arg DeletePriceListItemParams) error
 	DeleteProduct(ctx context.Context, id int64) error
 	DeleteSalesperson(ctx context.Context, id int64) error
@@ -97,6 +107,7 @@ type Querier interface {
 	GetBranchExpenseByClientRef(ctx context.Context, arg GetBranchExpenseByClientRefParams) (BranchExpense, error)
 	GetBranchInvoice(ctx context.Context, id int64) (BranchInvoice, error)
 	GetBranchInvoiceByClientRef(ctx context.Context, arg GetBranchInvoiceByClientRefParams) (BranchInvoice, error)
+	GetBranchLoanByClientRef(ctx context.Context, arg GetBranchLoanByClientRefParams) (Loan, error)
 	GetBranchSettings(ctx context.Context, branchID int64) (BranchSetting, error)
 	GetCashbox(ctx context.Context, id int64) (Cashbox, error)
 	GetCashboxAccount(ctx context.Context, id int64) (CashboxAccount, error)
@@ -113,9 +124,13 @@ type Querier interface {
 	GetDiscountList(ctx context.Context, id int64) (DiscountList, error)
 	GetEntry(ctx context.Context, id int64) (Entry, error)
 	GetExpense(ctx context.Context, id int64) (Expense, error)
+	GetExpenseCategory(ctx context.Context, id int64) (ExpenseCategory, error)
 	GetInventory(ctx context.Context, id int64) (Inventory, error)
 	GetInvoice(ctx context.Context, id int64) (Invoice, error)
 	GetInvoiceType(ctx context.Context, id int64) (InvoiceType, error)
+	GetLoan(ctx context.Context, id int64) (Loan, error)
+	GetLoanCategory(ctx context.Context, id int64) (LoanCategory, error)
+	GetLoanPayment(ctx context.Context, id int64) (LoanPayment, error)
 	GetNextBarcodeItemValue(ctx context.Context) (int64, error)
 	GetPriceList(ctx context.Context, id int64) (PriceList, error)
 	GetProduct(ctx context.Context, id int64) (Product, error)
@@ -175,11 +190,18 @@ type Querier interface {
 	ListDiscountLists(ctx context.Context, arg ListDiscountListsParams) ([]DiscountList, error)
 	ListDueRecurringExpenses(ctx context.Context, nextDueAt time.Time) ([]RecurringExpense, error)
 	ListEntries(ctx context.Context, arg ListEntriesParams) ([]Entry, error)
+	ListExpenseCategories(ctx context.Context) ([]ExpenseCategory, error)
 	ListExpenses(ctx context.Context, arg ListExpensesParams) ([]Expense, error)
 	ListInventories(ctx context.Context, arg ListInventoriesParams) ([]Inventory, error)
 	ListInventoryProducts(ctx context.Context, inventoryID int64) ([]ListInventoryProductsRow, error)
 	ListInvoiceTypes(ctx context.Context) ([]InvoiceType, error)
 	ListInvoices(ctx context.Context, arg ListInvoicesParams) ([]Invoice, error)
+	ListLoanCategories(ctx context.Context) ([]LoanCategory, error)
+	// sqlc.narg(loan_id) is nullable: NULL means "all loans".
+	ListLoanPayments(ctx context.Context, arg ListLoanPaymentsParams) ([]LoanPayment, error)
+	// sqlc.narg(branch_id)/sqlc.narg(origin) are nullable: NULL means "no
+	// filter", matching ListBranchExpenses' admin-filter convention.
+	ListLoans(ctx context.Context, arg ListLoansParams) ([]Loan, error)
 	ListPendingBranchCommands(ctx context.Context, branchID int64) ([]BranchCommand, error)
 	ListPriceListItems(ctx context.Context, priceListID int64) ([]PriceListItem, error)
 	ListPriceLists(ctx context.Context, arg ListPriceListsParams) ([]PriceList, error)
@@ -234,8 +256,10 @@ type Querier interface {
 	UpdateCurrency(ctx context.Context, arg UpdateCurrencyParams) (Currency, error)
 	UpdateDiscountList(ctx context.Context, arg UpdateDiscountListParams) error
 	UpdateDiscountListItem(ctx context.Context, arg UpdateDiscountListItemParams) error
+	UpdateExpenseCategory(ctx context.Context, arg UpdateExpenseCategoryParams) (ExpenseCategory, error)
 	UpdateInventory(ctx context.Context, arg UpdateInventoryParams) error
 	UpdateInvoiceType(ctx context.Context, arg UpdateInvoiceTypeParams) (InvoiceType, error)
+	UpdateLoanCategory(ctx context.Context, arg UpdateLoanCategoryParams) (LoanCategory, error)
 	UpdatePriceList(ctx context.Context, arg UpdatePriceListParams) error
 	UpdatePriceListItem(ctx context.Context, arg UpdatePriceListItemParams) error
 	UpdateProduct(ctx context.Context, arg UpdateProductParams) error

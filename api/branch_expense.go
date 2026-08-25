@@ -15,6 +15,11 @@ import (
 // are the branch's own local SQLite ids, meaningless to kashi's schema --
 // stored as opaque traceability data, not foreign keys, same reasoning as
 // branchInvoiceRequest in branch_sync.go.
+//
+// Category is free text, resolved to expense_categories.category_id via
+// get-or-create (see getOrCreateExpenseCategoryID below) when non-blank --
+// kashi-pos never fetches or caches kashi's category list, it just reports
+// whatever text was typed in, same as branchLoanRequest.CategoryName.
 type branchExpenseRequest struct {
 	ClientRef              string `json:"client_ref" binding:"required"`
 	Description            string `json:"description" binding:"required"`
@@ -53,6 +58,16 @@ func (server *Server) createBranchExpense(ctx *gin.Context) {
 		return
 	}
 
+	var categoryID sql.NullInt64
+	if req.Category != "" {
+		id, err := server.getOrCreateExpenseCategoryID(ctx, req.Category)
+		if err != nil {
+			server.writeError(ctx, http.StatusInternalServerError, err)
+			return
+		}
+		categoryID = sql.NullInt64{Int64: id, Valid: true}
+	}
+
 	var branchShiftID sql.NullInt64
 	if req.BranchShiftID != nil {
 		branchShiftID = sql.NullInt64{Int64: *req.BranchShiftID, Valid: true}
@@ -62,7 +77,7 @@ func (server *Server) createBranchExpense(ctx *gin.Context) {
 		BranchID:               branchID,
 		ClientRef:              req.ClientRef,
 		Description:            req.Description,
-		Category:               req.Category,
+		CategoryID:             categoryID,
 		Amount:                 req.Amount,
 		CurrencyCode:           req.CurrencyCode,
 		BranchCashboxAccountID: req.BranchCashboxAccountID,
@@ -137,4 +152,40 @@ func (server *Server) listBranchExpenses(ctx *gin.Context) {
 	}
 
 	server.writeJSON(ctx, http.StatusOK, envelope{"branch_expenses": expenses, "total": total})
+}
+
+// getOrCreateExpenseCategoryID resolves a category name reported by a
+// branch to its expense_categories.id, creating the category (active by
+// default) on first use. Admin CRUD (expense_category.go) remains the only
+// way to rename/deactivate a category -- this path only ever adds new
+// ones, it never mutates an existing row. Mirrors
+// getOrCreateLoanCategoryID in branch_loan.go.
+func (server *Server) getOrCreateExpenseCategoryID(ctx *gin.Context, name string) (int64, error) {
+	categories, err := server.store.ListExpenseCategories(ctx)
+	if err != nil {
+		return 0, err
+	}
+	for _, category := range categories {
+		if category.Name == name {
+			return category.ID, nil
+		}
+	}
+
+	category, err := server.store.CreateExpenseCategory(ctx, db.CreateExpenseCategoryParams{
+		Name:     name,
+		IsActive: true,
+	})
+	if err != nil {
+		if isUniqueViolation(err) {
+			if existing, lookupErr := server.store.ListExpenseCategories(ctx); lookupErr == nil {
+				for _, category := range existing {
+					if category.Name == name {
+						return category.ID, nil
+					}
+				}
+			}
+		}
+		return 0, err
+	}
+	return category.ID, nil
 }

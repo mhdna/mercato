@@ -28,7 +28,7 @@ INSERT INTO branch_expenses (
   branch_id,
   client_ref,
   description,
-  category,
+  category_id,
   amount,
   currency_code,
   branch_cashbox_account_id,
@@ -37,14 +37,14 @@ INSERT INTO branch_expenses (
 ) VALUES (
   $1, $2, $3, $4, $5, $6, $7, $8, $9
 )
-RETURNING id, branch_id, client_ref, description, category, amount, currency_code, branch_cashbox_account_id, branch_shift_id, occurred_at, received_at
+RETURNING id, branch_id, client_ref, description, amount, currency_code, branch_cashbox_account_id, branch_shift_id, occurred_at, received_at, category_id
 `
 
 type CreateBranchExpenseParams struct {
 	BranchID               int64         `json:"branch_id"`
 	ClientRef              string        `json:"client_ref"`
 	Description            string        `json:"description"`
-	Category               string        `json:"category"`
+	CategoryID             sql.NullInt64 `json:"category_id"`
 	Amount                 int64         `json:"amount"`
 	CurrencyCode           string        `json:"currency_code"`
 	BranchCashboxAccountID int64         `json:"branch_cashbox_account_id"`
@@ -57,7 +57,7 @@ func (q *Queries) CreateBranchExpense(ctx context.Context, arg CreateBranchExpen
 		arg.BranchID,
 		arg.ClientRef,
 		arg.Description,
-		arg.Category,
+		arg.CategoryID,
 		arg.Amount,
 		arg.CurrencyCode,
 		arg.BranchCashboxAccountID,
@@ -70,19 +70,19 @@ func (q *Queries) CreateBranchExpense(ctx context.Context, arg CreateBranchExpen
 		&i.BranchID,
 		&i.ClientRef,
 		&i.Description,
-		&i.Category,
 		&i.Amount,
 		&i.CurrencyCode,
 		&i.BranchCashboxAccountID,
 		&i.BranchShiftID,
 		&i.OccurredAt,
 		&i.ReceivedAt,
+		&i.CategoryID,
 	)
 	return i, err
 }
 
 const getBranchExpenseByClientRef = `-- name: GetBranchExpenseByClientRef :one
-SELECT id, branch_id, client_ref, description, category, amount, currency_code, branch_cashbox_account_id, branch_shift_id, occurred_at, received_at FROM branch_expenses
+SELECT id, branch_id, client_ref, description, amount, currency_code, branch_cashbox_account_id, branch_shift_id, occurred_at, received_at, category_id FROM branch_expenses
 WHERE branch_id = $1 AND client_ref = $2
 LIMIT 1
 `
@@ -100,19 +100,19 @@ func (q *Queries) GetBranchExpenseByClientRef(ctx context.Context, arg GetBranch
 		&i.BranchID,
 		&i.ClientRef,
 		&i.Description,
-		&i.Category,
 		&i.Amount,
 		&i.CurrencyCode,
 		&i.BranchCashboxAccountID,
 		&i.BranchShiftID,
 		&i.OccurredAt,
 		&i.ReceivedAt,
+		&i.CategoryID,
 	)
 	return i, err
 }
 
 const listBranchExpenses = `-- name: ListBranchExpenses :many
-SELECT id, branch_id, client_ref, description, category, amount, currency_code, branch_cashbox_account_id, branch_shift_id, occurred_at, received_at FROM branch_expenses
+SELECT id, branch_id, client_ref, description, amount, currency_code, branch_cashbox_account_id, branch_shift_id, occurred_at, received_at, category_id FROM branch_expenses
 WHERE $3::bigint IS NULL OR branch_id = $3
 ORDER BY id DESC
 LIMIT $1 OFFSET $2
@@ -140,13 +140,13 @@ func (q *Queries) ListBranchExpenses(ctx context.Context, arg ListBranchExpenses
 			&i.BranchID,
 			&i.ClientRef,
 			&i.Description,
-			&i.Category,
 			&i.Amount,
 			&i.CurrencyCode,
 			&i.BranchCashboxAccountID,
 			&i.BranchShiftID,
 			&i.OccurredAt,
 			&i.ReceivedAt,
+			&i.CategoryID,
 		); err != nil {
 			return nil, err
 		}

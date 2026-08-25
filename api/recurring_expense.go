@@ -1,6 +1,7 @@
 package api
 
 import (
+	"database/sql"
 	"net/http"
 	"time"
 
@@ -10,7 +11,7 @@ import (
 
 type createRecurringExpenseRequest struct {
 	Description  string `json:"description" binding:"required"`
-	Category     string `json:"category"`
+	CategoryID   int64  `json:"category_id"`
 	Amount       int64  `json:"amount" binding:"required"`
 	CurrencyCode string `json:"currency_code" binding:"required"`
 	// IntervalUnit is "day" or "month" -- e.g. electricity every 5 months is
@@ -27,9 +28,14 @@ func (server *Server) createRecurringExpense(ctx *gin.Context) {
 		return
 	}
 
+	var categoryID sql.NullInt64
+	if req.CategoryID > 0 {
+		categoryID = sql.NullInt64{Int64: req.CategoryID, Valid: true}
+	}
+
 	recurring, err := server.store.CreateRecurringExpense(ctx, db.CreateRecurringExpenseParams{
 		Description:   req.Description,
-		Category:      req.Category,
+		CategoryID:    categoryID,
 		Amount:        req.Amount,
 		CurrencyCode:  req.CurrencyCode,
 		IntervalUnit:  req.IntervalUnit,

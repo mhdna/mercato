@@ -3,7 +3,7 @@ INSERT INTO branch_expenses (
   branch_id,
   client_ref,
   description,
-  category,
+  category_id,
   amount,
   currency_code,
   branch_cashbox_account_id,

@@ -7,13 +7,14 @@ package db
 
 import (
 	"context"
+	"database/sql"
 	"time"
 )
 
 const createRecurringExpense = `-- name: CreateRecurringExpense :one
 INSERT INTO recurring_expenses (
   description,
-  category,
+  category_id,
   amount,
   currency_code,
   interval_unit,
@@ -22,23 +23,23 @@ INSERT INTO recurring_expenses (
 ) VALUES (
   $1, $2, $3, $4, $5, $6, $7
 )
-RETURNING id, description, category, amount, currency_code, interval_unit, interval_count, next_due_at, active, created_at
+RETURNING id, description, amount, currency_code, interval_unit, interval_count, next_due_at, active, created_at, category_id
 `
 
 type CreateRecurringExpenseParams struct {
-	Description   string    `json:"description"`
-	Category      string    `json:"category"`
-	Amount        int64     `json:"amount"`
-	CurrencyCode  string    `json:"currency_code"`
-	IntervalUnit  string    `json:"interval_unit"`
-	IntervalCount int32     `json:"interval_count"`
-	NextDueAt     time.Time `json:"next_due_at"`
+	Description   string        `json:"description"`
+	CategoryID    sql.NullInt64 `json:"category_id"`
+	Amount        int64         `json:"amount"`
+	CurrencyCode  string        `json:"currency_code"`
+	IntervalUnit  string        `json:"interval_unit"`
+	IntervalCount int32         `json:"interval_count"`
+	NextDueAt     time.Time     `json:"next_due_at"`
 }
 
 func (q *Queries) CreateRecurringExpense(ctx context.Context, arg CreateRecurringExpenseParams) (RecurringExpense, error) {
 	row := q.db.QueryRowContext(ctx, createRecurringExpense,
 		arg.Description,
-		arg.Category,
+		arg.CategoryID,
 		arg.Amount,
 		arg.CurrencyCode,
 		arg.IntervalUnit,
@@ -49,7 +50,6 @@ func (q *Queries) CreateRecurringExpense(ctx context.Context, arg CreateRecurrin
 	err := row.Scan(
 		&i.ID,
 		&i.Description,
-		&i.Category,
 		&i.Amount,
 		&i.CurrencyCode,
 		&i.IntervalUnit,
@@ -57,12 +57,13 @@ func (q *Queries) CreateRecurringExpense(ctx context.Context, arg CreateRecurrin
 		&i.NextDueAt,
 		&i.Active,
 		&i.CreatedAt,
+		&i.CategoryID,
 	)
 	return i, err
 }
 
 const getRecurringExpense = `-- name: GetRecurringExpense :one
-SELECT id, description, category, amount, currency_code, interval_unit, interval_count, next_due_at, active, created_at FROM recurring_expenses WHERE id = $1
+SELECT id, description, amount, currency_code, interval_unit, interval_count, next_due_at, active, created_at, category_id FROM recurring_expenses WHERE id = $1
 `
 
 func (q *Queries) GetRecurringExpense(ctx context.Context, id int64) (RecurringExpense, error) {
@@ -71,7 +72,6 @@ func (q *Queries) GetRecurringExpense(ctx context.Context, id int64) (RecurringE
 	err := row.Scan(
 		&i.ID,
 		&i.Description,
-		&i.Category,
 		&i.Amount,
 		&i.CurrencyCode,
 		&i.IntervalUnit,
@@ -79,12 +79,13 @@ func (q *Queries) GetRecurringExpense(ctx context.Context, id int64) (RecurringE
 		&i.NextDueAt,
 		&i.Active,
 		&i.CreatedAt,
+		&i.CategoryID,
 	)
 	return i, err
 }
 
 const listDueRecurringExpenses = `-- name: ListDueRecurringExpenses :many
-SELECT id, description, category, amount, currency_code, interval_unit, interval_count, next_due_at, active, created_at FROM recurring_expenses
+SELECT id, description, amount, currency_code, interval_unit, interval_count, next_due_at, active, created_at, category_id FROM recurring_expenses
 WHERE active AND next_due_at <= $1
 ORDER BY id
 `
@@ -101,7 +102,6 @@ func (q *Queries) ListDueRecurringExpenses(ctx context.Context, nextDueAt time.T
 		if err := rows.Scan(
 			&i.ID,
 			&i.Description,
-			&i.Category,
 			&i.Amount,
 			&i.CurrencyCode,
 			&i.IntervalUnit,
@@ -109,6 +109,7 @@ func (q *Queries) ListDueRecurringExpenses(ctx context.Context, nextDueAt time.T
 			&i.NextDueAt,
 			&i.Active,
 			&i.CreatedAt,
+			&i.CategoryID,
 		); err != nil {
 			return nil, err
 		}
@@ -124,7 +125,7 @@ func (q *Queries) ListDueRecurringExpenses(ctx context.Context, nextDueAt time.T
 }
 
 const listRecurringExpenses = `-- name: ListRecurringExpenses :many
-SELECT id, description, category, amount, currency_code, interval_unit, interval_count, next_due_at, active, created_at FROM recurring_expenses ORDER BY id DESC
+SELECT id, description, amount, currency_code, interval_unit, interval_count, next_due_at, active, created_at, category_id FROM recurring_expenses ORDER BY id DESC
 `
 
 func (q *Queries) ListRecurringExpenses(ctx context.Context) ([]RecurringExpense, error) {
@@ -139,7 +140,6 @@ func (q *Queries) ListRecurringExpenses(ctx context.Context) ([]RecurringExpense
 		if err := rows.Scan(
 			&i.ID,
 			&i.Description,
-			&i.Category,
 			&i.Amount,
 			&i.CurrencyCode,
 			&i.IntervalUnit,
@@ -147,6 +147,7 @@ func (q *Queries) ListRecurringExpenses(ctx context.Context) ([]RecurringExpense
 			&i.NextDueAt,
 			&i.Active,
 			&i.CreatedAt,
+			&i.CategoryID,
 		); err != nil {
 			return nil, err
 		}
@@ -162,7 +163,7 @@ func (q *Queries) ListRecurringExpenses(ctx context.Context) ([]RecurringExpense
 }
 
 const setRecurringExpenseActive = `-- name: SetRecurringExpenseActive :one
-UPDATE recurring_expenses SET active = $2 WHERE id = $1 RETURNING id, description, category, amount, currency_code, interval_unit, interval_count, next_due_at, active, created_at
+UPDATE recurring_expenses SET active = $2 WHERE id = $1 RETURNING id, description, amount, currency_code, interval_unit, interval_count, next_due_at, active, created_at, category_id
 `
 
 type SetRecurringExpenseActiveParams struct {
@@ -176,7 +177,6 @@ func (q *Queries) SetRecurringExpenseActive(ctx context.Context, arg SetRecurrin
 	err := row.Scan(
 		&i.ID,
 		&i.Description,
-		&i.Category,
 		&i.Amount,
 		&i.CurrencyCode,
 		&i.IntervalUnit,
@@ -184,12 +184,13 @@ func (q *Queries) SetRecurringExpenseActive(ctx context.Context, arg SetRecurrin
 		&i.NextDueAt,
 		&i.Active,
 		&i.CreatedAt,
+		&i.CategoryID,
 	)
 	return i, err
 }
 
 const updateRecurringExpenseNextDue = `-- name: UpdateRecurringExpenseNextDue :one
-UPDATE recurring_expenses SET next_due_at = $2 WHERE id = $1 RETURNING id, description, category, amount, currency_code, interval_unit, interval_count, next_due_at, active, created_at
+UPDATE recurring_expenses SET next_due_at = $2 WHERE id = $1 RETURNING id, description, amount, currency_code, interval_unit, interval_count, next_due_at, active, created_at, category_id
 `
 
 type UpdateRecurringExpenseNextDueParams struct {
@@ -203,7 +204,6 @@ func (q *Queries) UpdateRecurringExpenseNextDue(ctx context.Context, arg UpdateR
 	err := row.Scan(
 		&i.ID,
 		&i.Description,
-		&i.Category,
 		&i.Amount,
 		&i.CurrencyCode,
 		&i.IntervalUnit,
@@ -211,6 +211,7 @@ func (q *Queries) UpdateRecurringExpenseNextDue(ctx context.Context, arg UpdateR
 		&i.NextDueAt,
 		&i.Active,
 		&i.CreatedAt,
+		&i.CategoryID,
 	)
 	return i, err
 }

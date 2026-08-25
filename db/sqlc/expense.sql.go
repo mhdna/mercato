@@ -13,18 +13,18 @@ import (
 const createExpense = `-- name: CreateExpense :one
 INSERT INTO expenses (
   description,
-  category,
+  category_id,
   amount,
   currency_code,
   recurring_expense_id
 )
 VALUES ( $1, $2, $3, $4, $5 )
-RETURNING id, description, amount, currency_code, created_at, category, recurring_expense_id
+RETURNING id, description, amount, currency_code, created_at, recurring_expense_id, category_id
 `
 
 type CreateExpenseParams struct {
 	Description        string        `json:"description"`
-	Category           string        `json:"category"`
+	CategoryID         sql.NullInt64 `json:"category_id"`
 	Amount             int64         `json:"amount"`
 	CurrencyCode       string        `json:"currency_code"`
 	RecurringExpenseID sql.NullInt64 `json:"recurring_expense_id"`
@@ -33,7 +33,7 @@ type CreateExpenseParams struct {
 func (q *Queries) CreateExpense(ctx context.Context, arg CreateExpenseParams) (Expense, error) {
 	row := q.db.QueryRowContext(ctx, createExpense,
 		arg.Description,
-		arg.Category,
+		arg.CategoryID,
 		arg.Amount,
 		arg.CurrencyCode,
 		arg.RecurringExpenseID,
@@ -45,14 +45,14 @@ func (q *Queries) CreateExpense(ctx context.Context, arg CreateExpenseParams) (E
 		&i.Amount,
 		&i.CurrencyCode,
 		&i.CreatedAt,
-		&i.Category,
 		&i.RecurringExpenseID,
+		&i.CategoryID,
 	)
 	return i, err
 }
 
 const getExpense = `-- name: GetExpense :one
-SELECT id, description, amount, currency_code, created_at, category, recurring_expense_id FROM expenses
+SELECT id, description, amount, currency_code, created_at, recurring_expense_id, category_id FROM expenses
 WHERE id = $1 LIMIT 1
 `
 
@@ -65,14 +65,14 @@ func (q *Queries) GetExpense(ctx context.Context, id int64) (Expense, error) {
 		&i.Amount,
 		&i.CurrencyCode,
 		&i.CreatedAt,
-		&i.Category,
 		&i.RecurringExpenseID,
+		&i.CategoryID,
 	)
 	return i, err
 }
 
 const listExpenses = `-- name: ListExpenses :many
-SELECT id, description, amount, currency_code, created_at, category, recurring_expense_id FROM expenses
+SELECT id, description, amount, currency_code, created_at, recurring_expense_id, category_id FROM expenses
 ORDER BY id DESC
 LIMIT $1
 OFFSET $2
@@ -98,8 +98,8 @@ func (q *Queries) ListExpenses(ctx context.Context, arg ListExpensesParams) ([]E
 			&i.Amount,
 			&i.CurrencyCode,
 			&i.CreatedAt,
-			&i.Category,
 			&i.RecurringExpenseID,
+			&i.CategoryID,
 		); err != nil {
 			return nil, err
 		}

@@ -10,7 +10,7 @@ import (
 
 type createExpenseRequest struct {
 	Description  string `json:"description" binding:"required"`
-	Category     string `json:"category"`
+	CategoryID   int64  `json:"category_id"`
 	Amount       int64  `json:"amount" binding:"required"`
 	CurrencyCode string `json:"currency_code" binding:"required"`
 }
@@ -22,9 +22,14 @@ func (server *Server) createExpense(ctx *gin.Context) {
 		return
 	}
 
+	var categoryID sql.NullInt64
+	if req.CategoryID > 0 {
+		categoryID = sql.NullInt64{Int64: req.CategoryID, Valid: true}
+	}
+
 	arg := db.CreateExpenseParams{
 		Description:  req.Description,
-		Category:     req.Category,
+		CategoryID:   categoryID,
 		Amount:       req.Amount,
 		CurrencyCode: req.CurrencyCode,
 		// Manually created through this endpoint, not fired by a recurring

@@ -323,13 +323,13 @@ type BranchExpense struct {
 	BranchID               int64         `json:"branch_id"`
 	ClientRef              string        `json:"client_ref"`
 	Description            string        `json:"description"`
-	Category               string        `json:"category"`
 	Amount                 int64         `json:"amount"`
 	CurrencyCode           string        `json:"currency_code"`
 	BranchCashboxAccountID int64         `json:"branch_cashbox_account_id"`
 	BranchShiftID          sql.NullInt64 `json:"branch_shift_id"`
 	OccurredAt             time.Time     `json:"occurred_at"`
 	ReceivedAt             time.Time     `json:"received_at"`
+	CategoryID             sql.NullInt64 `json:"category_id"`
 }
 
 type BranchInvoice struct {
@@ -475,8 +475,15 @@ type Expense struct {
 	Amount             int64         `json:"amount"`
 	CurrencyCode       string        `json:"currency_code"`
 	CreatedAt          time.Time     `json:"created_at"`
-	Category           string        `json:"category"`
 	RecurringExpenseID sql.NullInt64 `json:"recurring_expense_id"`
+	CategoryID         sql.NullInt64 `json:"category_id"`
+}
+
+type ExpenseCategory struct {
+	ID        int64     `json:"id"`
+	Name      string    `json:"name"`
+	IsActive  bool      `json:"is_active"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 type InventoriesAsset struct {
@@ -542,6 +549,37 @@ type InvoiceType struct {
 	IsDefault bool      `json:"is_default"`
 	IsActive  bool      `json:"is_active"`
 	CreatedAt time.Time `json:"created_at"`
+}
+
+type Loan struct {
+	ID                     int64          `json:"id"`
+	Origin                 string         `json:"origin"`
+	Description            string         `json:"description"`
+	CategoryID             int64          `json:"category_id"`
+	Amount                 int64          `json:"amount"`
+	CurrencyCode           string         `json:"currency_code"`
+	BranchID               sql.NullInt64  `json:"branch_id"`
+	ClientRef              sql.NullString `json:"client_ref"`
+	BranchCashboxAccountID sql.NullInt64  `json:"branch_cashbox_account_id"`
+	BranchShiftID          sql.NullInt64  `json:"branch_shift_id"`
+	OccurredAt             time.Time      `json:"occurred_at"`
+	ReceivedAt             time.Time      `json:"received_at"`
+}
+
+type LoanCategory struct {
+	ID        int64     `json:"id"`
+	Name      string    `json:"name"`
+	IsActive  bool      `json:"is_active"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+type LoanPayment struct {
+	ID           int64     `json:"id"`
+	LoanID       int64     `json:"loan_id"`
+	Amount       int64     `json:"amount"`
+	CurrencyCode string    `json:"currency_code"`
+	Note         string    `json:"note"`
+	PaidAt       time.Time `json:"paid_at"`
 }
 
 type Permission struct {
@@ -622,16 +660,16 @@ type PurchaseItem struct {
 }
 
 type RecurringExpense struct {
-	ID            int64     `json:"id"`
-	Description   string    `json:"description"`
-	Category      string    `json:"category"`
-	Amount        int64     `json:"amount"`
-	CurrencyCode  string    `json:"currency_code"`
-	IntervalUnit  string    `json:"interval_unit"`
-	IntervalCount int32     `json:"interval_count"`
-	NextDueAt     time.Time `json:"next_due_at"`
-	Active        bool      `json:"active"`
-	CreatedAt     time.Time `json:"created_at"`
+	ID            int64         `json:"id"`
+	Description   string        `json:"description"`
+	Amount        int64         `json:"amount"`
+	CurrencyCode  string        `json:"currency_code"`
+	IntervalUnit  string        `json:"interval_unit"`
+	IntervalCount int32         `json:"interval_count"`
+	NextDueAt     time.Time     `json:"next_due_at"`
+	Active        bool          `json:"active"`
+	CreatedAt     time.Time     `json:"created_at"`
+	CategoryID    sql.NullInt64 `json:"category_id"`
 }
 
 type ReturnInvoice struct {

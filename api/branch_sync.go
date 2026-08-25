@@ -199,3 +199,12 @@ func isUniqueViolation(err error) bool {
 	pqErr, ok := err.(*pq.Error)
 	return ok && pqErr.Code.Name() == "unique_violation"
 }
+
+// isForeignKeyViolation reports whether err is a Postgres foreign-key
+// constraint error -- used to turn "still referenced elsewhere" deletes
+// (e.g. a loan category still used by a loan) into a 409 instead of a
+// generic 500.
+func isForeignKeyViolation(err error) bool {
+	pqErr, ok := err.(*pq.Error)
+	return ok && pqErr.Code.Name() == "foreign_key_violation"
+}

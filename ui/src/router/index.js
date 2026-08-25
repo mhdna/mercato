@@ -28,6 +28,8 @@ const routes = [
   { path: '/sales-invoices', component: () => import('@/pages/sales-invoices.vue'), meta: { title: 'Sales Invoices' } },
   { path: '/purchase-invoice', component: () => import('@/pages/purchase-invoice.vue'), meta: { title: 'Purchase Invoices' } },
   { path: '/expenses', component: () => import('@/pages/expenses.vue'), meta: { title: 'Expenses' } },
+  { path: '/loans', component: () => import('@/pages/loans.vue'), meta: { title: 'Loans' } },
+  { path: '/loan-payments', component: () => import('@/pages/loan-payments.vue'), meta: { title: 'Loan Payments' } },
   { path: '/discounts', component: () => import('@/pages/discounts.vue'), meta: { title: 'Discounts' } },
   { path: '/invoice-types', component: () => import('@/pages/invoice-types.vue'), meta: { title: 'Invoice Types' } },
   { path: '/currencies', component: () => import('@/pages/currencies.vue'), meta: { title: 'Currencies' } },
@@ -45,6 +47,7 @@ const routes = [
 
   { path: '/stats', component: () => import('@/pages/stats.vue'), meta: { title: 'Statistics' } },
   { path: '/users', component: () => import('@/pages/users.vue'), meta: { title: 'Users' } },
+  { path: '/settings', component: () => import('@/pages/settings.vue'), meta: { title: 'Settings' } },
 ]
 
 const router = createRouter({

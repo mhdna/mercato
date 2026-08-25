@@ -19,7 +19,7 @@ func (store *SQLStore) FireRecurringExpenseTx(ctx context.Context, recurring Rec
 		var err error
 		expense, err = q.CreateExpense(ctx, CreateExpenseParams{
 			Description:        recurring.Description,
-			Category:           recurring.Category,
+			CategoryID:         recurring.CategoryID,
 			Amount:             recurring.Amount,
 			CurrencyCode:       recurring.CurrencyCode,
 			RecurringExpenseID: sql.NullInt64{Int64: recurring.ID, Valid: true},

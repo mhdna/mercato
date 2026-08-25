@@ -52,10 +52,13 @@ declare module 'vue-router/auto-routes' {
     '/inventory': RouteRecordInfo<'/inventory', '/inventory', Record<never, never>, Record<never, never>>,
     '/inventory-analysis': RouteRecordInfo<'/inventory-analysis', '/inventory-analysis', Record<never, never>, Record<never, never>>,
     '/invoice-types': RouteRecordInfo<'/invoice-types', '/invoice-types', Record<never, never>, Record<never, never>>,
+    '/loan-payments': RouteRecordInfo<'/loan-payments', '/loan-payments', Record<never, never>, Record<never, never>>,
+    '/loans': RouteRecordInfo<'/loans', '/loans', Record<never, never>, Record<never, never>>,
     '/Login': RouteRecordInfo<'/Login', '/Login', Record<never, never>, Record<never, never>>,
     '/products': RouteRecordInfo<'/products', '/products', Record<never, never>, Record<never, never>>,
     '/purchase-invoice': RouteRecordInfo<'/purchase-invoice', '/purchase-invoice', Record<never, never>, Record<never, never>>,
     '/sales-invoices': RouteRecordInfo<'/sales-invoices', '/sales-invoices', Record<never, never>, Record<never, never>>,
+    '/settings': RouteRecordInfo<'/settings', '/settings', Record<never, never>, Record<never, never>>,
     '/shifts': RouteRecordInfo<'/shifts', '/shifts', Record<never, never>, Record<never, never>>,
     '/stats': RouteRecordInfo<'/stats', '/stats', Record<never, never>, Record<never, never>>,
     '/storage': RouteRecordInfo<'/storage', '/storage', Record<never, never>, Record<never, never>>,
@@ -213,6 +216,14 @@ declare module 'vue-router/auto-routes' {
       routes: '/invoice-types'
       views: never
     }
+    'src/pages/loan-payments.vue': {
+      routes: '/loan-payments'
+      views: never
+    }
+    'src/pages/loans.vue': {
+      routes: '/loans'
+      views: never
+    }
     'src/pages/Login.vue': {
       routes: '/Login'
       views: never
@@ -227,6 +238,10 @@ declare module 'vue-router/auto-routes' {
     }
     'src/pages/sales-invoices.vue': {
       routes: '/sales-invoices'
+      views: never
+    }
+    'src/pages/settings.vue': {
+      routes: '/settings'
       views: never
     }
     'src/pages/shifts.vue': {

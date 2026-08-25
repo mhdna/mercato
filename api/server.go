@@ -143,6 +143,12 @@ func (server *Server) setupRoutes() {
 	authRoutes.GET("/entries/:id", server.getEntry)
 	authRoutes.GET("/entries", server.listEntries)
 
+	authRoutes.POST("/expense_categories", server.createExpenseCategory)
+	authRoutes.GET("/expense_categories/:id", server.getExpenseCategory)
+	authRoutes.GET("/expense_categories", server.listExpenseCategories)
+	authRoutes.PUT("/expense_categories", server.updateExpenseCategory)
+	authRoutes.DELETE("/expense_categories/:id", server.deleteExpenseCategory)
+
 	authRoutes.POST("/expenses", server.createExpense)
 	authRoutes.GET("/expenses/:id", server.getExpense)
 	authRoutes.GET("/expenses", server.listExpenses)
@@ -150,6 +156,20 @@ func (server *Server) setupRoutes() {
 	authRoutes.POST("/recurring_expenses", server.createRecurringExpense)
 	authRoutes.GET("/recurring_expenses", server.listRecurringExpenses)
 	authRoutes.PUT("/recurring_expenses/active", server.setRecurringExpenseActive)
+
+	authRoutes.POST("/loan_categories", server.createLoanCategory)
+	authRoutes.GET("/loan_categories/:id", server.getLoanCategory)
+	authRoutes.GET("/loan_categories", server.listLoanCategories)
+	authRoutes.PUT("/loan_categories", server.updateLoanCategory)
+	authRoutes.DELETE("/loan_categories/:id", server.deleteLoanCategory)
+
+	authRoutes.POST("/loans", server.createLoan)
+	authRoutes.GET("/loans/:id", server.getLoan)
+	authRoutes.GET("/loans", server.listLoans)
+
+	authRoutes.POST("/loan_payments", server.createLoanPayment)
+	authRoutes.GET("/loan_payments", server.listLoanPayments)
+	authRoutes.DELETE("/loan_payments/:id", server.deleteLoanPayment)
 
 	authRoutes.POST("/coupons", server.createCoupon)
 	authRoutes.GET("/coupons/:code", server.getCoupon)
@@ -197,6 +217,7 @@ func (server *Server) setupRoutes() {
 	branchRoutes.POST("/sales_invoices", server.createBranchSalesInvoice)
 	branchRoutes.POST("/return_invoices", server.createBranchReturnInvoice)
 	branchRoutes.POST("/expenses", server.createBranchExpense)
+	branchRoutes.POST("/loans", server.createBranchLoan)
 	branchRoutes.GET("/sync/changes", server.branchSyncChanges)
 	branchRoutes.GET("/ws", server.branchWS)
 	branchRoutes.PUT("/settings", server.putBranchSettings)

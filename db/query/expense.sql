@@ -1,7 +1,7 @@
 -- name: CreateExpense :one
 INSERT INTO expenses (
   description,
-  category,
+  category_id,
   amount,
   currency_code,
   recurring_expense_id

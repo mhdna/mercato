@@ -22,18 +22,18 @@ GB:
 - Notifications of sent to centro blah blah.
 
 - Income
-    - Selling Assets
-    - Selling Goods
-    - 	Loan (From owner and not from owner)
-    - 	 Did we need this loan, or we didn't have to?
-    - 	 Did we buy goods with it or was it all just expenses.
+    - [X] Selling Assets
+    - [x] Selling Goods
+    - [ ] Loan (From owner and not from owner)
+    - [ ] Did we need this loan, or we didn't have to?
+    - [ ] Did we buy goods with it or was it all just expenses.
 - Expenses:
-    - Branches
-        Elec, Fix, Salaries
-    - Warehouses
-    - Central
-        Salaries (HR, IT), Programs, Marketting, Phones
-    - تبرعات (Money given for free without outcome)
+    - [X] Branches
+          Elec, Fix, Salaries
+          - [ ] Warehouses
+    - [ ] Central
+          Salaries (HR, IT), Programs, Marketting, Phones
+    - [ ] تبرعات (Money given for free without outcome)
         مضيف or whatever
 - Cost of Goods (Different tab)
 - سحوبات (Loan payments)

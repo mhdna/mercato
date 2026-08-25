@@ -8,6 +8,7 @@
   const option = ref({
     tooltip: {
       trigger: 'item',
+      appendTo: 'body',
     },
     series: [
       {

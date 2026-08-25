@@ -1,11 +1,13 @@
 package api
 
 import (
+	"database/sql"
 	"errors"
 	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	db "github.com/mhdna/kashi/db/sqlc"
 )
 
 var errUnknownSyncEntity = errors.New("unknown entity")
@@ -64,6 +66,21 @@ func (server *Server) branchSyncChanges(ctx *gin.Context) {
 		items, err = server.store.ListProductVariantsForSync(ctx, since)
 	case "clients":
 		items, err = server.store.ListClientsUpdatedSince(ctx, since)
+	case "branch_targets":
+		// Unlike the entities above, targets are branch-specific -- scoped
+		// by the authenticated branch's own id rather than global.
+		branchID := ctx.MustGet(branchIDKey).(int64)
+		items, err = server.store.ListBranchTargetsUpdatedSince(ctx, db.ListBranchTargetsUpdatedSinceParams{
+			BranchID:  branchID,
+			UpdatedAt: since,
+		})
+	case "salespersons":
+		// Branch-specific like targets -- each branch has its own roster.
+		branchID := ctx.MustGet(branchIDKey).(int64)
+		items, err = server.store.ListSalespersonsUpdatedSince(ctx, db.ListSalespersonsUpdatedSinceParams{
+			BranchID:  sql.NullInt64{Int64: branchID, Valid: true},
+			UpdatedAt: since,
+		})
 	default:
 		server.writeError(ctx, http.StatusBadRequest, errUnknownSyncEntity)
 		return

@@ -202,6 +202,16 @@ func (server *Server) setupRoutes() {
 	authRoutes.POST("/branches/:id/commands", server.createBranchCommand)
 	authRoutes.GET("/branches/:id/commands", server.listBranchCommands)
 
+	authRoutes.GET("/branches/:id/targets", server.listBranchTargets)
+	authRoutes.POST("/branches/:id/targets", server.createBranchTarget)
+	authRoutes.PUT("/branch_targets/:id", server.updateBranchTarget)
+	authRoutes.DELETE("/branch_targets/:id", server.deleteBranchTarget)
+
+	authRoutes.GET("/branches/:id/salespersons", server.listSalespersons)
+	authRoutes.POST("/branches/:id/salespersons", server.createSalesperson)
+	authRoutes.PUT("/salespersons/:id", server.updateSalesperson)
+	authRoutes.PUT("/salespersons/:id/active", server.setSalespersonActive)
+
 	// adminWS can't sit under authRoutes: authMiddleware only reads the
 	// Authorization header, and a browser WebSocket handshake can't set
 	// custom headers. Auth happens inside adminWS itself via a query-param

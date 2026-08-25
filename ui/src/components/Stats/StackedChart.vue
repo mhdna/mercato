@@ -13,6 +13,7 @@
     },
     tooltip: {
       trigger: 'axis',
+      appendTo: 'body',
       axisPointer: {
         type: 'cross',
         label: {

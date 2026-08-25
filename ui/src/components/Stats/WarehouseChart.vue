@@ -156,6 +156,7 @@
   function createChartOption (data: any[]) {
     return {
       tooltip: {
+        appendTo: 'body',
         formatter: (info: any) => {
           const { name, value, data: itemData } = info
           let content = `<strong>${name}</strong>`

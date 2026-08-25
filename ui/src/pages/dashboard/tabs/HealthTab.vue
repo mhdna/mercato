@@ -1,20 +1,22 @@
 <template>
-  <ServerSideTable
-    :api-u-r-l="`${API_BASE}/invoices`"
-    :external-search="search"
-    fill-height
-    :headers="invoiceHeaders"
-    root-key="invoices"
-    title="Stock Turnover"
-  />
-  <ServerSideTable
-    :api-u-r-l="`${API_BASE}/invoices`"
-    :external-search="search"
-    fill-height
-    :headers="invoiceHeaders"
-    root-key="invoices"
-    title="Days of Inventory Remaining"
-  />
+  <div class="d-flex flex-column flex-grow-1" style="min-height: 0">
+    <ServerSideTable
+      :api-u-r-l="`${API_BASE}/invoices`"
+      :external-search="search"
+      fill-height
+      :headers="invoiceHeaders"
+      root-key="invoices"
+      title="Stock Turnover"
+    />
+    <ServerSideTable
+      :api-u-r-l="`${API_BASE}/invoices`"
+      :external-search="search"
+      fill-height
+      :headers="invoiceHeaders"
+      root-key="invoices"
+      title="Days of Inventory Remaining"
+    />
+  </div>
 </template>
 
 <script setup>

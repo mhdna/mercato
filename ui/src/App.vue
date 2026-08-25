@@ -14,7 +14,7 @@
 
   onMounted(() => {
     // Set initial theme from store
-    vuetifyTheme.global.name.value = appStore.theme
+    vuetifyTheme.change(appStore.theme)
 
     // Listen for system theme changes and update if user hasn't set a preference
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
@@ -23,6 +23,7 @@
       if (!saved) {
         const newTheme = e.matches ? 'dark' : 'light'
         appStore.setTheme(newTheme)
+        vuetifyTheme.change(newTheme)
       }
     }
 

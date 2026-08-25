@@ -25,7 +25,7 @@ type Querier interface {
 	CompleteBranchCommand(ctx context.Context, arg CompleteBranchCommandParams) (BranchCommand, error)
 	CountBranchExpenses(ctx context.Context, branchID sql.NullInt64) (int64, error)
 	CountBranchInvoices(ctx context.Context, branchID sql.NullInt64) (int64, error)
-	CountClients(ctx context.Context) (int64, error)
+	CountClients(ctx context.Context, clientType sql.NullString) (int64, error)
 	CountCoupons(ctx context.Context) (int64, error)
 	CountCurrencies(ctx context.Context) (int64, error)
 	CountDiscountLists(ctx context.Context) (int64, error)
@@ -47,6 +47,8 @@ type Querier interface {
 	CreateBranchInvoice(ctx context.Context, arg CreateBranchInvoiceParams) (BranchInvoice, error)
 	CreateBranchInvoiceItem(ctx context.Context, arg CreateBranchInvoiceItemParams) (BranchInvoiceItem, error)
 	CreateBranchLoan(ctx context.Context, arg CreateBranchLoanParams) (Loan, error)
+	CreateBranchSalesperson(ctx context.Context, arg CreateBranchSalespersonParams) (Salesperson, error)
+	CreateBranchTarget(ctx context.Context, arg CreateBranchTargetParams) (BranchTarget, error)
 	CreateCashbox(ctx context.Context, arg CreateCashboxParams) (Cashbox, error)
 	CreateCashboxAccount(ctx context.Context, arg CreateCashboxAccountParams) (CashboxAccount, error)
 	CreateCentralLoan(ctx context.Context, arg CreateCentralLoanParams) (Loan, error)
@@ -85,6 +87,7 @@ type Querier interface {
 	DecrementInvoicesIndex(ctx context.Context, arg DecrementInvoicesIndexParams) (int64, error)
 	DeleteAsset(ctx context.Context, id int64) error
 	DeleteAssetType(ctx context.Context, id int64) error
+	DeleteBranchTarget(ctx context.Context, id int64) error
 	DeleteClient(ctx context.Context, id int64) error
 	DeleteCurrency(ctx context.Context, code string) error
 	DeleteDiscountListItem(ctx context.Context, arg DeleteDiscountListItemParams) error
@@ -109,6 +112,7 @@ type Querier interface {
 	GetBranchInvoiceByClientRef(ctx context.Context, arg GetBranchInvoiceByClientRefParams) (BranchInvoice, error)
 	GetBranchLoanByClientRef(ctx context.Context, arg GetBranchLoanByClientRefParams) (Loan, error)
 	GetBranchSettings(ctx context.Context, branchID int64) (BranchSetting, error)
+	GetBranchTarget(ctx context.Context, id int64) (BranchTarget, error)
 	GetCashbox(ctx context.Context, id int64) (Cashbox, error)
 	GetCashboxAccount(ctx context.Context, id int64) (CashboxAccount, error)
 	GetCashboxAccountBalance(ctx context.Context, arg GetCashboxAccountBalanceParams) (ShiftsAccountsBalance, error)
@@ -166,13 +170,23 @@ type Querier interface {
 	// the admin UI's branch filter works (a dropdown with an "All branches"
 	// option, not a required selection).
 	ListBranchInvoices(ctx context.Context, arg ListBranchInvoicesParams) ([]BranchInvoice, error)
+	ListBranchTargetsForBranch(ctx context.Context, branchID int64) ([]BranchTarget, error)
+	ListBranchTargetsUpdatedSince(ctx context.Context, arg ListBranchTargetsUpdatedSinceParams) ([]BranchTarget, error)
 	ListBranches(ctx context.Context) ([]Branch, error)
 	ListCashboxAccounts(ctx context.Context, arg ListCashboxAccountsParams) ([]CashboxAccount, error)
 	ListCashboxAccountsUpdatedSince(ctx context.Context, updatedAt time.Time) ([]CashboxAccount, error)
 	ListCashboxes(ctx context.Context, arg ListCashboxesParams) ([]Cashbox, error)
+	// sqlc.narg(client_type) is nullable: NULL means "all types" -- the admin
+	// clients page passes it when a Retail/Wholesale tab is selected, and
+	// omits it for a combined view if one is ever added.
 	ListClients(ctx context.Context, arg ListClientsParams) ([]Client, error)
 	// Feeds the branch catch-up endpoint (see branch_catchup.go), same pattern
-	// as currencies/cashbox_accounts/products.
+	// as currencies/cashbox_accounts/products. Wholesale clients never appear
+	// here -- they're a central-office concept, not something a branch till
+	// should ever see in its client search. Converting an already-synced
+	// retail client to wholesale won't retract it from branches that already
+	// have it locally (no delete propagation exists for any synced entity
+	// today); acceptable since that conversion is expected to be rare.
 	ListClientsUpdatedSince(ctx context.Context, updatedAt time.Time) ([]Client, error)
 	ListColors(ctx context.Context) ([]Color, error)
 	ListCoupons(ctx context.Context, arg ListCouponsParams) ([]Coupon, error)
@@ -229,6 +243,8 @@ type Querier interface {
 	ListRecurringExpenses(ctx context.Context) ([]RecurringExpense, error)
 	ListSalespersons(ctx context.Context, arg ListSalespersonsParams) ([]Salesperson, error)
 	ListSalespersonsByCashbox(ctx context.Context, cashboxID sql.NullInt64) ([]Salesperson, error)
+	ListSalespersonsForBranch(ctx context.Context, branchID sql.NullInt64) ([]Salesperson, error)
+	ListSalespersonsUpdatedSince(ctx context.Context, arg ListSalespersonsUpdatedSinceParams) ([]Salesperson, error)
 	ListShifts(ctx context.Context, arg ListShiftsParams) ([]Shift, error)
 	ListSizes(ctx context.Context) ([]Size, error)
 	// TOOD: add UpdateSupplier
@@ -239,6 +255,10 @@ type Querier interface {
 	ListUsers(ctx context.Context, arg ListUsersParams) ([]User, error)
 	SetBranchActive(ctx context.Context, arg SetBranchActiveParams) error
 	SetRecurringExpenseActive(ctx context.Context, arg SetRecurringExpenseActiveParams) (RecurringExpense, error)
+	SetSalespersonActive(ctx context.Context, arg SetSalespersonActiveParams) (Salesperson, error)
+	// Net sales revenue: same grand_total-sum convention as ListDailyIncome in
+	// branch_invoice.sql (returns already net out via their signed grand_total).
+	SumBranchRevenueForRange(ctx context.Context, arg SumBranchRevenueForRangeParams) (int64, error)
 	// The redemption-time query: every branch's contribution to this client's
 	// loyalty balance, added up. Each branch is decisive for what it reports
 	// (loyalty_points_delta on branch_invoices) -- this never recomputes that
@@ -250,6 +270,8 @@ type Querier interface {
 	UpdateAttributeValue(ctx context.Context, arg UpdateAttributeValueParams) (AttributesValue, error)
 	UpdateBranchAPIKeyHash(ctx context.Context, arg UpdateBranchAPIKeyHashParams) error
 	UpdateBranchLastSeenAt(ctx context.Context, id int64) error
+	UpdateBranchSalespersonName(ctx context.Context, arg UpdateBranchSalespersonNameParams) (Salesperson, error)
+	UpdateBranchTarget(ctx context.Context, arg UpdateBranchTargetParams) (BranchTarget, error)
 	UpdateCashbox(ctx context.Context, arg UpdateCashboxParams) (Cashbox, error)
 	UpdateCashboxAccount(ctx context.Context, arg UpdateCashboxAccountParams) (CashboxAccount, error)
 	UpdateClient(ctx context.Context, arg UpdateClientParams) (Client, error)

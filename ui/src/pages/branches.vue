@@ -204,6 +204,176 @@
     </v-card>
   </v-dialog>
 
+  <!-- Targets are admin-managed only here -- kashi-pos pulls them down
+       read-only via the branch-sync mechanism (GET /branch/sync/changes),
+       it never creates or edits them. -->
+  <v-dialog v-model="targetsDialog" max-width="640">
+    <v-card>
+      <v-card-title>Targets -- {{ targetsBranch?.name }}</v-card-title>
+      <v-card-text>
+        <v-alert v-if="targetsError" class="mb-4" type="error" variant="tonal">{{ targetsError }}</v-alert>
+        <div v-if="targetsLoading" class="d-flex justify-center pa-4">
+          <v-progress-circular color="primary" indeterminate />
+        </div>
+        <template v-else>
+          <TargetProgressBars class="mb-4" :targets="targetsList" />
+          <v-alert v-if="targetsList.length === 0" class="mb-4" type="info" variant="tonal">
+            No targets set for this branch yet.
+          </v-alert>
+
+          <v-table class="mb-4" density="compact">
+            <thead>
+              <tr><th /><th>From</th><th>To</th><th>Target</th><th /></tr>
+            </thead>
+            <tbody>
+              <tr v-for="target in targetsList" :key="target.id">
+                <td><span class="target-color-swatch" :style="{ background: target.color }" /></td>
+                <td>{{ new Date(target.date_from).toLocaleDateString() }}</td>
+                <td>{{ new Date(target.date_to).toLocaleDateString() }}</td>
+                <td>${{ (target.target_amount / 100).toLocaleString() }}</td>
+                <td class="text-end">
+                  <v-icon-btn icon="mdi-delete" size="small" variant="text" @click="removeTarget(target)" />
+                </td>
+              </tr>
+            </tbody>
+          </v-table>
+
+          <form class="field-grid" @submit.prevent="submitTarget">
+            <v-text-field
+              v-model="targetForm.dateFrom"
+              density="compact"
+              label="From"
+              type="date"
+              variant="outlined"
+            />
+            <v-text-field
+              v-model="targetForm.dateTo"
+              density="compact"
+              label="To"
+              type="date"
+              variant="outlined"
+            />
+            <v-text-field
+              v-model.number="targetForm.targetAmount"
+              density="compact"
+              label="Target Amount ($)"
+              min="0"
+              step="0.01"
+              type="number"
+              variant="outlined"
+            />
+            <div class="d-flex align-center ga-2">
+              <v-checkbox
+                v-model="targetForm.autoColor"
+                density="compact"
+                hide-details
+                label="Auto-assign color"
+              />
+              <v-text-field
+                v-if="!targetForm.autoColor"
+                v-model="targetForm.color"
+                density="compact"
+                hide-details
+                label="Color"
+                type="color"
+                variant="outlined"
+              />
+            </div>
+            <div class="d-flex justify-end field-full">
+              <v-btn color="primary" :loading="targetSaving" text="Add Target" type="submit" />
+            </div>
+          </form>
+        </template>
+      </v-card-text>
+      <v-card-actions>
+        <v-spacer />
+        <v-btn text="Close" @click="targetsDialog = false" />
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
+
+  <!-- Salespersons are admin-managed only here -- kashi-pos pulls the
+       roster down read-only via the branch-sync mechanism (GET
+       /branch/sync/changes), it only edits the local attendance-device
+       pairing id, never the name or active state. -->
+  <v-dialog v-model="salespersonsDialog" max-width="560">
+    <v-card>
+      <v-card-title>Salespersons -- {{ salespersonsBranch?.name }}</v-card-title>
+      <v-card-text>
+        <v-alert v-if="salespersonsError" class="mb-4" type="error" variant="tonal">{{ salespersonsError }}</v-alert>
+        <div v-if="salespersonsLoading" class="d-flex justify-center pa-4">
+          <v-progress-circular color="primary" indeterminate />
+        </div>
+        <template v-else>
+          <v-alert v-if="salespersonsList.length === 0" class="mb-4" type="info" variant="tonal">
+            No salespersons for this branch yet.
+          </v-alert>
+
+          <v-table class="mb-4" density="compact">
+            <thead>
+              <tr><th>Name</th><th>Active</th><th /></tr>
+            </thead>
+            <tbody>
+              <tr v-for="person in salespersonsList" :key="person.id">
+                <td>
+                  <v-text-field
+                    v-if="editingSalespersonId === person.id"
+                    v-model="editingSalespersonName"
+                    density="compact"
+                    hide-details
+                    variant="outlined"
+                    @keyup.enter="submitEditSalesperson(person)"
+                  />
+                  <template v-else>{{ person.name }}</template>
+                </td>
+                <td>
+                  <v-switch
+                    color="primary"
+                    density="compact"
+                    hide-details
+                    :model-value="person.is_active"
+                    @update:model-value="value => toggleSalespersonActive(person, value)"
+                  />
+                </td>
+                <td class="text-end">
+                  <v-icon-btn
+                    v-if="editingSalespersonId === person.id"
+                    icon="mdi-check"
+                    size="small"
+                    variant="text"
+                    @click="submitEditSalesperson(person)"
+                  />
+                  <v-icon-btn
+                    v-else
+                    icon="mdi-pencil"
+                    size="small"
+                    variant="text"
+                    @click="openEditSalesperson(person)"
+                  />
+                </td>
+              </tr>
+            </tbody>
+          </v-table>
+
+          <form class="d-flex ga-2 align-start" @submit.prevent="submitNewSalesperson">
+            <v-text-field
+              v-model="newSalespersonName"
+              density="compact"
+              label="Full name"
+              variant="outlined"
+              hide-details
+            />
+            <v-btn color="primary" :loading="salespersonSaving" text="Add" type="submit" />
+          </form>
+        </template>
+      </v-card-text>
+      <v-card-actions>
+        <v-spacer />
+        <v-btn text="Close" @click="salespersonsDialog = false" />
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
+
   <div class="d-flex justify-space-between align-center mb-2">
     <h2 class="text-h6">Branches</h2>
     <v-btn color="primary" prepend-icon="mdi-plus" text="Add Branch" @click="openCreate" />
@@ -225,6 +395,8 @@
       {{ item.last_seen_at?.Valid ? new Date(item.last_seen_at.Time).toLocaleString() : 'Never' }}
     </template>
     <template #item.actions="{ item }">
+      <v-icon-btn icon="mdi-flag-outline" size="small" variant="text" @click="openTargets(item)" />
+      <v-icon-btn icon="mdi-account-tie-outline" size="small" variant="text" @click="openSalespersons(item)" />
       <v-icon-btn icon="mdi-cog-outline" size="small" variant="text" @click="openSettings(item)" />
       <v-icon-btn icon="mdi-key" size="small" variant="text" @click="openRotate(item)" />
     </template>
@@ -235,9 +407,22 @@
   import { onMounted, ref } from 'vue'
   import { useBranches } from '@/composables/useBranches'
   import { useBranchSettings } from '@/composables/useBranchSettings'
+  import { useBranchTargets } from '@/composables/useBranchTargets'
+  import { useBranchSalespersons } from '@/composables/useBranchSalespersons'
 
   const { branches, fetchBranches, createBranch, setBranchActive, rotateBranchKey } = useBranches()
   const { getBranchSettings, updateBranchSettings, listBranchCommands } = useBranchSettings()
+  const {
+    listBranchTargets,
+    createBranchTarget,
+    deleteBranchTarget,
+  } = useBranchTargets()
+  const {
+    listBranchSalespersons,
+    createBranchSalesperson,
+    updateBranchSalesperson,
+    setBranchSalespersonActive,
+  } = useBranchSalespersons()
 
   const headers = ref([
     { title: 'Name', key: 'name', align: 'start' },
@@ -404,6 +589,135 @@
     }
   }
 
+  const targetsDialog = ref(false)
+  const targetsBranch = ref(null)
+  const targetsList = ref([])
+  const targetsLoading = ref(false)
+  const targetsError = ref('')
+  const targetSaving = ref(false)
+  const targetForm = ref({ dateFrom: '', dateTo: '', targetAmount: null, autoColor: true, color: '#4C6EF5' })
+
+  async function openTargets (item) {
+    targetsBranch.value = item
+    targetsDialog.value = true
+    targetsError.value = ''
+    targetForm.value = { dateFrom: '', dateTo: '', targetAmount: null, autoColor: true, color: '#4C6EF5' }
+    await loadTargets()
+  }
+
+  async function loadTargets () {
+    targetsLoading.value = true
+    targetsError.value = ''
+    try {
+      targetsList.value = await listBranchTargets(targetsBranch.value.id)
+    } catch (error) {
+      targetsError.value = error.message
+    } finally {
+      targetsLoading.value = false
+    }
+  }
+
+  async function submitTarget () {
+    targetSaving.value = true
+    targetsError.value = ''
+    try {
+      await createBranchTarget(targetsBranch.value.id, {
+        dateFrom: targetForm.value.dateFrom,
+        dateTo: targetForm.value.dateTo,
+        targetAmount: Math.round(Number(targetForm.value.targetAmount) * 100),
+        color: targetForm.value.autoColor ? '' : targetForm.value.color,
+      })
+      targetForm.value = { dateFrom: '', dateTo: '', targetAmount: null, autoColor: true, color: '#4C6EF5' }
+      await loadTargets()
+    } catch (error) {
+      targetsError.value = error.message
+    } finally {
+      targetSaving.value = false
+    }
+  }
+
+  async function removeTarget (target) {
+    try {
+      await deleteBranchTarget(target.id)
+      await loadTargets()
+    } catch (error) {
+      targetsError.value = error.message
+    }
+  }
+
+  const salespersonsDialog = ref(false)
+  const salespersonsBranch = ref(null)
+  const salespersonsList = ref([])
+  const salespersonsLoading = ref(false)
+  const salespersonsError = ref('')
+  const salespersonSaving = ref(false)
+  const newSalespersonName = ref('')
+  const editingSalespersonId = ref(null)
+  const editingSalespersonName = ref('')
+
+  async function openSalespersons (item) {
+    salespersonsBranch.value = item
+    salespersonsDialog.value = true
+    salespersonsError.value = ''
+    newSalespersonName.value = ''
+    editingSalespersonId.value = null
+    await loadSalespersons()
+  }
+
+  async function loadSalespersons () {
+    salespersonsLoading.value = true
+    salespersonsError.value = ''
+    try {
+      salespersonsList.value = await listBranchSalespersons(salespersonsBranch.value.id)
+    } catch (error) {
+      salespersonsError.value = error.message
+    } finally {
+      salespersonsLoading.value = false
+    }
+  }
+
+  async function submitNewSalesperson () {
+    if (!newSalespersonName.value.trim()) return
+    salespersonSaving.value = true
+    salespersonsError.value = ''
+    try {
+      await createBranchSalesperson(salespersonsBranch.value.id, newSalespersonName.value.trim())
+      newSalespersonName.value = ''
+      await loadSalespersons()
+    } catch (error) {
+      salespersonsError.value = error.message
+    } finally {
+      salespersonSaving.value = false
+    }
+  }
+
+  function openEditSalesperson (person) {
+    editingSalespersonId.value = person.id
+    editingSalespersonName.value = person.name
+  }
+
+  async function submitEditSalesperson (person) {
+    if (!editingSalespersonName.value.trim()) return
+    salespersonsError.value = ''
+    try {
+      await updateBranchSalesperson(person.id, editingSalespersonName.value.trim())
+      editingSalespersonId.value = null
+      await loadSalespersons()
+    } catch (error) {
+      salespersonsError.value = error.message
+    }
+  }
+
+  async function toggleSalespersonActive (person, value) {
+    salespersonsError.value = ''
+    try {
+      await setBranchSalespersonActive(person.id, value)
+      await loadSalespersons()
+    } catch (error) {
+      salespersonsError.value = error.message
+    }
+  }
+
   const rotateDialog = ref(false)
   const rotateTarget = ref(null)
   const rotating = ref(false)
@@ -442,5 +756,13 @@
 
 .field-grid > .field-full {
   grid-column: 1 / -1;
+}
+
+.target-color-swatch {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.2);
 }
 </style>

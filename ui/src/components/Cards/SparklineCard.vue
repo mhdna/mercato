@@ -4,10 +4,9 @@
     <template #prepend>
       <v-icon
         class="me-4"
-        :color="checking ? 'red lighten-2' : 'indigo-lighten-2'"
+        color="indigo-lighten-2"
         :icon="props.icon"
         size="37"
-        @click="takePulse"
       />
     </template>
 
@@ -55,9 +54,7 @@
     },
   })
 
-  const exhale = ms => new Promise(resolve => setTimeout(resolve, ms))
-  const checking = ref(false)
-  const heartbeats = ref([])
+  const heartbeats = ref(Array.from({ length: 20 }, heartbeat))
   const avg = computed(() => {
     const sum = heartbeats.value.reduce((acc, cur) => acc + cur, 0)
     const length = heartbeats.value.length
@@ -68,11 +65,4 @@
   function heartbeat () {
     return Math.ceil(Math.random() * (1_111_120 - 80) + 80)
   }
-  async function takePulse (inhale = true) {
-    checking.value = true
-    inhale && (await exhale(100_000))
-    heartbeats.value = Array.from({ length: 20 }, heartbeat)
-    checking.value = false
-  }
-  takePulse(false)
 </script>

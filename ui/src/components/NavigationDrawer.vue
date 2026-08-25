@@ -7,7 +7,7 @@
     :permanent="!props.mobile"
     :rail="props.rail"
     :temporary="props.mobile"
-    width="240"
+    width="260"
     @update:model-value="props.mobile && $emit('update:modelValue', $event)"
   >
     <v-list density="compact" nav>
@@ -19,18 +19,18 @@
           :prepend-icon="item.icon"
           :value="item.title"
         >
-          <template #activator="{ props }">
-            <v-list-item v-bind="props" :title="item.title" />
+          <template #activator="{ props: activatorProps }">
+            <v-list-item v-bind="activatorProps" :title="item.title" />
           </template>
 
           <v-list-item
             v-for="child in item.children"
             :key="child.title"
-            class="mx-4 me-0"
+            class="ms-1 me-0"
             :prepend-icon="child.icon"
             :title="child.title"
             :to="child.to"
-            :value="child.title"
+            :value="child.to"
           />
         </v-list-group>
 
@@ -73,3 +73,13 @@
   })
   defineEmits(['update:modelValue', 'update:rail'])
 </script>
+
+<style scoped>
+.nav-drawer {
+  --v-list-prepend-gap: 20px;
+}
+
+.nav-drawer :deep(.v-list-group__items .v-list-item) {
+  padding-inline-start: 16px !important;
+}
+</style>

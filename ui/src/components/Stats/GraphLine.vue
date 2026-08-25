@@ -32,7 +32,9 @@
       text: 'Profit',
       left: 'center',
     },
-    tooltip: {},
+    tooltip: {
+      appendTo: 'body',
+    },
     xAxis: {
       scale: true,
     },

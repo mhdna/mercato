@@ -11,6 +11,8 @@ import (
 type createClientRequest struct {
 	Name  string `json:"name" binding:"required"`
 	Phone string `json:"phone" binding:"required"`
+	// Optional; defaults to "retail" like the column itself.
+	ClientType string `json:"client_type" binding:"omitempty,oneof=retail wholesale"`
 }
 
 func (server *Server) createClient(ctx *gin.Context) {
@@ -19,10 +21,14 @@ func (server *Server) createClient(ctx *gin.Context) {
 		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
+	if req.ClientType == "" {
+		req.ClientType = "retail"
+	}
 
 	arg := db.CreateClientParams{
-		Name:  req.Name,
-		Phone: req.Phone,
+		Name:       req.Name,
+		Phone:      req.Phone,
+		ClientType: req.ClientType,
 	}
 
 	client, err := server.store.CreateClient(ctx, arg)
@@ -62,6 +68,9 @@ func (server *Server) getClient(ctx *gin.Context) {
 type listClientsRequest struct {
 	PageSize int32 `form:"page_size,default=10" binding:"min=5,max=10"`
 	PageID   int32 `form:"page_id,default=0" binding:"min=0"`
+	// Optional; filters to one tab's worth of clients on the admin page.
+	// Omitted (empty) means all types.
+	ClientType string `form:"client_type" binding:"omitempty,oneof=retail wholesale"`
 }
 
 func (server *Server) listClients(ctx *gin.Context) {
@@ -71,9 +80,11 @@ func (server *Server) listClients(ctx *gin.Context) {
 		return
 	}
 
+	clientType := sql.NullString{String: req.ClientType, Valid: req.ClientType != ""}
 	arg := db.ListClientsParams{
-		Limit:  req.PageSize,
-		Offset: req.PageID,
+		Limit:      req.PageSize,
+		Offset:     req.PageID,
+		ClientType: clientType,
 	}
 	clients, err := server.store.ListClients(ctx, arg)
 	if err != nil {
@@ -81,7 +92,7 @@ func (server *Server) listClients(ctx *gin.Context) {
 		return
 	}
 
-	total, err := server.store.CountClients(ctx)
+	total, err := server.store.CountClients(ctx, clientType)
 	if err != nil {
 		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
@@ -94,6 +105,9 @@ type updateClientRequest struct {
 	ID    int64  `json:"id" binding:"required,min=1"`
 	Name  string `json:"name" binding:"required"`
 	Phone string `json:"phone" binding:"required"`
+	// Optional; blank keeps the client's current type rather than resetting
+	// it to "retail".
+	ClientType string `json:"client_type" binding:"omitempty,oneof=retail wholesale"`
 }
 
 func (server *Server) updateClient(ctx *gin.Context) {
@@ -103,10 +117,25 @@ func (server *Server) updateClient(ctx *gin.Context) {
 		return
 	}
 
+	clientType := req.ClientType
+	if clientType == "" {
+		existing, err := server.store.GetClient(ctx, req.ID)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				server.writeError(ctx, http.StatusBadRequest, err)
+				return
+			}
+			server.writeError(ctx, http.StatusInternalServerError, err)
+			return
+		}
+		clientType = existing.ClientType
+	}
+
 	arg := db.UpdateClientParams{
-		ID:    req.ID,
-		Name:  req.Name,
-		Phone: req.Phone,
+		ID:         req.ID,
+		Name:       req.Name,
+		Phone:      req.Phone,
+		ClientType: clientType,
 	}
 	client, err := server.store.UpdateClient(ctx, arg)
 	if err != nil {

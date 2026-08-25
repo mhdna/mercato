@@ -110,3 +110,35 @@ RETURNING *;
 -- name: DeleteSalesperson :exec
 DELETE FROM salespersons
 WHERE id = $1;
+
+-- name: CreateBranchSalesperson :one
+INSERT INTO salespersons (
+  name,
+  branch_id
+)
+VALUES ( $1, $2 )
+RETURNING *;
+
+-- name: UpdateBranchSalespersonName :one
+UPDATE salespersons
+SET name = $2,
+updated_at = now()
+WHERE id = $1 AND branch_id = $3
+RETURNING *;
+
+-- name: SetSalespersonActive :one
+UPDATE salespersons
+SET is_active = $2,
+updated_at = now()
+WHERE id = $1
+RETURNING *;
+
+-- name: ListSalespersonsForBranch :many
+SELECT * FROM salespersons
+WHERE branch_id = $1
+ORDER BY name;
+
+-- name: ListSalespersonsUpdatedSince :many
+SELECT * FROM salespersons
+WHERE branch_id = $1 AND updated_at > $2
+ORDER BY updated_at;

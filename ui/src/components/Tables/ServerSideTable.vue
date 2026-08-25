@@ -43,6 +43,14 @@
       type: String,
       required: true,
     },
+    externalSearch: {
+      type: String,
+      default: '',
+    },
+    fillHeight: {
+      type: Boolean,
+      default: false,
+    },
     headers: {
       type: Array,
       required: true,
@@ -65,7 +73,10 @@
     },
   })
 
-  const itemsPerPageOption = [10, 25, 50, 100].find(n => n <= props.maxPageSize)
+  // The table needs all valid choices, not only the initial page size.
+  // eslint-disable-next-line unicorn/prefer-array-find
+  const itemsPerPageOptions = [10, 25, 50, 100].filter(n => n <= props.maxPageSize)
+  const itemsPerPageOption = itemsPerPageOptions[0]
   const itemsPerPage = ref(itemsPerPageOption ?? 10)
   const serverItems = ref([])
   const loading = ref(true)

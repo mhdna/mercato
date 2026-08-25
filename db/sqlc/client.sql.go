@@ -7,6 +7,7 @@ package db
 
 import (
 	"context"
+	"database/sql"
 	"time"
 )
 
@@ -30,10 +31,11 @@ func (q *Queries) AddClientLoyaltyPoints(ctx context.Context, arg AddClientLoyal
 
 const countClients = `-- name: CountClients :one
 SELECT COUNT(*) FROM clients
+WHERE $1::text IS NULL OR client_type = $1
 `
 
-func (q *Queries) CountClients(ctx context.Context) (int64, error) {
-	row := q.db.QueryRowContext(ctx, countClients)
+func (q *Queries) CountClients(ctx context.Context, clientType sql.NullString) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countClients, clientType)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -42,19 +44,21 @@ func (q *Queries) CountClients(ctx context.Context) (int64, error) {
 const createClient = `-- name: CreateClient :one
 INSERT INTO clients (
   name,
-  phone
+  phone,
+  client_type
 ) VALUES (
-    $1, $2
-) RETURNING id, name, phone, total_loyalty_points, valid_loyalty_points, created_at, updated_at
+    $1, $2, $3
+) RETURNING id, name, phone, total_loyalty_points, valid_loyalty_points, created_at, updated_at, client_type
 `
 
 type CreateClientParams struct {
-	Name  string `json:"name"`
-	Phone string `json:"phone"`
+	Name       string `json:"name"`
+	Phone      string `json:"phone"`
+	ClientType string `json:"client_type"`
 }
 
 func (q *Queries) CreateClient(ctx context.Context, arg CreateClientParams) (Client, error) {
-	row := q.db.QueryRowContext(ctx, createClient, arg.Name, arg.Phone)
+	row := q.db.QueryRowContext(ctx, createClient, arg.Name, arg.Phone, arg.ClientType)
 	var i Client
 	err := row.Scan(
 		&i.ID,
@@ -64,6 +68,7 @@ func (q *Queries) CreateClient(ctx context.Context, arg CreateClientParams) (Cli
 		&i.ValidLoyaltyPoints,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ClientType,
 	)
 	return i, err
 }
@@ -79,7 +84,7 @@ func (q *Queries) DeleteClient(ctx context.Context, id int64) error {
 }
 
 const getClient = `-- name: GetClient :one
-SELECT id, name, phone, total_loyalty_points, valid_loyalty_points, created_at, updated_at FROM clients
+SELECT id, name, phone, total_loyalty_points, valid_loyalty_points, created_at, updated_at, client_type FROM clients
 WHERE id = $1 LIMIT 1
 `
 
@@ -94,12 +99,13 @@ func (q *Queries) GetClient(ctx context.Context, id int64) (Client, error) {
 		&i.ValidLoyaltyPoints,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ClientType,
 	)
 	return i, err
 }
 
 const getClientByPhone = `-- name: GetClientByPhone :one
-SELECT id, name, phone, total_loyalty_points, valid_loyalty_points, created_at, updated_at FROM clients
+SELECT id, name, phone, total_loyalty_points, valid_loyalty_points, created_at, updated_at, client_type FROM clients
 WHERE phone = $1 LIMIT 1
 `
 
@@ -114,6 +120,7 @@ func (q *Queries) GetClientByPhone(ctx context.Context, phone string) (Client, e
 		&i.ValidLoyaltyPoints,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ClientType,
 	)
 	return i, err
 }
@@ -136,19 +143,24 @@ func (q *Queries) GetClientLink(ctx context.Context, arg GetClientLinkParams) (i
 }
 
 const listClients = `-- name: ListClients :many
-SELECT id, name, phone, total_loyalty_points, valid_loyalty_points, created_at, updated_at FROM clients
+SELECT id, name, phone, total_loyalty_points, valid_loyalty_points, created_at, updated_at, client_type FROM clients
+WHERE $3::text IS NULL OR client_type = $3
 ORDER BY name
 LIMIT $1
 OFFSET $2
 `
 
 type ListClientsParams struct {
-	Limit  int32 `json:"limit"`
-	Offset int32 `json:"offset"`
+	Limit      int32          `json:"limit"`
+	Offset     int32          `json:"offset"`
+	ClientType sql.NullString `json:"client_type"`
 }
 
+// sqlc.narg(client_type) is nullable: NULL means "all types" -- the admin
+// clients page passes it when a Retail/Wholesale tab is selected, and
+// omits it for a combined view if one is ever added.
 func (q *Queries) ListClients(ctx context.Context, arg ListClientsParams) ([]Client, error) {
-	rows, err := q.db.QueryContext(ctx, listClients, arg.Limit, arg.Offset)
+	rows, err := q.db.QueryContext(ctx, listClients, arg.Limit, arg.Offset, arg.ClientType)
 	if err != nil {
 		return nil, err
 	}
@@ -164,6 +176,7 @@ func (q *Queries) ListClients(ctx context.Context, arg ListClientsParams) ([]Cli
 			&i.ValidLoyaltyPoints,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.ClientType,
 		); err != nil {
 			return nil, err
 		}
@@ -179,13 +192,18 @@ func (q *Queries) ListClients(ctx context.Context, arg ListClientsParams) ([]Cli
 }
 
 const listClientsUpdatedSince = `-- name: ListClientsUpdatedSince :many
-SELECT id, name, phone, total_loyalty_points, valid_loyalty_points, created_at, updated_at FROM clients
-WHERE updated_at > $1
+SELECT id, name, phone, total_loyalty_points, valid_loyalty_points, created_at, updated_at, client_type FROM clients
+WHERE updated_at > $1 AND client_type = 'retail'
 ORDER BY updated_at
 `
 
 // Feeds the branch catch-up endpoint (see branch_catchup.go), same pattern
-// as currencies/cashbox_accounts/products.
+// as currencies/cashbox_accounts/products. Wholesale clients never appear
+// here -- they're a central-office concept, not something a branch till
+// should ever see in its client search. Converting an already-synced
+// retail client to wholesale won't retract it from branches that already
+// have it locally (no delete propagation exists for any synced entity
+// today); acceptable since that conversion is expected to be rare.
 func (q *Queries) ListClientsUpdatedSince(ctx context.Context, updatedAt time.Time) ([]Client, error) {
 	rows, err := q.db.QueryContext(ctx, listClientsUpdatedSince, updatedAt)
 	if err != nil {
@@ -203,6 +221,7 @@ func (q *Queries) ListClientsUpdatedSince(ctx context.Context, updatedAt time.Ti
 			&i.ValidLoyaltyPoints,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.ClientType,
 		); err != nil {
 			return nil, err
 		}
@@ -239,19 +258,26 @@ const updateClient = `-- name: UpdateClient :one
 UPDATE clients
   SET name = $2,
   phone = $3,
+  client_type = $4,
   updated_at = now()
 WHERE id = $1
-RETURNING id, name, phone, total_loyalty_points, valid_loyalty_points, created_at, updated_at
+RETURNING id, name, phone, total_loyalty_points, valid_loyalty_points, created_at, updated_at, client_type
 `
 
 type UpdateClientParams struct {
-	ID    int64  `json:"id"`
-	Name  string `json:"name"`
-	Phone string `json:"phone"`
+	ID         int64  `json:"id"`
+	Name       string `json:"name"`
+	Phone      string `json:"phone"`
+	ClientType string `json:"client_type"`
 }
 
 func (q *Queries) UpdateClient(ctx context.Context, arg UpdateClientParams) (Client, error) {
-	row := q.db.QueryRowContext(ctx, updateClient, arg.ID, arg.Name, arg.Phone)
+	row := q.db.QueryRowContext(ctx, updateClient,
+		arg.ID,
+		arg.Name,
+		arg.Phone,
+		arg.ClientType,
+	)
 	var i Client
 	err := row.Scan(
 		&i.ID,
@@ -261,6 +287,7 @@ func (q *Queries) UpdateClient(ctx context.Context, arg UpdateClientParams) (Cli
 		&i.ValidLoyaltyPoints,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ClientType,
 	)
 	return i, err
 }

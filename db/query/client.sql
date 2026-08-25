@@ -1,9 +1,10 @@
 -- name: CreateClient :one
 INSERT INTO clients (
   name,
-  phone
+  phone,
+  client_type
 ) VALUES (
-    $1, $2
+    $1, $2, $3
 ) RETURNING *;
 
 -- name: GetClient :one
@@ -11,7 +12,11 @@ SELECT * FROM clients
 WHERE id = $1 LIMIT 1;
 
 -- name: ListClients :many
+-- sqlc.narg(client_type) is nullable: NULL means "all types" -- the admin
+-- clients page passes it when a Retail/Wholesale tab is selected, and
+-- omits it for a combined view if one is ever added.
 SELECT * FROM clients
+WHERE sqlc.narg(client_type)::text IS NULL OR client_type = sqlc.narg(client_type)
 ORDER BY name
 LIMIT $1
 OFFSET $2;
@@ -20,6 +25,7 @@ OFFSET $2;
 UPDATE clients
   SET name = $2,
   phone = $3,
+  client_type = $4,
   updated_at = now()
 WHERE id = $1
 RETURNING *;
@@ -30,9 +36,14 @@ WHERE phone = $1 LIMIT 1;
 
 -- name: ListClientsUpdatedSince :many
 -- Feeds the branch catch-up endpoint (see branch_catchup.go), same pattern
--- as currencies/cashbox_accounts/products.
+-- as currencies/cashbox_accounts/products. Wholesale clients never appear
+-- here -- they're a central-office concept, not something a branch till
+-- should ever see in its client search. Converting an already-synced
+-- retail client to wholesale won't retract it from branches that already
+-- have it locally (no delete propagation exists for any synced entity
+-- today); acceptable since that conversion is expected to be rare.
 SELECT * FROM clients
-WHERE updated_at > $1
+WHERE updated_at > $1 AND client_type = 'retail'
 ORDER BY updated_at;
 
 -- name: UpsertClientLink :exec
@@ -64,4 +75,5 @@ UPDATE clients
   valid_loyalty_points = valid_loyalty_points + $3
 WHERE id = $1;
 -- name: CountClients :one
-SELECT COUNT(*) FROM clients;
+SELECT COUNT(*) FROM clients
+WHERE sqlc.narg(client_type)::text IS NULL OR client_type = sqlc.narg(client_type);

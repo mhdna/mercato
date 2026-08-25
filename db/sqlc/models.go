@@ -381,6 +381,17 @@ type BranchSetting struct {
 	UpdatedAt           time.Time       `json:"updated_at"`
 }
 
+type BranchTarget struct {
+	ID           int64     `json:"id"`
+	BranchID     int64     `json:"branch_id"`
+	DateFrom     time.Time `json:"date_from"`
+	DateTo       time.Time `json:"date_to"`
+	TargetAmount int64     `json:"target_amount"`
+	Color        string    `json:"color"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+}
+
 type Cashbox struct {
 	ID        int64     `json:"id"`
 	Name      string    `json:"name"`
@@ -406,6 +417,7 @@ type Client struct {
 	ValidLoyaltyPoints int64     `json:"valid_loyalty_points"`
 	CreatedAt          time.Time `json:"created_at"`
 	UpdatedAt          time.Time `json:"updated_at"`
+	ClientType         string    `json:"client_type"`
 }
 
 type ClientLink struct {
@@ -685,6 +697,9 @@ type Salesperson struct {
 	ID        int64         `json:"id"`
 	Name      string        `json:"name"`
 	CashboxID sql.NullInt64 `json:"cashbox_id"`
+	BranchID  sql.NullInt64 `json:"branch_id"`
+	IsActive  bool          `json:"is_active"`
+	UpdatedAt time.Time     `json:"updated_at"`
 }
 
 type Session struct {

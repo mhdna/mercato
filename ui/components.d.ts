@@ -49,6 +49,7 @@ declare module 'vue' {
     SparklineVue: typeof import('./src/components/Cards/SparklineVue.vue')['default']
     StackedChart: typeof import('./src/components/Stats/StackedChart.vue')['default']
     SyncCard: typeof import('./src/components/SyncCard.vue')['default']
+    TargetProgressBars: typeof import('./src/components/TargetProgressBars.vue')['default']
     TimeProfile: typeof import('./src/components/Stats/TimeProfile.vue')['default']
     ToggleTheme: typeof import('./src/components/Buttons/ToggleTheme.vue')['default']
     TransferTree: typeof import('./src/components/TransferTree.vue')['default']

@@ -51,10 +51,19 @@ func (server *Server) putBranchClient(ctx *gin.Context) {
 	})
 	switch {
 	case err == nil:
+		// client_type is never touched by a branch edit -- an admin may
+		// have reclassified this client to wholesale centrally, and a
+		// branch till has no business reverting that.
+		linked, getErr := server.store.GetClient(ctx, linkedClientID)
+		if getErr != nil {
+			server.writeError(ctx, http.StatusInternalServerError, getErr)
+			return
+		}
 		client, err = server.store.UpdateClient(ctx, db.UpdateClientParams{
-			ID:    linkedClientID,
-			Name:  req.Name,
-			Phone: req.Phone,
+			ID:         linkedClientID,
+			Name:       req.Name,
+			Phone:      req.Phone,
+			ClientType: linked.ClientType,
 		})
 		if err != nil {
 			server.writeError(ctx, http.StatusInternalServerError, err)
@@ -66,9 +75,12 @@ func (server *Server) putBranchClient(ctx *gin.Context) {
 		case phoneErr == nil:
 			client = existing
 		case phoneErr == sql.ErrNoRows:
+			// Genuinely new, reported by a branch till -- always retail;
+			// wholesale clients only ever originate centrally in kashi.
 			created, createErr := server.store.CreateClient(ctx, db.CreateClientParams{
-				Name:  req.Name,
-				Phone: req.Phone,
+				Name:       req.Name,
+				Phone:      req.Phone,
+				ClientType: "retail",
 			})
 			if createErr != nil {
 				server.writeError(ctx, http.StatusInternalServerError, createErr)

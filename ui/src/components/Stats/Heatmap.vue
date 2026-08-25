@@ -31,7 +31,9 @@
 
   const option = ref({
     backgroundColor: 'transparent',
-    tooltip: {},
+    tooltip: {
+      appendTo: 'body',
+    },
     visualMap: {
       min: 0,
       max: 10_000,

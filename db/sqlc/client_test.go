@@ -14,8 +14,9 @@ import (
 
 func createRandomClient(t *testing.T) Client {
 	arg := CreateClientParams{
-		Name:  util.RandomName(),
-		Phone: util.RandomPhone(),
+		Name:       util.RandomName(),
+		Phone:      util.RandomPhone(),
+		ClientType: "retail",
 	}
 
 	client, err := testQueries.CreateClient(context.Background(), arg)
@@ -71,9 +72,10 @@ func TestUpdateClient(t *testing.T) {
 	client := createRandomClient(t)
 
 	arg := UpdateClientParams{
-		ID:    client.ID,
-		Name:  util.RandomName(),
-		Phone: util.RandomPhone(),
+		ID:         client.ID,
+		Name:       util.RandomName(),
+		Phone:      util.RandomPhone(),
+		ClientType: "retail",
 	}
 	client2, err := testQueries.UpdateClient(context.Background(), arg)
 	require.NoError(t, err)

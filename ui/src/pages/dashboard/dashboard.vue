@@ -4,7 +4,7 @@
       <v-tabs v-model="tab" color="primary">
         <v-tab class="px-8" value="overview">Overview</v-tab>
         <v-tab class="d-flex align-center justify-space-between" value="income">
-          <div>Branches Daily Income</div>
+          <div>Daily Income</div>
         </v-tab>
         <v-tab
           class="d-flex align-center justify-space-between px-6 pe-8"
@@ -22,6 +22,7 @@
           <v-badge class="mb-1" color="green-darken-2" />
         </v-tab>
         <v-tab value="demand">Demand</v-tab>
+        <v-tab value="targets">Targets</v-tab>
       </v-tabs>
       <!-- <v-btn
         rounded="lg"
@@ -68,6 +69,7 @@
   import FilterBtn from '../FilterBtn.vue'
 
   const tab = ref('overview')
+  const period = ref('today')
 
   const tabComponents = {
     overview: defineAsyncComponent(() => import('./tabs/OverviewTab.vue')),
@@ -76,5 +78,6 @@
     sales: defineAsyncComponent(() => import('./tabs/SalesAnalyticsTab.vue')),
     health: defineAsyncComponent(() => import('./tabs/HealthTab.vue')),
     demand: defineAsyncComponent(() => import('./tabs/DemandTab.vue')),
+    targets: defineAsyncComponent(() => import('./tabs/TargetsTab.vue')),
   }
 </script>

@@ -1,36 +1,38 @@
 <template>
-  <ServerSideTable
-    :api-u-r-l="`${API_BASE}/invoices`"
-    :external-search="search"
-    fill-height
-    :headers="invoiceHeaders"
-    root-key="invoices"
-    title="Revenue Analysis"
-  />
-  <ServerSideTable
-    :api-u-r-l="`${API_BASE}/invoices`"
-    :external-search="search"
-    fill-height
-    :headers="invoiceHeaders"
-    root-key="invoices"
-    title="Slow Movers"
-  />
-  <ServerSideTable
-    :api-u-r-l="`${API_BASE}/invoices`"
-    :external-search="search"
-    fill-height
-    :headers="invoiceHeaders"
-    root-key="invoices"
-    title="Fast Movers"
-  />
-  <ServerSideTable
-    :api-u-r-l="`${API_BASE}/invoices`"
-    :external-search="search"
-    fill-height
-    :headers="invoiceHeaders"
-    root-key="invoices"
-    title="Reordering Suggestions"
-  />
+  <div class="d-flex flex-column flex-grow-1" style="min-height: 0">
+    <ServerSideTable
+      :api-u-r-l="`${API_BASE}/invoices`"
+      :external-search="search"
+      fill-height
+      :headers="invoiceHeaders"
+      root-key="invoices"
+      title="Revenue Analysis"
+    />
+    <ServerSideTable
+      :api-u-r-l="`${API_BASE}/invoices`"
+      :external-search="search"
+      fill-height
+      :headers="invoiceHeaders"
+      root-key="invoices"
+      title="Slow Movers"
+    />
+    <ServerSideTable
+      :api-u-r-l="`${API_BASE}/invoices`"
+      :external-search="search"
+      fill-height
+      :headers="invoiceHeaders"
+      root-key="invoices"
+      title="Fast Movers"
+    />
+    <ServerSideTable
+      :api-u-r-l="`${API_BASE}/invoices`"
+      :external-search="search"
+      fill-height
+      :headers="invoiceHeaders"
+      root-key="invoices"
+      title="Reordering Suggestions"
+    />
+  </div>
 </template>
 
 <script setup>

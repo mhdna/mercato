@@ -4,17 +4,17 @@
     class="chart"
     :loading="loading"
     :option="option"
-    theme="light"
+    :theme="currentTheme"
   />
 </template>
 
 <script setup>
-  import { ref } from 'vue'
+  import { computed, ref } from 'vue'
   import VChart from 'vue-echarts'
   import { useTheme } from 'vuetify'
 
   const theme = useTheme()
-  const currentTheme = computed(() => theme.name)
+  const currentTheme = computed(() => theme.global.current.value?.dark ? 'dark' : 'light')
 
   const loading = ref(false)
 
@@ -22,14 +22,14 @@
     tooltip: {
       trigger: 'axis',
       z: 9999,
-      appendToBody: true,
+      appendTo: 'body',
     },
     grid: {
       top: '4%',
       left: '0%',
       right: '0%',
       bottom: '10%',
-      containLabel: true,
+      outerBounds: { left: 0, right: 0, top: 0, bottom: 0 },
     },
     xAxis: {
       type: 'category',

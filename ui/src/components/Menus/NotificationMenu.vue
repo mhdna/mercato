@@ -6,7 +6,7 @@
         <!-- <v-tooltip text="Notifications" max-width="300" location="bottom"> -->
         <!--   <template v-slot:activator="{ props }"> -->
         <v-badge v-bind="props" class="me-1" color="red-darken-4" content="9+">
-          <v-icon v-bind="on">mdi-bell</v-icon>
+          <v-icon>mdi-bell</v-icon>
         </v-badge>
         <!--   </template> -->
         <!-- </v-tooltip> -->

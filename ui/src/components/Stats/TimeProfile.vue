@@ -71,6 +71,7 @@
 
   const option = {
     tooltip: {
+      appendTo: 'body',
       formatter: function (params) {
         return params.marker + params.name + ': ' + params.value[3] + ' ms'
       },

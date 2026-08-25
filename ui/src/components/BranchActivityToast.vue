@@ -10,7 +10,14 @@
       <div class="d-flex align-center ga-2 text-body-large">
         <v-icon :icon="item.icon" size="20" />
         <div>
-          {{ item.branchName }}: <span :class="textColorClass(item)">{{ item.amountText }}</span> {{ item.currencyCode }} {{ item.kindWord }}
+          {{ item.branchName }}:
+          <v-icon
+            :class="textColorClass(item)"
+            :icon="item.trendIcon"
+            size="18"
+            style="vertical-align: text-bottom"
+          />
+          <span :class="textColorClass(item)">{{ item.amountText }}</span> {{ item.currencyCode }} {{ item.kindWord }}
         </div>
       </div>
     </template>
@@ -56,12 +63,16 @@
     return message.amount < 0 ? 'mdi-transfer' : 'mdi-sale'
   }
 
+  function trendIconFor (message) {
+    return message.amount < 0 ? 'mdi-triangle-down' : 'mdi-triangle'
+  }
+
   function pushToast (message) {
-    const sign = message.amount >= 0 ? '+' : ''
     toasts.value.push({
       icon: iconFor(message),
+      trendIcon: trendIconFor(message),
       branchName: branchName(message.branch_id),
-      amountText: `${sign}${formatMoney(message.amount)}`,
+      amountText: formatMoney(message.amount),
       currencyCode: message.currency_code,
       kindWord: kindWord(message),
       amount: message.amount,
@@ -73,7 +84,10 @@
     fetchBranches()
     ensureConnected()
     unsubscribe = onMessage(message => {
-      if (message.type === 'branch_invoice_created' || message.type === 'branch_expense_created') {
+      if (
+        settingsStore.activityDisplayMode === 'notification'
+        && (message.type === 'branch_invoice_created' || message.type === 'branch_expense_created')
+      ) {
         pushToast(message)
       }
     })

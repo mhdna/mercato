@@ -60,7 +60,9 @@
   }
 
   const option = ref({
-    tooltip: {},
+    tooltip: {
+      appendTo: 'body',
+    },
     title: [
       {
         text: '在线构建',
@@ -96,14 +98,14 @@
         width: '50%',
         bottom: '45%',
         left: 10,
-        containLabel: true,
+        outerBounds: { left: 0, right: 0, top: 0, bottom: 0 },
       },
       {
         top: '55%',
         width: '50%',
         bottom: 0,
         left: 10,
-        containLabel: true,
+        outerBounds: { left: 0, right: 0, top: 0, bottom: 0 },
       },
     ],
     xAxis: [

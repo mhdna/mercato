@@ -9,10 +9,21 @@
         rounded="xl"
         style="cursor: pointer"
       >
-        <div class="me-2 text-body-2">
-          {{ statusText }}
+        <div class="me-2 text-body-2 ticker">
+          <Transition mode="out-in" name="ticker">
+            <span :key="displayKey">
+              <v-icon
+                v-if="currentActivity"
+                class="me-1"
+                :color="currentActivity.color"
+                :icon="currentActivity.trendIcon"
+                size="16"
+              />
+              {{ displayText }}
+            </span>
+          </Transition>
         </div>
-        <v-icon :color="wsIconColor" icon="mdi-cloud" />
+        <v-icon :color="currentActivity ? currentActivity.color : wsIconColor" icon="mdi-cloud" />
       </v-card>
     </template>
 
@@ -44,10 +55,13 @@
   import { useAdminSocket } from '@/composables/useAdminSocket'
   import { useBranches } from '@/composables/useBranches'
   import { useBranchInvoices } from '@/composables/useBranchInvoices'
+  import { useSettingsStore } from '@/stores/settings'
+  import { formatMoney } from '@/utils/money'
 
   const { branches, fetchBranches } = useBranches()
   const { listRecentBranchInvoices } = useBranchInvoices()
   const { status: wsStatus, ensureConnected, onMessage } = useAdminSocket()
+  const settingsStore = useSettingsStore()
 
   const menu = ref(false)
   const loaded = ref(false)
@@ -65,6 +79,64 @@
   let clockTimer = null
 
   const wsIconColor = computed(() => (wsStatus.value === 'open' ? 'success' : undefined))
+
+  // 'appbar' mode: branch activity (sales/returns/expenses) takes over the
+  // card's single line for a few seconds at a time, one message at a time
+  // -- queued rather than shown all at once, so a burst of simultaneous
+  // branch activity doesn't get lost, just delayed. Once the queue drains,
+  // the card falls back to the normal "synced ... ago" text. In
+  // 'notification' mode (the default), BranchActivityToast owns this
+  // instead and this queue is never fed -- see the onMessage handler below.
+  const activityQueue = ref([])
+  const currentActivity = ref(null)
+  // Bumped on every cycle (including the final flip back to statusText) so
+  // the ticker <Transition> below always sees a fresh :key and replays its
+  // slide animation -- without this, statusText's own passive updates
+  // (relative time ticking every 30s) would either wrongly replay the
+  // transition or, if keyed by text, fail to replay on a repeated amount.
+  const activitySeq = ref(0)
+  let activityTimer = null
+
+  const displayText = computed(() => (currentActivity.value ? currentActivity.value.text : statusText.value))
+  const displayKey = computed(() => (currentActivity.value ? `activity-${activitySeq.value}` : 'status'))
+
+  function activityKindWord (message) {
+    if (message.type === 'branch_expense_created') return 'expense'
+    return message.amount < 0 ? 'return' : 'revenue'
+  }
+
+  function activityColor (amount) {
+    if (amount > 0) return 'success'
+    if (amount < 0) return 'error'
+    return 'warning'
+  }
+
+  function activityTrendIcon (amount) {
+    return amount < 0 ? 'mdi-triangle-down' : 'mdi-triangle'
+  }
+
+  function advanceActivity () {
+    activitySeq.value++
+    if (activityQueue.value.length === 0) {
+      currentActivity.value = null
+      activityTimer = null
+      return
+    }
+    currentActivity.value = activityQueue.value.shift()
+    activityTimer = setTimeout(advanceActivity, settingsStore.activityMessageSeconds * 1000)
+  }
+
+  function pushActivity (message) {
+    const text = `${branchName(message.branch_id)}: ${formatMoney(message.amount)} ${message.currency_code} ${activityKindWord(message)}`
+    activityQueue.value.push({
+      text,
+      color: activityColor(message.amount),
+      trendIcon: activityTrendIcon(message.amount),
+    })
+    if (!activityTimer) {
+      advanceActivity()
+    }
+  }
 
   async function refresh () {
     try {
@@ -122,12 +194,45 @@
       if (message.type === 'branch_invoice_created') {
         refresh()
       }
+      if (
+        settingsStore.activityDisplayMode === 'appbar'
+        && (message.type === 'branch_invoice_created' || message.type === 'branch_expense_created')
+      ) {
+        pushActivity(message)
+      }
     })
   })
 
   onUnmounted(() => {
     clearInterval(refreshTimer)
     clearInterval(clockTimer)
+    clearTimeout(activityTimer)
     unsubscribe?.()
   })
 </script>
+
+<style scoped>
+/* Stock-ticker-style vertical roll: the outgoing line slides up and out
+   while the incoming one slides up and in from below, like a flip/odometer
+   readout rather than a plain crossfade. */
+.ticker {
+  position: relative;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.ticker-enter-active,
+.ticker-leave-active {
+  transition: transform 0.35s ease, opacity 0.35s ease;
+}
+
+.ticker-enter-from {
+  transform: translateY(100%);
+  opacity: 0;
+}
+
+.ticker-leave-to {
+  transform: translateY(-100%);
+  opacity: 0;
+}
+</style>

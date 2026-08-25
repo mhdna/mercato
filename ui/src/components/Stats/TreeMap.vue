@@ -17,7 +17,9 @@
   }
 
   const option = {
-    tooltip: {},
+    tooltip: {
+      appendTo: 'body',
+    },
     series: [
       {
         type: 'treemap',

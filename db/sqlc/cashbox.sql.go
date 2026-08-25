@@ -32,6 +32,34 @@ func (q *Queries) AddCashboxAccountBalance(ctx context.Context, arg AddCashboxAc
 	return i, err
 }
 
+const createBranchSalesperson = `-- name: CreateBranchSalesperson :one
+INSERT INTO salespersons (
+  name,
+  branch_id
+)
+VALUES ( $1, $2 )
+RETURNING id, name, cashbox_id, branch_id, is_active, updated_at
+`
+
+type CreateBranchSalespersonParams struct {
+	Name     string        `json:"name"`
+	BranchID sql.NullInt64 `json:"branch_id"`
+}
+
+func (q *Queries) CreateBranchSalesperson(ctx context.Context, arg CreateBranchSalespersonParams) (Salesperson, error) {
+	row := q.db.QueryRowContext(ctx, createBranchSalesperson, arg.Name, arg.BranchID)
+	var i Salesperson
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.CashboxID,
+		&i.BranchID,
+		&i.IsActive,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const createCashbox = `-- name: CreateCashbox :one
 INSERT INTO cashboxes (
   code,
@@ -104,7 +132,7 @@ INSERT INTO salespersons (
   cashbox_id
 )
 VALUES ( $1, $2 )
-RETURNING id, name, cashbox_id
+RETURNING id, name, cashbox_id, branch_id, is_active, updated_at
 `
 
 type CreateSalespersonParams struct {
@@ -115,7 +143,14 @@ type CreateSalespersonParams struct {
 func (q *Queries) CreateSalesperson(ctx context.Context, arg CreateSalespersonParams) (Salesperson, error) {
 	row := q.db.QueryRowContext(ctx, createSalesperson, arg.Name, arg.CashboxID)
 	var i Salesperson
-	err := row.Scan(&i.ID, &i.Name, &i.CashboxID)
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.CashboxID,
+		&i.BranchID,
+		&i.IsActive,
+		&i.UpdatedAt,
+	)
 	return i, err
 }
 
@@ -186,14 +221,21 @@ func (q *Queries) GetCashboxAccountBalance(ctx context.Context, arg GetCashboxAc
 }
 
 const getSalesperson = `-- name: GetSalesperson :one
-SELECT id, name, cashbox_id FROM salespersons
+SELECT id, name, cashbox_id, branch_id, is_active, updated_at FROM salespersons
 WHERE id = $1 LIMIT 1
 `
 
 func (q *Queries) GetSalesperson(ctx context.Context, id int64) (Salesperson, error) {
 	row := q.db.QueryRowContext(ctx, getSalesperson, id)
 	var i Salesperson
-	err := row.Scan(&i.ID, &i.Name, &i.CashboxID)
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.CashboxID,
+		&i.BranchID,
+		&i.IsActive,
+		&i.UpdatedAt,
+	)
 	return i, err
 }
 
@@ -352,7 +394,7 @@ func (q *Queries) ListCashboxes(ctx context.Context, arg ListCashboxesParams) ([
 }
 
 const listSalespersons = `-- name: ListSalespersons :many
-SELECT id, name, cashbox_id FROM salespersons
+SELECT id, name, cashbox_id, branch_id, is_active, updated_at FROM salespersons
 ORDER BY id
 LIMIT $1
 OFFSET $2
@@ -372,7 +414,14 @@ func (q *Queries) ListSalespersons(ctx context.Context, arg ListSalespersonsPara
 	items := []Salesperson{}
 	for rows.Next() {
 		var i Salesperson
-		if err := rows.Scan(&i.ID, &i.Name, &i.CashboxID); err != nil {
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.CashboxID,
+			&i.BranchID,
+			&i.IsActive,
+			&i.UpdatedAt,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -387,7 +436,7 @@ func (q *Queries) ListSalespersons(ctx context.Context, arg ListSalespersonsPara
 }
 
 const listSalespersonsByCashbox = `-- name: ListSalespersonsByCashbox :many
-SELECT id, name, cashbox_id FROM salespersons
+SELECT id, name, cashbox_id, branch_id, is_active, updated_at FROM salespersons
 WHERE cashbox_id = $1
 ORDER BY id
 `
@@ -401,7 +450,14 @@ func (q *Queries) ListSalespersonsByCashbox(ctx context.Context, cashboxID sql.N
 	items := []Salesperson{}
 	for rows.Next() {
 		var i Salesperson
-		if err := rows.Scan(&i.ID, &i.Name, &i.CashboxID); err != nil {
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.CashboxID,
+			&i.BranchID,
+			&i.IsActive,
+			&i.UpdatedAt,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -413,6 +469,138 @@ func (q *Queries) ListSalespersonsByCashbox(ctx context.Context, cashboxID sql.N
 		return nil, err
 	}
 	return items, nil
+}
+
+const listSalespersonsForBranch = `-- name: ListSalespersonsForBranch :many
+SELECT id, name, cashbox_id, branch_id, is_active, updated_at FROM salespersons
+WHERE branch_id = $1
+ORDER BY name
+`
+
+func (q *Queries) ListSalespersonsForBranch(ctx context.Context, branchID sql.NullInt64) ([]Salesperson, error) {
+	rows, err := q.db.QueryContext(ctx, listSalespersonsForBranch, branchID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Salesperson{}
+	for rows.Next() {
+		var i Salesperson
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.CashboxID,
+			&i.BranchID,
+			&i.IsActive,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listSalespersonsUpdatedSince = `-- name: ListSalespersonsUpdatedSince :many
+SELECT id, name, cashbox_id, branch_id, is_active, updated_at FROM salespersons
+WHERE branch_id = $1 AND updated_at > $2
+ORDER BY updated_at
+`
+
+type ListSalespersonsUpdatedSinceParams struct {
+	BranchID  sql.NullInt64 `json:"branch_id"`
+	UpdatedAt time.Time     `json:"updated_at"`
+}
+
+func (q *Queries) ListSalespersonsUpdatedSince(ctx context.Context, arg ListSalespersonsUpdatedSinceParams) ([]Salesperson, error) {
+	rows, err := q.db.QueryContext(ctx, listSalespersonsUpdatedSince, arg.BranchID, arg.UpdatedAt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Salesperson{}
+	for rows.Next() {
+		var i Salesperson
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.CashboxID,
+			&i.BranchID,
+			&i.IsActive,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const setSalespersonActive = `-- name: SetSalespersonActive :one
+UPDATE salespersons
+SET is_active = $2,
+updated_at = now()
+WHERE id = $1
+RETURNING id, name, cashbox_id, branch_id, is_active, updated_at
+`
+
+type SetSalespersonActiveParams struct {
+	ID       int64 `json:"id"`
+	IsActive bool  `json:"is_active"`
+}
+
+func (q *Queries) SetSalespersonActive(ctx context.Context, arg SetSalespersonActiveParams) (Salesperson, error) {
+	row := q.db.QueryRowContext(ctx, setSalespersonActive, arg.ID, arg.IsActive)
+	var i Salesperson
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.CashboxID,
+		&i.BranchID,
+		&i.IsActive,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updateBranchSalespersonName = `-- name: UpdateBranchSalespersonName :one
+UPDATE salespersons
+SET name = $2,
+updated_at = now()
+WHERE id = $1 AND branch_id = $3
+RETURNING id, name, cashbox_id, branch_id, is_active, updated_at
+`
+
+type UpdateBranchSalespersonNameParams struct {
+	ID       int64         `json:"id"`
+	Name     string        `json:"name"`
+	BranchID sql.NullInt64 `json:"branch_id"`
+}
+
+func (q *Queries) UpdateBranchSalespersonName(ctx context.Context, arg UpdateBranchSalespersonNameParams) (Salesperson, error) {
+	row := q.db.QueryRowContext(ctx, updateBranchSalespersonName, arg.ID, arg.Name, arg.BranchID)
+	var i Salesperson
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.CashboxID,
+		&i.BranchID,
+		&i.IsActive,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
 
 const updateCashbox = `-- name: UpdateCashbox :one
@@ -493,7 +681,7 @@ UPDATE salespersons
 SET name = $2,
 cashbox_id = $3
 WHERE id = $1
-RETURNING id, name, cashbox_id
+RETURNING id, name, cashbox_id, branch_id, is_active, updated_at
 `
 
 type UpdateSalespersonParams struct {
@@ -505,6 +693,13 @@ type UpdateSalespersonParams struct {
 func (q *Queries) UpdateSalesperson(ctx context.Context, arg UpdateSalespersonParams) (Salesperson, error) {
 	row := q.db.QueryRowContext(ctx, updateSalesperson, arg.ID, arg.Name, arg.CashboxID)
 	var i Salesperson
-	err := row.Scan(&i.ID, &i.Name, &i.CashboxID)
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.CashboxID,
+		&i.BranchID,
+		&i.IsActive,
+		&i.UpdatedAt,
+	)
 	return i, err
 }

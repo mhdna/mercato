@@ -1,42 +1,32 @@
 <template>
-  <div class="d-flex">
-    <v-card
-      class="pa-4 mx-2 w-100"
-      variant="tonal"
-    >
-      <v-card-title>29</v-card-title>
-      <v-card-text>Low Stock</v-card-text>
-    </v-card>
-    <v-card
-      class="pa-4 me-2 w-100"
-      variant="tonal"
-    >
-      <v-card-title>29</v-card-title>
-      <v-card-text>Out Of Stock</v-card-text>
-    </v-card>
-    <v-card
-      class="pa-4 me-2 w-100"
-      variant="tonal"
-    >
-      <v-card-title>29</v-card-title>
-      <v-card-text>Overstocked</v-card-text>
-    </v-card>
-    <v-card
-      class="pa-4 me-2 w-100"
-      variant="tonal"
-    >
-      <v-card-title>29</v-card-title>
-      <v-card-text>Not Sold 60D+</v-card-text>
-    </v-card>
+  <div class="d-flex flex-column flex-grow-1" style="min-height: 0">
+    <div class="d-flex">
+      <v-card class="pa-4 mx-2 w-100" variant="tonal">
+        <v-card-title>29</v-card-title>
+        <v-card-text>Low Stock</v-card-text>
+      </v-card>
+      <v-card class="pa-4 me-2 w-100" variant="tonal">
+        <v-card-title>29</v-card-title>
+        <v-card-text>Out Of Stock</v-card-text>
+      </v-card>
+      <v-card class="pa-4 me-2 w-100" variant="tonal">
+        <v-card-title>29</v-card-title>
+        <v-card-text>Overstocked</v-card-text>
+      </v-card>
+      <v-card class="pa-4 me-2 w-100" variant="tonal">
+        <v-card-title>29</v-card-title>
+        <v-card-text>Not Sold 60D+</v-card-text>
+      </v-card>
+    </div>
+    <ServerSideTable
+      :api-u-r-l="`${API_BASE}/low-stock`"
+      :external-search="search"
+      fill-height
+      :headers="lowStockHeaders"
+      root-key="low_stock"
+      title="Low Stock"
+    />
   </div>
-  <ServerSideTable
-    :api-u-r-l="`${API_BASE}/low-stock`"
-    :external-search="search"
-    fill-height
-    :headers="lowStockHeaders"
-    root-key="low_stock"
-    title="Low Stock"
-  />
 </template>
 
 <script setup>

@@ -16,6 +16,12 @@
             :error-messages="phone.errorMessage.value"
             label="Phone"
           />
+          <v-select
+            v-model="clientType"
+            density="compact"
+            :items="[{ title: 'Retail', value: 'retail' }, { title: 'Wholesale', value: 'wholesale' }]"
+            label="Type"
+          />
 
           <v-alert v-if="submitError" class="mb-4" type="error" variant="tonal">
             {{ submitError }}
@@ -49,7 +55,13 @@
     <v-btn color="primary" prepend-icon="mdi-plus" text="Add Client" @click="openCreate" />
   </div>
 
+  <v-tabs v-model="tab" class="mb-2" color="primary">
+    <v-tab value="retail">Retail</v-tab>
+    <v-tab value="wholesale">Wholesale</v-tab>
+  </v-tabs>
+
   <ServerSideTable
+    :key="tab"
     ref="tableRef"
     :api-u-r-l="apiURL"
     :headers="headers"
@@ -74,14 +86,15 @@
 
 <script setup>
   import { useField, useForm } from 'vee-validate'
-  import { ref } from 'vue'
+  import { computed, ref } from 'vue'
   import ServerSideTable from '@/components/Tables/ServerSideTable.vue'
   import { useClients } from '@/composables/useClients'
   import { API_BASE } from '@/config'
 
   const { createClient, updateClient, deleteClient } = useClients()
 
-  const apiURL = `${API_BASE}/clients/`
+  const tab = ref('retail')
+  const apiURL = computed(() => `${API_BASE}/clients/?client_type=${tab.value}`)
   const headers = ref([
     { title: 'ID', key: 'id', align: 'start' },
     { title: 'Name', key: 'name', align: 'start' },
@@ -112,15 +125,20 @@
 
   const name = useField('name')
   const phone = useField('phone')
+  const clientType = ref('retail')
 
   function openCreate () {
     editingId.value = null
     handleReset()
+    // Default to whichever tab is open, so adding from the Wholesale tab
+    // doesn't silently create a retail client.
+    clientType.value = tab.value
     dialog.value = true
   }
 
   function openEdit (item) {
     editingId.value = item.id
+    clientType.value = item.client_type ?? 'retail'
     setValues({ name: item.name, phone: item.phone })
     dialog.value = true
   }
@@ -136,7 +154,9 @@
     submitting.value = true
     submitError.value = ''
     try {
-      await (editingId.value ? updateClient({ id: editingId.value, name: values.name, phone: values.phone }) : createClient({ name: values.name, phone: values.phone }))
+      await (editingId.value
+        ? updateClient({ id: editingId.value, name: values.name, phone: values.phone, client_type: clientType.value })
+        : createClient({ name: values.name, phone: values.phone, client_type: clientType.value }))
       closeDialog()
       tableRef.value?.reload()
     } catch (error) {

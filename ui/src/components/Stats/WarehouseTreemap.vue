@@ -3,7 +3,7 @@
     autoresize
     class="chart"
     :option="option"
-    theme="dark"
+    :theme="currentTheme"
   />
   <!-- :loading="loading" -->
 </template>
@@ -14,7 +14,7 @@
   import { useTheme } from 'vuetify'
 
   const theme = useTheme()
-  const currentTheme = computed(() => theme.name)
+  const currentTheme = computed(() => theme.global.current.value?.dark ? 'dark' : 'light')
 
   // const loading = ref(true)
   const option = ref({})
@@ -157,6 +157,7 @@
   function createChartOption (data) {
     return {
       tooltip: {
+        appendTo: 'body',
         formatter: info => {
           const { name, value, data } = info
           let content = `<strong>${name}</strong>`

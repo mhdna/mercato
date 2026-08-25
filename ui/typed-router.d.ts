@@ -32,7 +32,7 @@ declare module 'vue-router/auto-routes' {
     '/Colors_Sizes': RouteRecordInfo<'/Colors_Sizes', '/Colors_Sizes', Record<never, never>, Record<never, never>>,
     '/coupons': RouteRecordInfo<'/coupons', '/coupons', Record<never, never>, Record<never, never>>,
     '/currencies': RouteRecordInfo<'/currencies', '/currencies', Record<never, never>, Record<never, never>>,
-    '/dashboard': RouteRecordInfo<'/dashboard', '/dashboard', Record<never, never>, Record<never, never>, '/dashboard/ChartCard' | '/dashboard/ChartsRow' | '/dashboard/TablesRow' | '/dashboard/dashboard' | '/dashboard/tabs/AlertsTab' | '/dashboard/tabs/DemandTab' | '/dashboard/tabs/HealthTab' | '/dashboard/tabs/IncomeTab' | '/dashboard/tabs/OverviewTab' | '/dashboard/tabs/SalesAnalyticsTab'>,
+    '/dashboard': RouteRecordInfo<'/dashboard', '/dashboard', Record<never, never>, Record<never, never>, '/dashboard/ChartCard' | '/dashboard/ChartsRow' | '/dashboard/TablesRow' | '/dashboard/dashboard' | '/dashboard/tabs/AlertsTab' | '/dashboard/tabs/DemandTab' | '/dashboard/tabs/HealthTab' | '/dashboard/tabs/IncomeTab' | '/dashboard/tabs/OverviewTab' | '/dashboard/tabs/SalesAnalyticsTab' | '/dashboard/tabs/TargetsTab'>,
     '/dashboard/ChartCard': RouteRecordInfo<'/dashboard/ChartCard', '/dashboard/ChartCard', Record<never, never>, Record<never, never>>,
     '/dashboard/ChartsRow': RouteRecordInfo<'/dashboard/ChartsRow', '/dashboard/ChartsRow', Record<never, never>, Record<never, never>>,
     '/dashboard/dashboard': RouteRecordInfo<'/dashboard/dashboard', '/dashboard/dashboard', Record<never, never>, Record<never, never>>,
@@ -43,6 +43,7 @@ declare module 'vue-router/auto-routes' {
     '/dashboard/tabs/IncomeTab': RouteRecordInfo<'/dashboard/tabs/IncomeTab', '/dashboard/tabs/IncomeTab', Record<never, never>, Record<never, never>>,
     '/dashboard/tabs/OverviewTab': RouteRecordInfo<'/dashboard/tabs/OverviewTab', '/dashboard/tabs/OverviewTab', Record<never, never>, Record<never, never>>,
     '/dashboard/tabs/SalesAnalyticsTab': RouteRecordInfo<'/dashboard/tabs/SalesAnalyticsTab', '/dashboard/tabs/SalesAnalyticsTab', Record<never, never>, Record<never, never>>,
+    '/dashboard/tabs/TargetsTab': RouteRecordInfo<'/dashboard/tabs/TargetsTab', '/dashboard/tabs/TargetsTab', Record<never, never>, Record<never, never>>,
     '/discounts': RouteRecordInfo<'/discounts', '/discounts', Record<never, never>, Record<never, never>>,
     '/employee_page': RouteRecordInfo<'/employee_page', '/employee_page', Record<never, never>, Record<never, never>>,
     '/employees': RouteRecordInfo<'/employees', '/employees', Record<never, never>, Record<never, never>>,
@@ -137,7 +138,7 @@ declare module 'vue-router/auto-routes' {
       views: never
     }
     'src/pages/dashboard.vue': {
-      routes: '/dashboard' | '/dashboard/tabs/AlertsTab' | '/dashboard/ChartCard' | '/dashboard/ChartsRow' | '/dashboard/dashboard' | '/dashboard/tabs/DemandTab' | '/dashboard/tabs/HealthTab' | '/dashboard/tabs/IncomeTab' | '/dashboard/tabs/OverviewTab' | '/dashboard/tabs/SalesAnalyticsTab' | '/dashboard/TablesRow' | '/dashboard/tabs'
+      routes: '/dashboard' | '/dashboard/tabs/AlertsTab' | '/dashboard/ChartCard' | '/dashboard/ChartsRow' | '/dashboard/dashboard' | '/dashboard/tabs/DemandTab' | '/dashboard/tabs/HealthTab' | '/dashboard/tabs/IncomeTab' | '/dashboard/tabs/OverviewTab' | '/dashboard/tabs/SalesAnalyticsTab' | '/dashboard/TablesRow' | '/dashboard/tabs' | '/dashboard/tabs/TargetsTab'
       views: 'default'
     }
     'src/pages/dashboard/ChartCard.vue': {
@@ -178,6 +179,10 @@ declare module 'vue-router/auto-routes' {
     }
     'src/pages/dashboard/tabs/SalesAnalyticsTab.vue': {
       routes: '/dashboard/tabs/SalesAnalyticsTab'
+      views: never
+    }
+    'src/pages/dashboard/tabs/TargetsTab.vue': {
+      routes: '/dashboard/tabs/TargetsTab'
       views: never
     }
     'src/pages/discounts.vue': {

@@ -100,6 +100,7 @@ func (server *Server) createBranchTarget(ctx *gin.Context) {
 		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
+	server.branchHub.notify(uri.ID, branchWSMessage{Type: "target_updated"})
 
 	response, err := server.targetWithProgress(ctx, target)
 	if err != nil {
@@ -190,6 +191,7 @@ func (server *Server) updateBranchTarget(ctx *gin.Context) {
 		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
+	server.branchHub.notify(target.BranchID, branchWSMessage{Type: "target_updated"})
 
 	response, err := server.targetWithProgress(ctx, target)
 	if err != nil {
@@ -216,12 +218,14 @@ func (server *Server) deleteBranchTarget(ctx *gin.Context) {
 		return
 	}
 
-	if _, err := server.store.SetBranchTargetActive(ctx, db.SetBranchTargetActiveParams{
+	target, err := server.store.SetBranchTargetActive(ctx, db.SetBranchTargetActiveParams{
 		ID:       req.ID,
 		IsActive: false,
-	}); err != nil {
+	})
+	if err != nil {
 		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
+	server.branchHub.notify(target.BranchID, branchWSMessage{Type: "target_updated"})
 	ctx.JSON(http.StatusOK, envelope{"deleted": true})
 }

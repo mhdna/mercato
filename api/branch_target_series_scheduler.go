@@ -18,17 +18,20 @@ const branchTargetSeriesCheckInterval = time.Hour
 // series has a branch_targets row for its current period, immediately on
 // startup (so a period that started while the server was down still gets
 // created promptly) and then on a fixed tick, for the life of the process.
-func RunBranchTargetSeriesScheduler(ctx context.Context, store db.Store) {
-	fireDueBranchTargetSeries(ctx, store)
+// hub is used to push a live "go re-fetch targets" notification to the
+// owning branch the moment a period fires, same as branch API handlers do
+// on write -- see Server.BranchHub.
+func RunBranchTargetSeriesScheduler(ctx context.Context, store db.Store, hub *branchHub) {
+	fireDueBranchTargetSeries(ctx, store, hub)
 
 	ticker := time.NewTicker(branchTargetSeriesCheckInterval)
 	defer ticker.Stop()
 	for range ticker.C {
-		fireDueBranchTargetSeries(ctx, store)
+		fireDueBranchTargetSeries(ctx, store, hub)
 	}
 }
 
-func fireDueBranchTargetSeries(ctx context.Context, store db.Store) {
+func fireDueBranchTargetSeries(ctx context.Context, store db.Store, hub *branchHub) {
 	series, err := store.ListActiveBranchTargetSeries(ctx)
 	if err != nil {
 		log.Printf("branch target series: list active: %v", err)
@@ -57,6 +60,10 @@ func fireDueBranchTargetSeries(ctx context.Context, store db.Store) {
 			SeriesID:     seriesID,
 		}); err != nil {
 			log.Printf("branch target series %d: create period %s: %v", s.ID, start.Format("2006-01-02"), err)
+			continue
+		}
+		if hub != nil {
+			hub.notify(s.BranchID, branchWSMessage{Type: "target_updated"})
 		}
 	}
 }

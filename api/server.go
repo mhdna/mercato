@@ -37,6 +37,14 @@ func NewServer(config util.Config, store db.Store) (*Server, error) {
 	return server, nil
 }
 
+// BranchHub exposes the server's live-push hub so background schedulers
+// (e.g. RunBranchTargetSeriesScheduler) that run outside a request's
+// lifecycle can notify connected branches too, using the same connections
+// branch API handlers push through.
+func (server *Server) BranchHub() *branchHub {
+	return server.branchHub
+}
+
 func (server *Server) setupRoutes() {
 	router := gin.Default()
 	router.Use(corsMiddleware())

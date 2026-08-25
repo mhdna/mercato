@@ -32,11 +32,18 @@ func main() {
 	}
 	store := db.NewStore(conn)
 
+	server, err := api.NewServer(config, store)
+	if err != nil {
+		log.Fatal("cannot start server:", err)
+	}
+
 	go runGatewayServer(config, store)
 	go runRecurringExpenseScheduler(context.Background(), store)
-	go api.RunBranchTargetSeriesScheduler(context.Background(), store)
+	go api.RunBranchTargetSeriesScheduler(context.Background(), store, server.BranchHub())
 	// runGrpcServer(config, store)
-	runGinServer(config, store)
+	if err := server.Start(config.HTTPServerAddress); err != nil {
+		log.Fatal("cannot start server:", err)
+	}
 }
 
 func runGrpcServer(config util.Config, store db.Store) {
@@ -58,18 +65,6 @@ func runGrpcServer(config util.Config, store db.Store) {
 	err = grpcServer.Serve(listener)
 	if err != nil {
 		log.Fatal("cannot start gRPC server")
-	}
-}
-
-func runGinServer(config util.Config, store db.Store) {
-	server, err := api.NewServer(config, store)
-	if err != nil {
-		log.Fatal("cannot start server:", err)
-	}
-
-	err = server.Start(config.HTTPServerAddress)
-	if err != nil {
-		log.Fatal("cannot start server:", err)
 	}
 }
 

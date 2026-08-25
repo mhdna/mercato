@@ -61,7 +61,7 @@ func (server *Server) createBranchTargetSeries(ctx *gin.Context) {
 	// Fire the current period immediately rather than waiting for the
 	// next hourly scheduler tick -- an admin creating a series expects to
 	// see it show up in the targets list right away.
-	fireDueBranchTargetSeries(ctx, server.store)
+	fireDueBranchTargetSeries(ctx, server.store, server.branchHub)
 
 	ctx.JSON(http.StatusOK, series)
 }

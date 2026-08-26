@@ -101,6 +101,59 @@ func (server *Server) listClients(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"clients": clients, "total": total})
 }
 
+type listClientsBySpendingRequest struct {
+	PageSize   int32  `form:"page_size,default=20" binding:"min=1,max=100"`
+	PageID     int32  `form:"page_id,default=0" binding:"min=0"`
+	ClientType string `form:"client_type" binding:"omitempty,oneof=retail wholesale"`
+	BranchID   int64  `form:"branch_id"`
+	Search     string `form:"search"`
+	// What to rank clients by; see the ORDER BY in ListClientsBySpending.
+	SortBy string `form:"sort_by,default=spending" binding:"omitempty,oneof=spending invoices items"`
+}
+
+// listClientsBySpending is the clients loyalty-pyramid page's data source:
+// every client ranked by total_spent, invoice_count, or item_count (see
+// ListClientsBySpending) rather than the alphabetical order the plain
+// clients list/table uses.
+func (server *Server) listClientsBySpending(ctx *gin.Context) {
+	var req listClientsBySpendingRequest
+	if err := ctx.ShouldBindQuery(&req); err != nil {
+		server.writeError(ctx, http.StatusBadRequest, err)
+		return
+	}
+
+	clientType := sql.NullString{String: req.ClientType, Valid: req.ClientType != ""}
+	search := sql.NullString{String: req.Search, Valid: req.Search != ""}
+	var branchID sql.NullInt64
+	if req.BranchID > 0 {
+		branchID = sql.NullInt64{Int64: req.BranchID, Valid: true}
+	}
+
+	clients, err := server.store.ListClientsBySpending(ctx, db.ListClientsBySpendingParams{
+		Limit:      req.PageSize,
+		Offset:     req.PageID,
+		BranchID:   branchID,
+		ClientType: clientType,
+		Search:     search,
+		SortBy:     req.SortBy,
+	})
+	if err != nil {
+		server.writeError(ctx, http.StatusInternalServerError, err)
+		return
+	}
+
+	total, err := server.store.CountClientsBySpending(ctx, db.CountClientsBySpendingParams{
+		ClientType: clientType,
+		Search:     search,
+	})
+	if err != nil {
+		server.writeError(ctx, http.StatusInternalServerError, err)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"clients": clients, "total": total})
+}
+
 type updateClientRequest struct {
 	ID    int64  `json:"id" binding:"required,min=1"`
 	Name  string `json:"name" binding:"required"`

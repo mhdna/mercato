@@ -41,6 +41,28 @@ func (q *Queries) CountClients(ctx context.Context, clientType sql.NullString) (
 	return count, err
 }
 
+const countClientsBySpending = `-- name: CountClientsBySpending :one
+SELECT COUNT(*) FROM clients c
+WHERE ($1::text IS NULL OR c.client_type = $1)
+  AND ($2::text IS NULL OR c.name ILIKE '%' || $2::text || '%' OR c.phone ILIKE '%' || $2::text || '%')
+`
+
+type CountClientsBySpendingParams struct {
+	ClientType sql.NullString `json:"client_type"`
+	Search     sql.NullString `json:"search"`
+}
+
+// Same filters as ListClientsBySpending, minus the spend computation --
+// used for the rest-of-clients table's pagination total. Deliberately
+// ignores branch_id: the count of matching clients doesn't change with
+// which branch's sales are being summed, only who qualifies by type/search.
+func (q *Queries) CountClientsBySpending(ctx context.Context, arg CountClientsBySpendingParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countClientsBySpending, arg.ClientType, arg.Search)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createClient = `-- name: CreateClient :one
 INSERT INTO clients (
   name,
@@ -177,6 +199,144 @@ func (q *Queries) ListClients(ctx context.Context, arg ListClientsParams) ([]Cli
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.ClientType,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listClientsBySpending = `-- name: ListClientsBySpending :many
+WITH ranked AS (
+  SELECT
+    c.id, c.name, c.phone, c.total_loyalty_points, c.valid_loyalty_points, c.created_at, c.updated_at, c.client_type,
+    (
+      CASE WHEN $4::bigint IS NULL THEN COALESCE(ci.central_total, 0) ELSE 0 END
+      + COALESCE(bi.branch_total, 0)
+    )::bigint AS total_spent,
+    (
+      CASE WHEN $4::bigint IS NULL THEN COALESCE(ci.central_invoice_count, 0) ELSE 0 END
+      + COALESCE(bi.branch_invoice_count, 0)
+    )::bigint AS invoice_count,
+    (
+      CASE WHEN $4::bigint IS NULL THEN COALESCE(ci.central_item_count, 0) ELSE 0 END
+      + COALESCE(bi.branch_item_count, 0)
+    )::bigint AS item_count
+  FROM clients c
+  LEFT JOIN (
+    SELECT i.client_id,
+      SUM(CASE WHEN si.invoice_id IS NOT NULL THEN i.grand_total ELSE -i.grand_total END) AS central_total,
+      COUNT(DISTINCT i.id) AS central_invoice_count,
+      COALESCE(SUM(ip.quantity), 0) AS central_item_count
+    FROM invoices i
+    LEFT JOIN sales_invoices si ON si.invoice_id = i.id
+    LEFT JOIN invoice_products ip ON ip.invoice_id = i.id
+    GROUP BY i.client_id
+  ) ci ON ci.client_id = c.id
+  LEFT JOIN (
+    SELECT cl.client_id,
+      SUM(b.grand_total) AS branch_total,
+      COUNT(DISTINCT b.id) AS branch_invoice_count,
+      COALESCE(SUM(bii.quantity), 0) AS branch_item_count
+    FROM branch_invoices b
+    JOIN client_links cl ON cl.branch_id = b.branch_id AND cl.branch_client_id = b.branch_client_id
+    LEFT JOIN branch_invoice_items bii ON bii.branch_invoice_id = b.id
+    WHERE $4::bigint IS NULL OR b.branch_id = $4
+    GROUP BY cl.client_id
+  ) bi ON bi.client_id = c.id
+  WHERE ($5::text IS NULL OR c.client_type = $5)
+    AND ($6::text IS NULL OR c.name ILIKE '%' || $6::text || '%' OR c.phone ILIKE '%' || $6::text || '%')
+)
+SELECT id, name, phone, total_loyalty_points, valid_loyalty_points, created_at, updated_at, client_type, total_spent, invoice_count, item_count
+FROM ranked
+ORDER BY
+  (CASE $3::text
+    WHEN 'invoices' THEN invoice_count
+    WHEN 'items' THEN item_count
+    ELSE total_spent
+  END) DESC,
+  name ASC
+LIMIT $1
+OFFSET $2
+`
+
+type ListClientsBySpendingParams struct {
+	Limit      int32          `json:"limit"`
+	Offset     int32          `json:"offset"`
+	SortBy     string         `json:"sort_by"`
+	BranchID   sql.NullInt64  `json:"branch_id"`
+	ClientType sql.NullString `json:"client_type"`
+	Search     sql.NullString `json:"search"`
+}
+
+type ListClientsBySpendingRow struct {
+	ID                 int64     `json:"id"`
+	Name               string    `json:"name"`
+	Phone              string    `json:"phone"`
+	TotalLoyaltyPoints int64     `json:"total_loyalty_points"`
+	ValidLoyaltyPoints int64     `json:"valid_loyalty_points"`
+	CreatedAt          time.Time `json:"created_at"`
+	UpdatedAt          time.Time `json:"updated_at"`
+	ClientType         string    `json:"client_type"`
+	TotalSpent         int64     `json:"total_spent"`
+	InvoiceCount       int64     `json:"invoice_count"`
+	ItemCount          int64     `json:"item_count"`
+}
+
+// Powers the clients "loyalty pyramid" + rest-of-clients table: every
+// client ranked by total_spent, invoice_count, or item_count (chosen via
+// sort_by -- see the ORDER BY at the bottom). Two sources feed each metric:
+// kashi's own admin invoices (sales positive, returns negative --
+// invoices.grand_total is always stored as a positive magnitude regardless
+// of kind, see ReturnInvoiceTx) and branch-reported sales
+// (branch_invoices.grand_total, which already carries the correct net sign
+// -- see ListDailyIncome). sqlc.narg(branch_id) scopes to one branch's
+// till; central admin invoices aren't attributed to any branch, so they're
+// excluded entirely once a single branch is selected (an "All Branches"
+// view is the only one where they belong). invoice_count/item_count follow
+// the same all-or-one-branch rule for consistency with total_spent.
+// invoice_count/item_count are computed in the `ranked` CTE rather than as
+// plain SELECT-list aliases so the ORDER BY's CASE expression can actually
+// reference them: Postgres only resolves an output alias in ORDER BY when
+// it's used bare, not when it's embedded in a larger expression (there it's
+// looked up as an ordinary column instead, which fails since it isn't one
+// of the FROM clause's columns). Wrapping in a CTE turns them into real
+// columns of the derived table, so the CASE inside ORDER BY resolves fine.
+func (q *Queries) ListClientsBySpending(ctx context.Context, arg ListClientsBySpendingParams) ([]ListClientsBySpendingRow, error) {
+	rows, err := q.db.QueryContext(ctx, listClientsBySpending,
+		arg.Limit,
+		arg.Offset,
+		arg.SortBy,
+		arg.BranchID,
+		arg.ClientType,
+		arg.Search,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListClientsBySpendingRow{}
+	for rows.Next() {
+		var i ListClientsBySpendingRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Phone,
+			&i.TotalLoyaltyPoints,
+			&i.ValidLoyaltyPoints,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.ClientType,
+			&i.TotalSpent,
+			&i.InvoiceCount,
+			&i.ItemCount,
 		); err != nil {
 			return nil, err
 		}

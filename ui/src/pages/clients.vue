@@ -52,7 +52,35 @@
 
   <div class="d-flex justify-space-between align-center mb-2">
     <h2 class="text-h6">Clients</h2>
-    <v-btn color="primary" prepend-icon="mdi-plus" text="Add Client" @click="openCreate" />
+    <div class="d-flex align-center">
+      <v-menu>
+        <template #activator="{ props: menuProps }">
+          <v-btn
+            class="me-4"
+            rounded="lg"
+            style="border-color: rgb(var(--v-theme-surface-light));"
+            v-bind="menuProps"
+            variant="outlined"
+          >
+            {{ selectedBranchLabel }}
+          </v-btn>
+        </template>
+        <v-list>
+          <v-list-item :active="selectedBranchId === null" @click="selectedBranchId = null">
+            <v-list-item-title>All Branches</v-list-item-title>
+          </v-list-item>
+          <v-list-item
+            v-for="branch in branches"
+            :key="branch.id"
+            :active="selectedBranchId === branch.id"
+            @click="selectedBranchId = branch.id"
+          >
+            <v-list-item-title>{{ branch.name }}</v-list-item-title>
+          </v-list-item>
+        </v-list>
+      </v-menu>
+      <v-btn color="primary" prepend-icon="mdi-plus" text="Add Client" @click="openCreate" />
+    </div>
   </div>
 
   <v-tabs v-model="tab" class="mb-2" color="primary">
@@ -60,51 +88,36 @@
     <v-tab value="wholesale">Wholesale</v-tab>
   </v-tabs>
 
-  <ServerSideTable
+  <ClientLoyaltyBoard
     :key="tab"
-    ref="tableRef"
-    :api-u-r-l="apiURL"
-    :headers="headers"
-    :max-page-size="10"
-    root-key="clients"
-  >
-    <template #item.name="{ item }">
-      <router-link :to="`/clients/${item.id}`">{{ item.name }}</router-link>
-    </template>
-    <template #item.actions="{ item }">
-      <v-icon-btn icon="mdi-pencil" size="small" variant="text" @click="openEdit(item)" />
-      <v-icon-btn
-        color="error"
-        icon="mdi-delete"
-        size="small"
-        variant="text"
-        @click="openDelete(item)"
-      />
-    </template>
-  </ServerSideTable>
+    ref="boardRef"
+    :branch-id="selectedBranchId"
+    :client-type="tab"
+    @delete="openDelete"
+    @edit="openEdit"
+  />
 </template>
 
 <script setup>
   import { useField, useForm } from 'vee-validate'
-  import { computed, ref } from 'vue'
-  import ServerSideTable from '@/components/Tables/ServerSideTable.vue'
+  import { computed, onMounted, ref } from 'vue'
+  import ClientLoyaltyBoard from '@/components/Clients/ClientLoyaltyBoard.vue'
+  import { useBranches } from '@/composables/useBranches'
   import { useClients } from '@/composables/useClients'
-  import { API_BASE } from '@/config'
 
   const { createClient, updateClient, deleteClient } = useClients()
+  const { branches, fetchBranches } = useBranches()
+
+  onMounted(() => fetchBranches())
+
+  const selectedBranchId = ref(null)
+  const selectedBranchLabel = computed(() => {
+    if (selectedBranchId.value === null) return 'All Branches'
+    return branches.value.find(b => b.id === selectedBranchId.value)?.name ?? 'All Branches'
+  })
 
   const tab = ref('retail')
-  const apiURL = computed(() => `${API_BASE}/clients/?client_type=${tab.value}`)
-  const headers = ref([
-    { title: 'ID', key: 'id', align: 'start' },
-    { title: 'Name', key: 'name', align: 'start' },
-    { title: 'Phone', key: 'phone', align: 'start' },
-    { title: 'Loyalty Points', key: 'valid_loyalty_points', align: 'end' },
-    { title: 'Created At', key: 'created_at', align: 'end' },
-    { title: 'Actions', key: 'actions', align: 'end', sortable: false },
-  ])
-
-  const tableRef = ref(null)
+  const boardRef = ref(null)
   const dialog = ref(false)
   const submitting = ref(false)
   const submitError = ref('')
@@ -158,7 +171,7 @@
         ? updateClient({ id: editingId.value, name: values.name, phone: values.phone, client_type: clientType.value })
         : createClient({ name: values.name, phone: values.phone, client_type: clientType.value }))
       closeDialog()
-      tableRef.value?.reload()
+      boardRef.value?.reload()
     } catch (error) {
       submitError.value = error.message
     } finally {
@@ -183,7 +196,7 @@
     try {
       await deleteClient(deleteTarget.value.id)
       deleteDialog.value = false
-      tableRef.value?.reload()
+      boardRef.value?.reload()
     } catch (error) {
       deleteError.value = error.message
     } finally {

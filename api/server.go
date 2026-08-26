@@ -80,6 +80,7 @@ func (server *Server) setupRoutes() {
 	authRoutes.GET("/clients/:id", server.getClient)
 	authRoutes.GET("/clients/:id/loyalty_total", server.getClientLoyaltyTotal)
 	authRoutes.GET("/clients/", server.listClients)
+	authRoutes.GET("/clients/by_spending", server.listClientsBySpending)
 	authRoutes.DELETE("/clients/:id", server.deleteClient)
 	authRoutes.POST("/currencies", server.createCurrency)
 	authRoutes.GET("/currencies/:code", server.getCurrency)

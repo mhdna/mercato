@@ -17,6 +17,7 @@ declare module 'vue' {
     BranchActivityToast: typeof import('./src/components/BranchActivityToast.vue')['default']
     BranchMenu: typeof import('./src/components/Buttons/BranchMenu.vue')['default']
     CategoriesChart: typeof import('./src/components/Stats/CategoriesChart.vue')['default']
+    ClientLoyaltyBoard: typeof import('./src/components/Clients/ClientLoyaltyBoard.vue')['default']
     ClientRankTag: typeof import('./src/components/ClientRankTag.vue')['default']
     ColorsSizesDialog: typeof import('./src/components/Forms/ColorsSizesDialog.vue')['default']
     CommandPalette: typeof import('./src/components/CommandPalette.vue')['default']

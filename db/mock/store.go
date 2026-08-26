@@ -230,6 +230,21 @@ func (mr *MockStoreMockRecorder) CountClients(arg0, arg1 interface{}) *gomock.Ca
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CountClients", reflect.TypeOf((*MockStore)(nil).CountClients), arg0, arg1)
 }
 
+// CountClientsBySpending mocks base method.
+func (m *MockStore) CountClientsBySpending(arg0 context.Context, arg1 db.CountClientsBySpendingParams) (int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CountClientsBySpending", arg0, arg1)
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CountClientsBySpending indicates an expected call of CountClientsBySpending.
+func (mr *MockStoreMockRecorder) CountClientsBySpending(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CountClientsBySpending", reflect.TypeOf((*MockStore)(nil).CountClientsBySpending), arg0, arg1)
+}
+
 // CountCoupons mocks base method.
 func (m *MockStore) CountCoupons(arg0 context.Context) (int64, error) {
 	m.ctrl.T.Helper()
@@ -2552,6 +2567,21 @@ func (m *MockStore) ListClients(arg0 context.Context, arg1 db.ListClientsParams)
 func (mr *MockStoreMockRecorder) ListClients(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListClients", reflect.TypeOf((*MockStore)(nil).ListClients), arg0, arg1)
+}
+
+// ListClientsBySpending mocks base method.
+func (m *MockStore) ListClientsBySpending(arg0 context.Context, arg1 db.ListClientsBySpendingParams) ([]db.ListClientsBySpendingRow, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListClientsBySpending", arg0, arg1)
+	ret0, _ := ret[0].([]db.ListClientsBySpendingRow)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListClientsBySpending indicates an expected call of ListClientsBySpending.
+func (mr *MockStoreMockRecorder) ListClientsBySpending(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListClientsBySpending", reflect.TypeOf((*MockStore)(nil).ListClientsBySpending), arg0, arg1)
 }
 
 // ListClientsUpdatedSince mocks base method.

@@ -26,6 +26,11 @@ type Querier interface {
 	CountBranchExpenses(ctx context.Context, branchID sql.NullInt64) (int64, error)
 	CountBranchInvoices(ctx context.Context, branchID sql.NullInt64) (int64, error)
 	CountClients(ctx context.Context, clientType sql.NullString) (int64, error)
+	// Same filters as ListClientsBySpending, minus the spend computation --
+	// used for the rest-of-clients table's pagination total. Deliberately
+	// ignores branch_id: the count of matching clients doesn't change with
+	// which branch's sales are being summed, only who qualifies by type/search.
+	CountClientsBySpending(ctx context.Context, arg CountClientsBySpendingParams) (int64, error)
 	CountCoupons(ctx context.Context) (int64, error)
 	CountCurrencies(ctx context.Context) (int64, error)
 	CountDiscountLists(ctx context.Context) (int64, error)
@@ -197,6 +202,26 @@ type Querier interface {
 	// clients page passes it when a Retail/Wholesale tab is selected, and
 	// omits it for a combined view if one is ever added.
 	ListClients(ctx context.Context, arg ListClientsParams) ([]Client, error)
+	// Powers the clients "loyalty pyramid" + rest-of-clients table: every
+	// client ranked by total_spent, invoice_count, or item_count (chosen via
+	// sort_by -- see the ORDER BY at the bottom). Two sources feed each metric:
+	// kashi's own admin invoices (sales positive, returns negative --
+	// invoices.grand_total is always stored as a positive magnitude regardless
+	// of kind, see ReturnInvoiceTx) and branch-reported sales
+	// (branch_invoices.grand_total, which already carries the correct net sign
+	// -- see ListDailyIncome). sqlc.narg(branch_id) scopes to one branch's
+	// till; central admin invoices aren't attributed to any branch, so they're
+	// excluded entirely once a single branch is selected (an "All Branches"
+	// view is the only one where they belong). invoice_count/item_count follow
+	// the same all-or-one-branch rule for consistency with total_spent.
+	// invoice_count/item_count are computed in the `ranked` CTE rather than as
+	// plain SELECT-list aliases so the ORDER BY's CASE expression can actually
+	// reference them: Postgres only resolves an output alias in ORDER BY when
+	// it's used bare, not when it's embedded in a larger expression (there it's
+	// looked up as an ordinary column instead, which fails since it isn't one
+	// of the FROM clause's columns). Wrapping in a CTE turns them into real
+	// columns of the derived table, so the CASE inside ORDER BY resolves fine.
+	ListClientsBySpending(ctx context.Context, arg ListClientsBySpendingParams) ([]ListClientsBySpendingRow, error)
 	// Feeds the branch catch-up endpoint (see branch_catchup.go), same pattern
 	// as currencies/cashbox_accounts/products. Wholesale clients never appear
 	// here -- they're a central-office concept, not something a branch till

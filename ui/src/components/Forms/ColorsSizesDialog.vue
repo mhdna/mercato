@@ -1,5 +1,5 @@
 <template>
-  <v-dialog v-model="dialog" max-width="640" :persistent="true">
+  <v-dialog v-model="dialog" max-width="640">
     <template #activator="{ props: activatorProps }">
       <v-btn
         v-bind="activatorProps"

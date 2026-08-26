@@ -1,5 +1,5 @@
 <template>
-  <v-dialog v-model="dialog" max-width="560" :persistent="true">
+  <v-dialog v-model="dialog" max-width="560">
     <v-card class="px-4">
       <v-card-title>{{ editingId ? 'Edit Discount List' : 'Add a New Discount List' }}</v-card-title>
       <v-card-text>

@@ -81,6 +81,31 @@ func (q *Queries) CreateBranchExpense(ctx context.Context, arg CreateBranchExpen
 	return i, err
 }
 
+const getBranchExpense = `-- name: GetBranchExpense :one
+SELECT id, branch_id, client_ref, description, amount, currency_code, branch_cashbox_account_id, branch_shift_id, occurred_at, received_at, category_id FROM branch_expenses
+WHERE id = $1
+LIMIT 1
+`
+
+func (q *Queries) GetBranchExpense(ctx context.Context, id int64) (BranchExpense, error) {
+	row := q.db.QueryRowContext(ctx, getBranchExpense, id)
+	var i BranchExpense
+	err := row.Scan(
+		&i.ID,
+		&i.BranchID,
+		&i.ClientRef,
+		&i.Description,
+		&i.Amount,
+		&i.CurrencyCode,
+		&i.BranchCashboxAccountID,
+		&i.BranchShiftID,
+		&i.OccurredAt,
+		&i.ReceivedAt,
+		&i.CategoryID,
+	)
+	return i, err
+}
+
 const getBranchExpenseByClientRef = `-- name: GetBranchExpenseByClientRef :one
 SELECT id, branch_id, client_ref, description, amount, currency_code, branch_cashbox_account_id, branch_shift_id, occurred_at, received_at, category_id FROM branch_expenses
 WHERE branch_id = $1 AND client_ref = $2

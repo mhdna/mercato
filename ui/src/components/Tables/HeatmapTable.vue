@@ -4,7 +4,9 @@
       <thead>
         <tr>
           <th class="sticky-col day-col" />
-          <th v-for="month in months" :key="month">{{ month }}</th>
+          <th v-for="month in months" :key="month">
+            {{ month }}
+          </th>
         </tr>
       </thead>
       <tbody>
@@ -21,6 +23,18 @@
           </td>
         </tr>
       </tbody>
+      <tfoot>
+        <tr>
+          <td class="sticky-col day-col sticky-foot">Total</td>
+          <td
+            v-for="(month, mi) in months"
+            :key="month"
+            class="sticky-foot"
+          >
+            {{ format(monthTotals[mi]) }}
+          </td>
+        </tr>
+      </tfoot>
     </table>
   </div>
 </template>
@@ -146,6 +160,8 @@
 
   const get = (mi, day) => data.value[mi][day - 1] ?? 0
 
+  const monthTotals = computed(() => data.value.map(month => month.reduce((sum, v) => sum + v, 0)))
+
   const allValues = computed(() => data.value.flat())
   const min = computed(() => Math.min(...allValues.value))
   const max = computed(() => Math.max(...allValues.value))
@@ -210,6 +226,24 @@
 .day-col {
   min-width: 60px;
   font-weight: 500;
+}
+
+.heatmap-table tfoot td {
+  font-weight: 600;
+  border-bottom: none;
+  border-top: 2px solid rgba(0, 0, 0, 0.12);
+}
+
+.sticky-foot {
+  position: sticky;
+  bottom: 0;
+  background: #ffc107;
+  color: #212121;
+  z-index: 2;
+}
+
+.heatmap-table tfoot .sticky-col.sticky-foot {
+  z-index: 3;
 }
 
 .cell-today {

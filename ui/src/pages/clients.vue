@@ -1,5 +1,5 @@
 <template>
-  <v-dialog v-model="dialog" max-width="480" :persistent="true">
+  <v-dialog v-model="dialog" max-width="480">
     <v-card class="px-4">
       <v-card-title>{{ editingId ? 'Edit Client' : 'Add a New Client' }}</v-card-title>
       <v-card-text>
@@ -50,13 +50,17 @@
     </v-card>
   </v-dialog>
 
-  <div class="d-flex justify-space-between align-center mb-2">
-    <h2 class="text-h6">Clients</h2>
-    <div class="d-flex align-center">
+  <div class="clients-toolbar d-flex flex-wrap align-center justify-space-between ga-3 mb-4">
+    <v-tabs v-model="tab" color="primary">
+      <v-tab value="retail">Retail</v-tab>
+      <v-tab value="wholesale">Wholesale</v-tab>
+    </v-tabs>
+
+    <div class="d-flex align-center ga-2">
       <v-menu>
         <template #activator="{ props: menuProps }">
           <v-btn
-            class="me-4"
+            prepend-icon="mdi-filter"
             rounded="lg"
             style="border-color: rgb(var(--v-theme-surface-light));"
             v-bind="menuProps"
@@ -82,11 +86,6 @@
       <v-btn color="primary" prepend-icon="mdi-plus" text="Add Client" @click="openCreate" />
     </div>
   </div>
-
-  <v-tabs v-model="tab" class="mb-2" color="primary">
-    <v-tab value="retail">Retail</v-tab>
-    <v-tab value="wholesale">Wholesale</v-tab>
-  </v-tabs>
 
   <ClientLoyaltyBoard
     :key="tab"

@@ -1,5 +1,5 @@
 <template>
-  <v-dialog v-model="dialog" max-width="480" :persistent="true">
+  <v-dialog v-model="dialog" max-width="480">
     <v-card class="px-4">
       <v-card-title>Add Loan</v-card-title>
       <v-card-text>
@@ -47,7 +47,7 @@
     </v-card>
   </v-dialog>
 
-  <v-dialog v-model="categoryDialog" max-width="480" :persistent="true">
+  <v-dialog v-model="categoryDialog" max-width="480">
     <v-card class="px-4">
       <v-card-title>{{ editingCategoryId ? 'Edit Category' : 'Add a New Category' }}</v-card-title>
       <v-card-text>

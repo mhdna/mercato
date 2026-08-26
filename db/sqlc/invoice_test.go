@@ -16,6 +16,8 @@ func createRandomSalesInvoice(t *testing.T) Invoice {
 	cashbox := createRandomCashbox(t)
 	shift := createRandomShift(t)
 	inventory := createRandomInventory(t)
+	invoiceType, err := testQueries.GetDefaultInvoiceType(context.Background())
+	require.NoError(t, err)
 	discount := int16(0)
 	grandTotal := util.RandomAmount()
 	subTotal := util.RandomAmount()
@@ -33,6 +35,7 @@ func createRandomSalesInvoice(t *testing.T) Invoice {
 		InvoiceCode:     "TEST-SA-2026-00001",
 		InvoiceIndex:    1,
 		Year:            int32(time.Now().Year()),
+		InvoiceTypeID:   invoiceType.ID,
 	}
 
 	invoice, err := testQueries.CreateInvoice(context.Background(), arg)
@@ -102,11 +105,14 @@ func TestListInvoices(t *testing.T) {
 func TestIncrementInvoicesIndex(t *testing.T) {
 	cashbox := createRandomCashbox(t)
 	year := int32(time.Now().Year())
+	invoiceType, err := testQueries.GetDefaultInvoiceType(context.Background())
+	require.NoError(t, err)
 
 	arg := IncrementInvoicesIndexParams{
-		Year:      year,
-		CashboxID: cashbox.ID,
-		Type:      IndexTypeSales,
+		Year:          year,
+		CashboxID:     cashbox.ID,
+		Type:          IndexTypeSales,
+		InvoiceTypeID: invoiceType.ID,
 	}
 
 	index1, err := testQueries.IncrementInvoicesIndex(context.Background(), arg)
@@ -128,6 +134,8 @@ func createRandomReturnInvoice(t *testing.T) Invoice {
 	shift := createRandomShift(t)
 	client := createRandomClient(t)
 	inventory := createRandomInventory(t)
+	invoiceType, err := testQueries.GetDefaultInvoiceType(context.Background())
+	require.NoError(t, err)
 
 	arg := CreateInvoiceParams{
 		CashboxID:       cashbox.ID,
@@ -141,6 +149,7 @@ func createRandomReturnInvoice(t *testing.T) Invoice {
 		Subtotal:        util.RandomAmount(),
 		DiscountedTotal: util.RandomAmount(),
 		GrandTotal:      util.RandomAmount(),
+		InvoiceTypeID:   invoiceType.ID,
 	}
 
 	invoice, err := testQueries.CreateInvoice(context.Background(), arg)
@@ -195,11 +204,14 @@ func TestAddReturnInvoiceProduct(t *testing.T) {
 func TestDecrementInvoicesIndex(t *testing.T) {
 	cashbox := createRandomCashbox(t)
 	year := int32(time.Now().Year())
+	invoiceType, err := testQueries.GetDefaultInvoiceType(context.Background())
+	require.NoError(t, err)
 
 	arg := IncrementInvoicesIndexParams{
-		Year:      year,
-		CashboxID: cashbox.ID,
-		Type:      IndexTypeReturn,
+		Year:          year,
+		CashboxID:     cashbox.ID,
+		Type:          IndexTypeReturn,
+		InvoiceTypeID: invoiceType.ID,
 	}
 
 	index1, err := testQueries.IncrementInvoicesIndex(context.Background(), arg)

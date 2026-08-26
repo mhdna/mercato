@@ -55,5 +55,14 @@ export function useBranches () {
     return requestJSON(`${API_BASE}/branches/${id}/rotate_key`, { method: 'POST' }) // { id, api_key }
   }
 
-  return { branches, fetchBranches, createBranch, setBranchActive, rotateBranchKey }
+  // Initial value for "which branches are live right now" -- kept fresh
+  // after this by the "branch_connection_changed" push over the admin
+  // WebSocket (see ConnectedBranchesCard.vue), same poll-then-push pattern
+  // used for recent branch invoices.
+  async function fetchConnectedBranches () {
+    const data = await requestJSON(`${API_BASE}/branches/connected`)
+    return data?.branch_ids ?? []
+  }
+
+  return { branches, fetchBranches, createBranch, setBranchActive, rotateBranchKey, fetchConnectedBranches }
 }

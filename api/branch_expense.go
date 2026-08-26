@@ -2,6 +2,7 @@ package api
 
 import (
 	"database/sql"
+	"log"
 	"net/http"
 	"time"
 
@@ -111,7 +112,21 @@ func (server *Server) createBranchExpense(ctx *gin.Context) {
 		Label:        req.Description,
 	})
 
-	server.writeJSON(ctx, http.StatusOK, envelope{"expense": expense})
+	// Mint a one-time receipt-upload token for this new expense so
+	// kashi-pos can show a QR code for it immediately -- see
+	// expense_upload.go. Only done on the fresh-insert path: a retried
+	// outbox entry that hits the "already exists" branches above must
+	// never mint a second token for the same expense.
+	uploadToken, err := server.createBranchExpenseUploadToken(ctx, expense.ID)
+	if err != nil {
+		// The expense itself is safely created; losing the upload token is
+		// a degraded experience (no QR dialog), not a failed request.
+		log.Printf("create upload token for branch expense %d: %v", expense.ID, err)
+		server.writeJSON(ctx, http.StatusOK, envelope{"expense": expense})
+		return
+	}
+
+	server.writeJSON(ctx, http.StatusOK, envelope{"expense": expense, "upload_token": uploadToken})
 }
 
 type listBranchExpensesRequest struct {

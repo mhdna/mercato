@@ -218,14 +218,22 @@ func (store *SQLStore) SalesInvoiceTx(ctx context.Context, arg SalesInvoiceTxPar
 			}
 		}
 
-		addPointsArg := AddClientLoyaltyPointsParams{
-			ID:                 invoice.ClientID,
-			TotalLoyaltyPoints: arg.GrandTotal,
-			ValidLoyaltyPoints: arg.GrandTotal,
-		}
-		err = q.AddClientLoyaltyPoints(ctx, addPointsArg)
+		client, err := q.GetClient(ctx, invoice.ClientID)
 		if err != nil {
 			return err
+		}
+		// Wholesale clients are a central-office/B2B concept and don't earn
+		// the retail loyalty program's points.
+		if client.ClientType != "wholesale" {
+			addPointsArg := AddClientLoyaltyPointsParams{
+				ID:                 invoice.ClientID,
+				TotalLoyaltyPoints: arg.GrandTotal,
+				ValidLoyaltyPoints: arg.GrandTotal,
+			}
+			err = q.AddClientLoyaltyPoints(ctx, addPointsArg)
+			if err != nil {
+				return err
+			}
 		}
 
 		result.Invoice = invoice

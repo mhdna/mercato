@@ -103,6 +103,15 @@ func (server *Server) listBranches(ctx *gin.Context) {
 	server.writeJSON(ctx, http.StatusOK, envelope{"branches": res})
 }
 
+// listConnectedBranches gives the admin UI an initial value for "which
+// branches are live right now" on load -- the live figure after that comes
+// from the "branch_connection_changed" push over the admin WebSocket (see
+// branchWS in branch_ws.go), same poll-then-push pattern SyncCard already
+// uses for recent invoices.
+func (server *Server) listConnectedBranches(ctx *gin.Context) {
+	server.writeJSON(ctx, http.StatusOK, envelope{"branch_ids": server.branchHub.connectedBranchIDs()})
+}
+
 type branchIDRequest struct {
 	ID int64 `uri:"id" binding:"required,min=1"`
 }

@@ -199,11 +199,15 @@ func (server *Server) setupRoutes() {
 
 	authRoutes.POST("/branches", server.createBranch)
 	authRoutes.GET("/branches", server.listBranches)
+	authRoutes.GET("/branches/connected", server.listConnectedBranches)
 	authRoutes.POST("/branches/:id/activate", server.setBranchActive(true))
 	authRoutes.POST("/branches/:id/deactivate", server.setBranchActive(false))
 	authRoutes.POST("/branches/:id/rotate_key", server.rotateBranchKey)
 
 	authRoutes.GET("/branch_expenses", server.listBranchExpenses)
+	authRoutes.GET("/branch_expense_images", server.listBranchExpenseImages)
+	authRoutes.GET("/branch_expenses/:id/images", server.listBranchExpenseImagesForExpense)
+	authRoutes.GET("/branch_expense_images/:id/file", server.getBranchExpenseImageFile)
 	authRoutes.GET("/branch_invoices", server.listBranchInvoices)
 	authRoutes.GET("/branch_invoices/:id/items", server.listBranchInvoiceItems)
 	authRoutes.GET("/branch_invoices/daily_income", server.dailyIncome)
@@ -241,6 +245,7 @@ func (server *Server) setupRoutes() {
 	branchRoutes.GET("/health", server.branchHealth)
 	branchRoutes.POST("/sales_invoices", server.createBranchSalesInvoice)
 	branchRoutes.POST("/return_invoices", server.createBranchReturnInvoice)
+	branchRoutes.POST("/exchange_invoices", server.createBranchExchangeInvoice)
 	branchRoutes.POST("/expenses", server.createBranchExpense)
 	branchRoutes.POST("/loans", server.createBranchLoan)
 	branchRoutes.GET("/sync/changes", server.branchSyncChanges)
@@ -249,6 +254,15 @@ func (server *Server) setupRoutes() {
 	branchRoutes.POST("/clients", server.putBranchClient)
 	branchRoutes.GET("/commands/pending", server.branchPendingCommands)
 	branchRoutes.POST("/commands/:id/ack", server.ackBranchCommand)
+	branchRoutes.GET("/expenses/upload_status", server.branchExpenseUploadStatus)
+
+	// expense_uploads is deliberately public: a phone scanning the QR code
+	// kashi-pos shows has no kashi login and shouldn't need one. Every
+	// handler here re-validates its own one-time token instead of relying
+	// on any auth middleware -- see expense_upload.go.
+	router.GET("/expense_uploads/:token", server.expenseUploadPage)
+	router.GET("/expense_uploads/:token/status", server.expenseUploadStatus)
+	router.POST("/expense_uploads/:token/images", server.uploadExpenseImages)
 
 	server.router = router
 }

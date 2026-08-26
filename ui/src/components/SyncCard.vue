@@ -1,15 +1,19 @@
 <template>
-  <v-menu v-model="menu" :close-on-content-click="false" location="bottom end">
+  <v-menu v-model="menu" :close-on-content-click="false" location="bottom center" :offset="8">
     <template #activator="{ props }">
       <v-card
         v-bind="props"
-        class="d-flex align-center py-1 px-2"
-        color="transparent"
-        flat
+        class="d-flex align-center py-1 px-2 me-2"
         rounded="xl"
         style="cursor: pointer"
+        variant="tonal"
       >
-        <div class="me-2 text-body-2 ticker">
+        <v-icon
+          class="me-2"
+          :color="currentActivity ? currentActivity.color : wsIconColor"
+          icon="mdi-cloud"
+        />
+        <div class="text-body-2 ticker">
           <Transition mode="out-in" name="ticker">
             <span :key="displayKey">
               <v-icon
@@ -23,7 +27,6 @@
             </span>
           </Transition>
         </div>
-        <v-icon :color="currentActivity ? currentActivity.color : wsIconColor" icon="mdi-cloud" />
       </v-card>
     </template>
 
@@ -35,7 +38,7 @@
         <v-list-item
           v-for="invoice in recentInvoices"
           :key="invoice.id"
-          :prepend-icon="invoice.kind === 'return' ? 'mdi-transfer' : 'mdi-invoice'"
+          :prepend-icon="invoiceIcon(invoice)"
           :subtitle="`${branchName(invoice.branch_id)} — ${relativeTime(invoice.received_at)}`"
           :title="invoiceTitle(invoice)"
         />
@@ -102,6 +105,11 @@
 
   function activityKindWord (message) {
     if (message.type === 'branch_expense_created') return 'expense'
+    if (message.kind === 'exchange') return 'exchange'
+    if (message.kind === 'return') return 'return'
+    if (message.kind) return 'revenue'
+    // Legacy fallback for messages without a kind (shouldn't happen once
+    // the backend always sends one for branch_invoice_created).
     return message.amount < 0 ? 'return' : 'revenue'
   }
 
@@ -158,9 +166,20 @@
     return branches.value.find(b => b.id === branchId)?.name ?? `Branch #${branchId}`
   }
 
+  function invoiceIcon (invoice) {
+    if (invoice.kind === 'exchange') return 'mdi-swap-horizontal'
+    if (invoice.kind === 'return') return 'mdi-transfer'
+    return 'mdi-invoice'
+  }
+
+  function invoiceKindLabel (invoice) {
+    if (invoice.kind === 'exchange') return 'Exchange'
+    if (invoice.kind === 'return') return 'Return'
+    return 'Sale'
+  }
+
   function invoiceTitle (invoice) {
-    const kind = invoice.kind === 'return' ? 'Return' : 'Sale'
-    return `${kind} ${invoice.branch_invoice_code}`
+    return `${invoiceKindLabel(invoice)} ${invoice.branch_invoice_code}`
   }
 
   function relativeTime (isoString) {

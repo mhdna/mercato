@@ -1,5 +1,5 @@
 <template>
-  <v-dialog v-model="dialog" max-width="420" :persistent="true">
+  <v-dialog v-model="dialog" max-width="420">
     <v-card class="px-4">
       <v-card-title>Open a New Shift</v-card-title>
       <v-card-text>

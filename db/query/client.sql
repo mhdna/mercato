@@ -21,6 +21,25 @@ ORDER BY name
 LIMIT $1
 OFFSET $2;
 
+-- name: ListClientsWithLoyalty :many
+-- Same rows as ListClients, but with each branch's reported loyalty points
+-- (branch_invoices.loyalty_points_delta, via client_links) summed in
+-- alongside kashi's own admin-invoice points. Used by the admin clients
+-- page so the displayed balance isn't missing everything earned at a
+-- branch till.
+SELECT c.*, COALESCE(bl.branch_points, 0)::bigint AS branch_loyalty_points
+FROM clients c
+LEFT JOIN (
+  SELECT cl.client_id, SUM(bi.loyalty_points_delta) AS branch_points
+  FROM branch_invoices bi
+  JOIN client_links cl ON cl.branch_id = bi.branch_id AND cl.branch_client_id = bi.branch_client_id
+  GROUP BY cl.client_id
+) bl ON bl.client_id = c.id
+WHERE sqlc.narg(client_type)::text IS NULL OR c.client_type = sqlc.narg(client_type)
+ORDER BY c.name
+LIMIT $1
+OFFSET $2;
+
 -- name: UpdateClient :one
 UPDATE clients
   SET name = $2,

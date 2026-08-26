@@ -54,9 +54,31 @@ func (h *branchHub) remove(branchID int64, conn *websocket.Conn) {
 	}
 }
 
+// connectedBranchIDs reports which distinct branches currently have a live
+// connection. Since add() replaces rather than accumulates a branch's
+// connection (see its comment above), this is really "connected branches",
+// not "connected devices" -- a branch with several tills sharing one
+// branch API key still appears once here, since branchHub has no way to
+// tell those apart.
+func (h *branchHub) connectedBranchIDs() []int64 {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	ids := make([]int64, 0, len(h.conns))
+	for branchID := range h.conns {
+		ids = append(ids, branchID)
+	}
+	return ids
+}
+
 type branchWSMessage struct {
 	Type      string `json:"type"`
 	CommandID int64  `json:"command_id,omitempty"`
+	// ClientRef carries the originating expense's client_ref for
+	// "expense_images_uploaded" -- unlike every other pushed message
+	// today, kashi-pos needs to know *which* locally-tracked entity this
+	// is about (to flip the matching QR dialog to success), not just "go
+	// re-fetch this kind of thing".
+	ClientRef string `json:"client_ref,omitempty"`
 }
 
 // notify sends a message to exactly one branch, if it currently has a live
@@ -116,7 +138,11 @@ func (server *Server) branchWS(ctx *gin.Context) {
 	defer conn.Close()
 
 	server.branchHub.add(branchID, conn)
-	defer server.branchHub.remove(branchID, conn)
+	server.adminHub.broadcastAll(adminWSMessage{Type: "branch_connection_changed", BranchIDs: server.branchHub.connectedBranchIDs()})
+	defer func() {
+		server.branchHub.remove(branchID, conn)
+		server.adminHub.broadcastAll(adminWSMessage{Type: "branch_connection_changed", BranchIDs: server.branchHub.connectedBranchIDs()})
+	}()
 
 	for {
 		if _, _, err := conn.ReadMessage(); err != nil {

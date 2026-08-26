@@ -332,6 +332,24 @@ type BranchExpense struct {
 	CategoryID             sql.NullInt64 `json:"category_id"`
 }
 
+type BranchExpenseImage struct {
+	ID              int64     `json:"id"`
+	BranchExpenseID int64     `json:"branch_expense_id"`
+	FilePath        string    `json:"file_path"`
+	ContentType     string    `json:"content_type"`
+	SizeBytes       int64     `json:"size_bytes"`
+	CreatedAt       time.Time `json:"created_at"`
+}
+
+type BranchExpenseUploadToken struct {
+	ID              int64        `json:"id"`
+	BranchExpenseID int64        `json:"branch_expense_id"`
+	Token           string       `json:"token"`
+	ExpiresAt       time.Time    `json:"expires_at"`
+	UsedAt          sql.NullTime `json:"used_at"`
+	CreatedAt       time.Time    `json:"created_at"`
+}
+
 type BranchInvoice struct {
 	ID                     int64          `json:"id"`
 	BranchID               int64          `json:"branch_id"`

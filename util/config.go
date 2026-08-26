@@ -15,6 +15,9 @@ type Config struct {
 	TokenSymmetricKey    string        `mapstructure:"TOKEN_SYMMETRIC_KEY"`
 	AccessTokenDuration  time.Duration `mapstructure:"access_token_duration"`
 	RefreshTokenDuration time.Duration `mapstructure:"REFRESH_TOKEN_DURATION"`
+	// ExpenseImageStorageDir is where receipt photos uploaded through the
+	// one-time QR flow (api/expense_upload.go) are saved on local disk.
+	ExpenseImageStorageDir string `mapstructure:"EXPENSE_IMAGE_STORAGE_DIR"`
 }
 
 func LoadConfig(path string) (config Config, err error) {

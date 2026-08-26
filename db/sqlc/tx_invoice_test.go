@@ -64,6 +64,8 @@ func TestSalesInvoiceTx(t *testing.T) {
 	inventory := createRandomInventory(t)
 	shift := createRandomShift(t)
 	client := createRandomClient(t)
+	invoiceType, err := testQueries.GetDefaultInvoiceType(context.Background())
+	require.NoError(t, err)
 	grandTotal := util.RandomAmount()
 	subTotal := util.RandomAmount()
 	discountedTotal := util.RandomAmount()
@@ -86,6 +88,7 @@ func TestSalesInvoiceTx(t *testing.T) {
 				SubTotal:         subTotal,
 				DiscountedTotal:  discountedTotal,
 				Year:             int32(time.Now().Year()),
+				InvoiceTypeID:    invoiceType.ID,
 			})
 			errs <- err
 			results <- res

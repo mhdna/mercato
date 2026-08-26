@@ -396,6 +396,77 @@ func (q *Queries) ListClientsUpdatedSince(ctx context.Context, updatedAt time.Ti
 	return items, nil
 }
 
+const listClientsWithLoyalty = `-- name: ListClientsWithLoyalty :many
+SELECT c.id, c.name, c.phone, c.total_loyalty_points, c.valid_loyalty_points, c.created_at, c.updated_at, c.client_type, COALESCE(bl.branch_points, 0)::bigint AS branch_loyalty_points
+FROM clients c
+LEFT JOIN (
+  SELECT cl.client_id, SUM(bi.loyalty_points_delta) AS branch_points
+  FROM branch_invoices bi
+  JOIN client_links cl ON cl.branch_id = bi.branch_id AND cl.branch_client_id = bi.branch_client_id
+  GROUP BY cl.client_id
+) bl ON bl.client_id = c.id
+WHERE $3::text IS NULL OR c.client_type = $3
+ORDER BY c.name
+LIMIT $1
+OFFSET $2
+`
+
+type ListClientsWithLoyaltyParams struct {
+	Limit      int32          `json:"limit"`
+	Offset     int32          `json:"offset"`
+	ClientType sql.NullString `json:"client_type"`
+}
+
+type ListClientsWithLoyaltyRow struct {
+	ID                  int64     `json:"id"`
+	Name                string    `json:"name"`
+	Phone               string    `json:"phone"`
+	TotalLoyaltyPoints  int64     `json:"total_loyalty_points"`
+	ValidLoyaltyPoints  int64     `json:"valid_loyalty_points"`
+	CreatedAt           time.Time `json:"created_at"`
+	UpdatedAt           time.Time `json:"updated_at"`
+	ClientType          string    `json:"client_type"`
+	BranchLoyaltyPoints int64     `json:"branch_loyalty_points"`
+}
+
+// Same rows as ListClients, but with each branch's reported loyalty points
+// (branch_invoices.loyalty_points_delta, via client_links) summed in
+// alongside kashi's own admin-invoice points. Used by the admin clients
+// page so the displayed balance isn't missing everything earned at a
+// branch till.
+func (q *Queries) ListClientsWithLoyalty(ctx context.Context, arg ListClientsWithLoyaltyParams) ([]ListClientsWithLoyaltyRow, error) {
+	rows, err := q.db.QueryContext(ctx, listClientsWithLoyalty, arg.Limit, arg.Offset, arg.ClientType)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListClientsWithLoyaltyRow{}
+	for rows.Next() {
+		var i ListClientsWithLoyaltyRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Phone,
+			&i.TotalLoyaltyPoints,
+			&i.ValidLoyaltyPoints,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.ClientType,
+			&i.BranchLoyaltyPoints,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const sumClientLoyaltyPoints = `-- name: SumClientLoyaltyPoints :one
 SELECT COALESCE(SUM(bi.loyalty_points_delta), 0)::bigint AS total
 FROM branch_invoices bi

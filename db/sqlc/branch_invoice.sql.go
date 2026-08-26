@@ -311,7 +311,8 @@ SELECT
   (occurred_at AT TIME ZONE 'UTC')::date AS day,
   SUM(grand_total)::bigint AS total
 FROM branch_invoices
-WHERE EXTRACT(YEAR FROM occurred_at) = $1::int
+WHERE occurred_at >= make_date($1::int, 1, 1)
+  AND occurred_at < make_date($1::int + 1, 1, 1)
   AND ($2::bigint IS NULL OR branch_id = $2)
 GROUP BY day
 ORDER BY day
@@ -334,6 +335,10 @@ type ListDailyIncomeRow struct {
 // in kashi-pos), so a plain sum already nets returns against sales
 // correctly without this query needing to know or guess that sign
 // convention itself.
+// The year filter is a >=/< range against a fixed pair of dates rather than
+// EXTRACT(YEAR FROM occurred_at) = $1 -- EXTRACT on every row can't use a
+// plain btree index on occurred_at (idx_branch_invoices_occurred_at), while
+// a range comparison can.
 func (q *Queries) ListDailyIncome(ctx context.Context, arg ListDailyIncomeParams) ([]ListDailyIncomeRow, error) {
 	rows, err := q.db.QueryContext(ctx, listDailyIncome, arg.Year, arg.BranchID)
 	if err != nil {

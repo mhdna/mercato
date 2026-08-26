@@ -50,12 +50,24 @@ func (h *adminHub) remove(conn *websocket.Conn) {
 type adminWSMessage struct {
 	Type     string `json:"type"`
 	BranchID int64  `json:"branch_id,omitempty"`
-	// Amount is signed cents: positive for revenue, negative for a return or
-	// an expense -- the toast queue derives both its color and its wording
-	// from the sign, no separate "kind" field needed.
+	// Kind is the branch_invoices.kind ("sales"/"return"/"exchange") for a
+	// branch_invoice_created event, omitted for every other message type.
+	// The toast queue still derives its color/trend arrow from Amount's
+	// sign (which is meaningful on its own), but needs Kind for wording --
+	// an exchange's Amount can be positive, so sign alone can't tell it
+	// apart from a sale.
+	Kind string `json:"kind,omitempty"`
+	// Amount is signed cents: positive for revenue or a value-add exchange,
+	// negative for a return, a refund-leaning exchange, or an expense.
 	Amount       int64  `json:"amount,omitempty"`
 	CurrencyCode string `json:"currency_code,omitempty"`
 	Label        string `json:"label,omitempty"`
+	// BranchIDs is the full current list of branch ids with a live
+	// WebSocket connection -- only set for "branch_connection_changed".
+	// Sent as the complete list rather than a delta so a dropped/out-of-
+	// order push still leaves the client correct on the next one, same
+	// idempotency reasoning as branchWSMessage's pointer-only payloads.
+	BranchIDs []int64 `json:"branch_ids,omitempty"`
 }
 
 // broadcastAll notifies every currently-connected admin client. There's no

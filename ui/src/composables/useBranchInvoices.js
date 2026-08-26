@@ -24,5 +24,28 @@ export function useBranchInvoices () {
     return data?.branch_invoices ?? []
   }
 
-  return { listBranchInvoiceItems, listRecentBranchInvoices }
+  // Enqueues a remote "remote_return_invoice" command (see
+  // api/branch_command.go) asking the branch to process a return itself,
+  // using its own real local IDs -- kashi never fabricates a branch invoice
+  // row directly. Returns as soon as kashi has queued it; the branch
+  // executes asynchronously and the resulting real return invoice arrives
+  // later through the normal /branch/return_invoices sync path, same as
+  // any other branch-originated return.
+  async function requestRemoteReturn (branchId, invoice, reason) {
+    const data = await requestJSON(`${API_BASE}/branches/${branchId}/commands`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'remote_return_invoice',
+        payload: {
+          branch_invoice_id: invoice.id,
+          client_ref: invoice.client_ref,
+          reason: reason || '',
+        },
+      }),
+    })
+    return data?.command ?? null
+  }
+
+  return { listBranchInvoiceItems, listRecentBranchInvoices, requestRemoteReturn }
 }

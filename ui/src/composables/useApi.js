@@ -22,7 +22,15 @@ export async function authFetch (url, options = {}) {
     return fetch(url, { ...options, headers })
   }
 
-  let res = await request(authStore.token)
+  let res
+  try {
+    res = await request(authStore.token)
+  } catch {
+    // fetch() rejects (rather than resolving with a bad status) when the
+    // server can't be reached at all -- e.g. it's powered off. Surface a
+    // clear, distinct message instead of the browser's raw "Failed to fetch".
+    throw new Error('Server is offline')
+  }
 
   if (res.status === 401 && authStore.refreshToken) {
     try {

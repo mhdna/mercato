@@ -185,6 +185,21 @@ func (mr *MockStoreMockRecorder) CompleteBranchCommand(arg0, arg1 interface{}) *
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CompleteBranchCommand", reflect.TypeOf((*MockStore)(nil).CompleteBranchCommand), arg0, arg1)
 }
 
+// CountBranchExpenseImages mocks base method.
+func (m *MockStore) CountBranchExpenseImages(arg0 context.Context) (int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CountBranchExpenseImages", arg0)
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CountBranchExpenseImages indicates an expected call of CountBranchExpenseImages.
+func (mr *MockStoreMockRecorder) CountBranchExpenseImages(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CountBranchExpenseImages", reflect.TypeOf((*MockStore)(nil).CountBranchExpenseImages), arg0)
+}
+
 // CountBranchExpenses mocks base method.
 func (m *MockStore) CountBranchExpenses(arg0 context.Context, arg1 sql.NullInt64) (int64, error) {
 	m.ctrl.T.Helper()
@@ -513,6 +528,36 @@ func (m *MockStore) CreateBranchExpense(arg0 context.Context, arg1 db.CreateBran
 func (mr *MockStoreMockRecorder) CreateBranchExpense(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateBranchExpense", reflect.TypeOf((*MockStore)(nil).CreateBranchExpense), arg0, arg1)
+}
+
+// CreateBranchExpenseImage mocks base method.
+func (m *MockStore) CreateBranchExpenseImage(arg0 context.Context, arg1 db.CreateBranchExpenseImageParams) (db.BranchExpenseImage, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CreateBranchExpenseImage", arg0, arg1)
+	ret0, _ := ret[0].(db.BranchExpenseImage)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CreateBranchExpenseImage indicates an expected call of CreateBranchExpenseImage.
+func (mr *MockStoreMockRecorder) CreateBranchExpenseImage(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateBranchExpenseImage", reflect.TypeOf((*MockStore)(nil).CreateBranchExpenseImage), arg0, arg1)
+}
+
+// CreateBranchExpenseUploadToken mocks base method.
+func (m *MockStore) CreateBranchExpenseUploadToken(arg0 context.Context, arg1 db.CreateBranchExpenseUploadTokenParams) (db.BranchExpenseUploadToken, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CreateBranchExpenseUploadToken", arg0, arg1)
+	ret0, _ := ret[0].(db.BranchExpenseUploadToken)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CreateBranchExpenseUploadToken indicates an expected call of CreateBranchExpenseUploadToken.
+func (mr *MockStoreMockRecorder) CreateBranchExpenseUploadToken(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateBranchExpenseUploadToken", reflect.TypeOf((*MockStore)(nil).CreateBranchExpenseUploadToken), arg0, arg1)
 }
 
 // CreateBranchInvoice mocks base method.
@@ -1534,6 +1579,21 @@ func (mr *MockStoreMockRecorder) GetBranchCommand(arg0, arg1 interface{}) *gomoc
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBranchCommand", reflect.TypeOf((*MockStore)(nil).GetBranchCommand), arg0, arg1)
 }
 
+// GetBranchExpense mocks base method.
+func (m *MockStore) GetBranchExpense(arg0 context.Context, arg1 int64) (db.BranchExpense, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetBranchExpense", arg0, arg1)
+	ret0, _ := ret[0].(db.BranchExpense)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetBranchExpense indicates an expected call of GetBranchExpense.
+func (mr *MockStoreMockRecorder) GetBranchExpense(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBranchExpense", reflect.TypeOf((*MockStore)(nil).GetBranchExpense), arg0, arg1)
+}
+
 // GetBranchExpenseByClientRef mocks base method.
 func (m *MockStore) GetBranchExpenseByClientRef(arg0 context.Context, arg1 db.GetBranchExpenseByClientRefParams) (db.BranchExpense, error) {
 	m.ctrl.T.Helper()
@@ -1547,6 +1607,36 @@ func (m *MockStore) GetBranchExpenseByClientRef(arg0 context.Context, arg1 db.Ge
 func (mr *MockStoreMockRecorder) GetBranchExpenseByClientRef(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBranchExpenseByClientRef", reflect.TypeOf((*MockStore)(nil).GetBranchExpenseByClientRef), arg0, arg1)
+}
+
+// GetBranchExpenseImage mocks base method.
+func (m *MockStore) GetBranchExpenseImage(arg0 context.Context, arg1 int64) (db.BranchExpenseImage, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetBranchExpenseImage", arg0, arg1)
+	ret0, _ := ret[0].(db.BranchExpenseImage)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetBranchExpenseImage indicates an expected call of GetBranchExpenseImage.
+func (mr *MockStoreMockRecorder) GetBranchExpenseImage(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBranchExpenseImage", reflect.TypeOf((*MockStore)(nil).GetBranchExpenseImage), arg0, arg1)
+}
+
+// GetBranchExpenseUploadTokenByToken mocks base method.
+func (m *MockStore) GetBranchExpenseUploadTokenByToken(arg0 context.Context, arg1 string) (db.BranchExpenseUploadToken, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetBranchExpenseUploadTokenByToken", arg0, arg1)
+	ret0, _ := ret[0].(db.BranchExpenseUploadToken)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetBranchExpenseUploadTokenByToken indicates an expected call of GetBranchExpenseUploadTokenByToken.
+func (mr *MockStoreMockRecorder) GetBranchExpenseUploadTokenByToken(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBranchExpenseUploadTokenByToken", reflect.TypeOf((*MockStore)(nil).GetBranchExpenseUploadTokenByToken), arg0, arg1)
 }
 
 // GetBranchInvoice mocks base method.
@@ -2404,6 +2494,36 @@ func (mr *MockStoreMockRecorder) ListBranchCommands(arg0, arg1 interface{}) *gom
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListBranchCommands", reflect.TypeOf((*MockStore)(nil).ListBranchCommands), arg0, arg1)
 }
 
+// ListBranchExpenseImages mocks base method.
+func (m *MockStore) ListBranchExpenseImages(arg0 context.Context, arg1 db.ListBranchExpenseImagesParams) ([]db.ListBranchExpenseImagesRow, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListBranchExpenseImages", arg0, arg1)
+	ret0, _ := ret[0].([]db.ListBranchExpenseImagesRow)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListBranchExpenseImages indicates an expected call of ListBranchExpenseImages.
+func (mr *MockStoreMockRecorder) ListBranchExpenseImages(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListBranchExpenseImages", reflect.TypeOf((*MockStore)(nil).ListBranchExpenseImages), arg0, arg1)
+}
+
+// ListBranchExpenseImagesForExpense mocks base method.
+func (m *MockStore) ListBranchExpenseImagesForExpense(arg0 context.Context, arg1 int64) ([]db.BranchExpenseImage, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListBranchExpenseImagesForExpense", arg0, arg1)
+	ret0, _ := ret[0].([]db.BranchExpenseImage)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListBranchExpenseImagesForExpense indicates an expected call of ListBranchExpenseImagesForExpense.
+func (mr *MockStoreMockRecorder) ListBranchExpenseImagesForExpense(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListBranchExpenseImagesForExpense", reflect.TypeOf((*MockStore)(nil).ListBranchExpenseImagesForExpense), arg0, arg1)
+}
+
 // ListBranchExpenses mocks base method.
 func (m *MockStore) ListBranchExpenses(arg0 context.Context, arg1 db.ListBranchExpensesParams) ([]db.BranchExpense, error) {
 	m.ctrl.T.Helper()
@@ -2597,6 +2717,21 @@ func (m *MockStore) ListClientsUpdatedSince(arg0 context.Context, arg1 time.Time
 func (mr *MockStoreMockRecorder) ListClientsUpdatedSince(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListClientsUpdatedSince", reflect.TypeOf((*MockStore)(nil).ListClientsUpdatedSince), arg0, arg1)
+}
+
+// ListClientsWithLoyalty mocks base method.
+func (m *MockStore) ListClientsWithLoyalty(arg0 context.Context, arg1 db.ListClientsWithLoyaltyParams) ([]db.ListClientsWithLoyaltyRow, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListClientsWithLoyalty", arg0, arg1)
+	ret0, _ := ret[0].([]db.ListClientsWithLoyaltyRow)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListClientsWithLoyalty indicates an expected call of ListClientsWithLoyalty.
+func (mr *MockStoreMockRecorder) ListClientsWithLoyalty(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListClientsWithLoyalty", reflect.TypeOf((*MockStore)(nil).ListClientsWithLoyalty), arg0, arg1)
 }
 
 // ListColors mocks base method.
@@ -3182,6 +3317,20 @@ func (m *MockStore) ListUsers(arg0 context.Context, arg1 db.ListUsersParams) ([]
 func (mr *MockStoreMockRecorder) ListUsers(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListUsers", reflect.TypeOf((*MockStore)(nil).ListUsers), arg0, arg1)
+}
+
+// MarkBranchExpenseUploadTokenUsed mocks base method.
+func (m *MockStore) MarkBranchExpenseUploadTokenUsed(arg0 context.Context, arg1 int64) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "MarkBranchExpenseUploadTokenUsed", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// MarkBranchExpenseUploadTokenUsed indicates an expected call of MarkBranchExpenseUploadTokenUsed.
+func (mr *MockStoreMockRecorder) MarkBranchExpenseUploadTokenUsed(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MarkBranchExpenseUploadTokenUsed", reflect.TypeOf((*MockStore)(nil).MarkBranchExpenseUploadTokenUsed), arg0, arg1)
 }
 
 // ReturnInvoiceTx mocks base method.

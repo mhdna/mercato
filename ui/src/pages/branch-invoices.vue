@@ -62,7 +62,7 @@
       {{ branchName(item.branch_id) }}
     </template>
     <template #item.kind="{ item }">
-      <v-chip :color="item.kind === 'return' ? 'warning' : 'primary'" size="small">{{ item.kind }}</v-chip>
+      <v-chip :color="kindColor(item.kind)" size="small">{{ item.kind }}</v-chip>
     </template>
     <template #item.grand_total="{ item }">
       {{ formatMoney(item.grand_total) }}
@@ -75,8 +75,42 @@
     </template>
     <template #item.actions="{ item }">
       <v-icon-btn icon="mdi-eye" size="small" variant="text" @click="openItems(item)" />
+      <v-icon-btn
+        v-if="item.kind === 'sales'"
+        icon="mdi-arrow-u-left-top"
+        size="small"
+        variant="text"
+        @click="openRemoteReturn(item)"
+      />
     </template>
   </ServerSideTable>
+
+  <v-dialog v-model="remoteReturnDialog" max-width="480">
+    <v-card>
+      <v-card-title>Return remotely -- {{ remoteReturnTarget?.branch_invoice_code }}</v-card-title>
+      <v-card-text>
+        <v-alert class="mb-4" type="info" variant="tonal">
+          This queues a command for {{ branchName(remoteReturnTarget?.branch_id) }} to process the
+          return itself. It isn't executed instantly -- the branch picks it up next time it's
+          online.
+        </v-alert>
+        <v-alert v-if="remoteReturnError" class="mb-4" type="error" variant="tonal">{{ remoteReturnError }}</v-alert>
+        <v-textarea v-model="remoteReturnReason" label="Reason (optional)" rows="2" />
+      </v-card-text>
+      <v-card-actions>
+        <v-spacer />
+        <v-btn text="Cancel" @click="remoteReturnDialog = false" />
+        <v-btn
+          color="primary"
+          :loading="remoteReturnLoading"
+          text="Queue return"
+          @click="submitRemoteReturn"
+        />
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
+
+  <v-snackbar v-model="remoteReturnSnackbar" timeout="4000">Return command queued.</v-snackbar>
 </template>
 
 <script setup>
@@ -87,12 +121,18 @@
   import { API_BASE } from '@/config'
 
   const { branches, fetchBranches } = useBranches()
-  const { listBranchInvoiceItems } = useBranchInvoices()
+  const { listBranchInvoiceItems, requestRemoteReturn } = useBranchInvoices()
 
   onMounted(() => fetchBranches())
 
   function branchName (id) {
     return branches.value.find(b => b.id === id)?.name ?? `Branch #${id}`
+  }
+
+  function kindColor (kind) {
+    if (kind === 'return') return 'warning'
+    if (kind === 'exchange') return 'info'
+    return 'primary'
   }
 
   function formatMoney (cents) {
@@ -140,6 +180,34 @@
       itemsError.value = error.message
     } finally {
       itemsLoading.value = false
+    }
+  }
+
+  const remoteReturnDialog = ref(false)
+  const remoteReturnTarget = ref(null)
+  const remoteReturnReason = ref('')
+  const remoteReturnLoading = ref(false)
+  const remoteReturnError = ref('')
+  const remoteReturnSnackbar = ref(false)
+
+  function openRemoteReturn (invoice) {
+    remoteReturnTarget.value = invoice
+    remoteReturnReason.value = ''
+    remoteReturnError.value = ''
+    remoteReturnDialog.value = true
+  }
+
+  async function submitRemoteReturn () {
+    remoteReturnLoading.value = true
+    remoteReturnError.value = ''
+    try {
+      await requestRemoteReturn(remoteReturnTarget.value.branch_id, remoteReturnTarget.value, remoteReturnReason.value)
+      remoteReturnDialog.value = false
+      remoteReturnSnackbar.value = true
+    } catch (error) {
+      remoteReturnError.value = error.message
+    } finally {
+      remoteReturnLoading.value = false
     }
   }
 </script>

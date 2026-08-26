@@ -16,6 +16,7 @@
       <BranchActivityToast />
       <template #append>
         <SyncCard />
+        <ConnectedBranchesCard />
         <CommandPalette />
         <!-- <NotificationMenu class="me-4" /> -->
         <!-- <v-icon icon="mdi-translate" /> -->
@@ -34,7 +35,7 @@
 
     <NavigationDrawer v-model="showDrawer" :mobile="mobile" :rail="isRail" />
 
-    <div class="page-wrapper">
+    <div class="page-wrapper mx-4">
       <div v-if="isNavigating" class="loading-overlay">
         <div class="google-spinner">
           <div class="google-spinner-inner" />
@@ -66,6 +67,7 @@
   import BranchActivityToast from '@/components/BranchActivityToast.vue'
   import ToggleTheme from '@/components/Buttons/ToggleTheme.vue'
   import CommandPalette from '@/components/CommandPalette.vue'
+  import ConnectedBranchesCard from '@/components/ConnectedBranchesCard.vue'
   // import NotificationMenu from '@/components/Menus/NotificationMenu.vue'
   import { useAuthStore } from '@/stores/auth'
 

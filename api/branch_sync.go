@@ -11,7 +11,7 @@ import (
 	db "github.com/mhdna/kashi/db/sqlc"
 )
 
-var errRelatedClientRefRequired = errors.New("related_client_ref is required for a return invoice")
+var errRelatedClientRefRequired = errors.New("related_client_ref is required for a return or exchange invoice")
 
 // branchHealth lets a branch confirm its API key works and see how kashi
 // identifies it, before wiring up anything that actually moves data.
@@ -84,7 +84,7 @@ func (server *Server) createBranchInvoice(ctx *gin.Context, kind string) {
 		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
-	if kind == "return" && req.RelatedClientRef == "" {
+	if (kind == "return" || kind == "exchange") && req.RelatedClientRef == "" {
 		server.writeError(ctx, http.StatusBadRequest, errRelatedClientRefRequired)
 		return
 	}
@@ -166,14 +166,17 @@ func (server *Server) createBranchInvoice(ctx *gin.Context, kind string) {
 	if currency, err := server.store.GetDefaultCurrency(ctx); err == nil {
 		currencyCode = currency.Code
 	}
-	amount := req.GrandTotal
-	if kind == "return" {
-		amount = -amount
-	}
+	// GrandTotal is already the net signed cash effect the branch reported
+	// (positive for sales, negative for a refund return, and for an
+	// exchange whatever kashi-pos's own netDifference computed -- positive,
+	// negative, or zero) -- see the ListDailyIncome comment in
+	// db/query/branch_invoice.sql. Forcing a second negation here for
+	// "return" used to double-flip it back to positive.
 	server.adminHub.broadcastAll(adminWSMessage{
 		Type:         "branch_invoice_created",
 		BranchID:     branchID,
-		Amount:       amount,
+		Kind:         kind,
+		Amount:       req.GrandTotal,
 		CurrencyCode: currencyCode,
 		Label:        req.BranchInvoiceCode,
 	})
@@ -187,6 +190,10 @@ func (server *Server) createBranchSalesInvoice(ctx *gin.Context) {
 
 func (server *Server) createBranchReturnInvoice(ctx *gin.Context) {
 	server.createBranchInvoice(ctx, "return")
+}
+
+func (server *Server) createBranchExchangeInvoice(ctx *gin.Context) {
+	server.createBranchInvoice(ctx, "exchange")
 }
 
 // isUniqueViolation reports whether err is a Postgres unique-constraint

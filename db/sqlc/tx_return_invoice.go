@@ -172,14 +172,22 @@ func (store *SQLStore) ReturnInvoiceTx(ctx context.Context, arg ReturnInvoiceTxP
 			}
 		}
 
-		addPointsArg := AddClientLoyaltyPointsParams{
-			ID:                 invoice.ClientID,
-			TotalLoyaltyPoints: -arg.GrandTotal,
-			ValidLoyaltyPoints: -arg.GrandTotal,
-		}
-		err = q.AddClientLoyaltyPoints(ctx, addPointsArg)
+		client, err := q.GetClient(ctx, invoice.ClientID)
 		if err != nil {
 			return err
+		}
+		// Wholesale clients never earned points on the original sale (see
+		// SalesInvoiceTx), so nothing to claw back here either.
+		if client.ClientType != "wholesale" {
+			addPointsArg := AddClientLoyaltyPointsParams{
+				ID:                 invoice.ClientID,
+				TotalLoyaltyPoints: -arg.GrandTotal,
+				ValidLoyaltyPoints: -arg.GrandTotal,
+			}
+			err = q.AddClientLoyaltyPoints(ctx, addPointsArg)
+			if err != nil {
+				return err
+			}
 		}
 
 		result.Invoice = invoice

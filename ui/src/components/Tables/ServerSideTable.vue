@@ -12,7 +12,7 @@
       variant="tonal"
       @click:close="error = ''"
     >
-      Failed to load data: {{ error }}
+      {{ error === 'Server is offline' ? error : `Failed to load data: ${error}` }}
       <template #append>
         <v-btn size="small" text="Retry" variant="text" @click="reload" />
       </template>

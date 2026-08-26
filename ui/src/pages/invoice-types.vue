@@ -1,5 +1,5 @@
 <template>
-  <v-dialog v-model="dialog" max-width="480" :persistent="true">
+  <v-dialog v-model="dialog" max-width="480">
     <v-card class="px-4">
       <v-card-title>{{ editingId ? 'Edit Invoice Type' : 'Add a New Invoice Type' }}</v-card-title>
       <v-card-text>

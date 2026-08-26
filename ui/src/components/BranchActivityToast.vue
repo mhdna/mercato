@@ -55,11 +55,19 @@
 
   function kindWord (message) {
     if (message.type === 'branch_expense_created') return 'expense'
+    if (message.kind === 'exchange') return 'exchange'
+    if (message.kind === 'return') return 'return'
+    if (message.kind) return 'revenue'
+    // Legacy fallback for messages without a kind (shouldn't happen once
+    // the backend always sends one for branch_invoice_created).
     return message.amount < 0 ? 'return' : 'revenue'
   }
 
   function iconFor (message) {
     if (message.type === 'branch_expense_created') return 'mdi-cash-minus'
+    if (message.kind === 'exchange') return 'mdi-swap-horizontal'
+    if (message.kind === 'return') return 'mdi-transfer'
+    if (message.kind) return 'mdi-sale'
     return message.amount < 0 ? 'mdi-transfer' : 'mdi-sale'
   }
 

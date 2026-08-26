@@ -1,5 +1,5 @@
 <template>
-  <v-dialog v-model="dialog" max-width="560" :persistent="true">
+  <v-dialog v-model="dialog" max-width="560">
     <v-card class="px-4">
       <v-card-title>Add a New Supplier</v-card-title>
       <v-card-text>

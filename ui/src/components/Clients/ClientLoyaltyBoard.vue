@@ -1,5 +1,5 @@
 <template>
-  <div class="d-flex flex-column loyalty-board">
+  <div class="d-flex loyalty-board">
     <v-card class="d-flex flex-column pyramid-card" flat>
       <v-card-title class="d-flex flex-wrap align-center justify-space-between ga-2">
         <div class="d-flex align-center">
@@ -20,7 +20,7 @@
             v-model="pyramidCount"
             density="compact"
             hide-details
-            :items="[20, 50, 100]"
+            :items="[15, 50, 100]"
             label="Show top"
             style="width: 110px"
             variant="outlined"
@@ -46,6 +46,9 @@
         <div v-if="pyramidLoading" class="d-flex justify-center pa-8">
           <v-progress-circular color="primary" indeterminate />
         </div>
+        <v-alert v-else-if="pyramidError" class="ma-4" type="error" variant="tonal">
+          {{ pyramidError === 'Server is offline' ? pyramidError : `Failed to load data: ${pyramidError}` }}
+        </v-alert>
         <div v-else-if="pyramidClients.length === 0" class="text-center text-medium-emphasis pa-8">
           No spending data yet.
         </div>
@@ -57,7 +60,7 @@
                   {{ initials(client.name) }}
                 </span>
               </v-avatar>
-              <div class="pyramid-name text-truncate">{{ client.name }}</div>
+              <div class="pyramid-name text-truncate">{{ firstName(client.name) }}</div>
               <div class="pyramid-amount text-medium-emphasis">{{ metricLabel(client) }}</div>
             </div>
           </div>
@@ -65,7 +68,7 @@
       </v-card-text>
     </v-card>
 
-    <v-card class="d-flex flex-column rest-card mt-4" flat>
+    <v-card class="d-flex flex-column rest-card" flat>
       <v-card-title class="d-flex flex-wrap align-center justify-space-between ga-2">
         All Clients
         <v-text-field
@@ -80,6 +83,9 @@
         />
       </v-card-title>
       <div class="rest-scroll flex-grow-1">
+        <v-alert v-if="restError" class="ma-4" type="error" variant="tonal">
+          {{ restError === 'Server is offline' ? restError : `Failed to load data: ${restError}` }}
+        </v-alert>
         <v-data-table-server
           v-model:items-per-page="restItemsPerPage"
           density="compact"
@@ -87,7 +93,7 @@
           item-value="id"
           :items="restItems"
           :items-length="restTotal"
-          :items-per-page-options="[10, 25, 50, 100]"
+          :items-per-page-options="[10, 15, 25, 50, 100]"
           :loading="restLoading"
           @update:options="loadRest"
         >
@@ -179,12 +185,16 @@
       .join('')
   }
 
-  function avatarSize (rowIndex) {
-    return Math.max(40, 88 - rowIndex * 8)
+  function firstName (name) {
+    return (name ?? '').trim().split(/\s+/)[0] ?? ''
   }
 
-  // Pyramid shape: row 1 has 1 client, row 2 has 2, etc, so the board
-  // visually widens toward the bottom with the top spender alone at the peak.
+  function avatarSize (rowIndex) {
+    return Math.max(34, 64 - rowIndex * 5)
+  }
+
+  // Pyramid shape: each row widens by two clients, keeping the tree compact
+  // enough to show a larger group without making the rows too tall.
   const pyramidRows = computed(() => {
     const rows = []
     let i = 0
@@ -192,7 +202,7 @@
     while (i < pyramidClients.value.length) {
       rows.push(pyramidClients.value.slice(i, i + rowSize))
       i += rowSize
-      rowSize++
+      rowSize += 2
     }
     return rows
   })
@@ -210,9 +220,10 @@
     return `$${formatMoney(client.total_spent)}`
   }
 
-  const pyramidCount = ref(20)
+  const pyramidCount = ref(50)
   const pyramidClients = ref([])
   const pyramidLoading = ref(true)
+  const pyramidError = ref('')
 
   function baseParams () {
     const params = new URLSearchParams()
@@ -224,24 +235,27 @@
 
   async function fetchPyramid () {
     pyramidLoading.value = true
+    pyramidError.value = ''
     try {
       const params = baseParams()
       params.set('page_size', pyramidCount.value)
       params.set('page_id', 0)
       const data = await dedupedFetch(`${API_BASE}/clients/by_spending?${params}`)
       pyramidClients.value = data?.clients ?? []
-    } catch {
+    } catch (error) {
       pyramidClients.value = []
+      pyramidError.value = error.message
     } finally {
       pyramidLoading.value = false
     }
   }
 
   const search = ref('')
-  const restItemsPerPage = ref(10)
+  const restItemsPerPage = ref(15)
   const restItems = ref([])
   const restTotal = ref(0)
   const restLoading = ref(true)
+  const restError = ref('')
   // Sorting is driven by the "Sort by" dropdown (server-side, matches the
   // pyramid above), not by clicking column headers, so header sort arrows
   // are turned off to avoid implying a sort that wouldn't actually happen.
@@ -254,10 +268,11 @@
     { title: 'Actions', key: 'actions', align: 'end', sortable: false },
   ]
 
-  const lastRestOptions = ref({ page: 1, itemsPerPage: 10 })
+  const lastRestOptions = ref({ page: 1, itemsPerPage: 15 })
   async function loadRest (options) {
     lastRestOptions.value = options
     restLoading.value = true
+    restError.value = ''
     try {
       const searchActive = !!search.value
       const { page, itemsPerPage } = options
@@ -277,9 +292,10 @@
       restItems.value = data?.clients ?? []
       const total = data?.total ?? 0
       restTotal.value = searchActive ? total : Math.max(total - pyramidCount.value, 0)
-    } catch {
+    } catch (error) {
       restItems.value = []
       restTotal.value = 0
+      restError.value = error.message
     } finally {
       restLoading.value = false
     }
@@ -306,18 +322,19 @@
 
 <style scoped>
 .loyalty-board {
-  height: calc(100vh - 260px);
+  height: calc(100vh - 120px);
+  gap: 16px;
   min-height: 560px;
 }
 
 .pyramid-card {
-  flex: 1 1 50%;
+  flex: 1.7 1 0;
   min-height: 0;
   overflow: hidden;
 }
 
 .rest-card {
-  flex: 1 1 50%;
+  flex: 1 1 0;
   min-height: 0;
   overflow: hidden;
 }
@@ -325,6 +342,13 @@
 .pyramid-scroll {
   overflow-y: auto;
   min-height: 0;
+}
+
+.pyramid {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
 }
 
 .rest-scroll {
@@ -335,15 +359,15 @@
 .pyramid-row {
   display: flex;
   justify-content: center;
-  gap: 20px;
-  margin-bottom: 20px;
+  gap: 8px;
+  margin-bottom: 12px;
 }
 
 .pyramid-item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: 100px;
+  width: 68px;
 }
 
 .pyramid-avatar {
@@ -368,5 +392,17 @@
   background: none;
   padding: 0;
   cursor: pointer;
+}
+
+@media (max-width: 960px) {
+  .loyalty-board {
+    flex-direction: column;
+    height: auto;
+  }
+
+  .pyramid-card,
+  .rest-card {
+    min-height: 560px;
+  }
 }
 </style>

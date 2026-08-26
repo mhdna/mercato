@@ -21,6 +21,7 @@ declare module 'vue' {
     ClientRankTag: typeof import('./src/components/ClientRankTag.vue')['default']
     ColorsSizesDialog: typeof import('./src/components/Forms/ColorsSizesDialog.vue')['default']
     CommandPalette: typeof import('./src/components/CommandPalette.vue')['default']
+    ConnectedBranchesCard: typeof import('./src/components/ConnectedBranchesCard.vue')['default']
     EmployeeCard: typeof import('./src/components/Cards/EmployeeCard.vue')['default']
     EmployeesAttendance: typeof import('./src/components/EmployeesAttendance.vue')['default']
     EmployeesPerformanceTable: typeof import('./src/components/Tables/EmployeesPerformanceTable.vue')['default']

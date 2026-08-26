@@ -81,15 +81,30 @@ func (server *Server) listClients(ctx *gin.Context) {
 	}
 
 	clientType := sql.NullString{String: req.ClientType, Valid: req.ClientType != ""}
-	arg := db.ListClientsParams{
+	arg := db.ListClientsWithLoyaltyParams{
 		Limit:      req.PageSize,
 		Offset:     req.PageID,
 		ClientType: clientType,
 	}
-	clients, err := server.store.ListClients(ctx, arg)
+	rows, err := server.store.ListClientsWithLoyalty(ctx, arg)
 	if err != nil {
 		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
+	}
+
+	// true_loyalty_points is what the admin clients page should show: kashi's
+	// own admin-invoice balance plus everything reported by branches, since
+	// valid_loyalty_points alone never reflects branch-till sales.
+	type clientWithLoyalty struct {
+		db.ListClientsWithLoyaltyRow
+		TrueLoyaltyPoints int64 `json:"true_loyalty_points"`
+	}
+	clients := make([]clientWithLoyalty, len(rows))
+	for i, row := range rows {
+		clients[i] = clientWithLoyalty{
+			ListClientsWithLoyaltyRow: row,
+			TrueLoyaltyPoints:         row.ValidLoyaltyPoints + row.BranchLoyaltyPoints,
+		}
 	}
 
 	total, err := server.store.CountClients(ctx, clientType)

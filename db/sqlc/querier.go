@@ -23,6 +23,7 @@ type Querier interface {
 	AddPurchasedProductCost(ctx context.Context, arg AddPurchasedProductCostParams) (ProductSupplierCost, error)
 	CloseShift(ctx context.Context, id int64) error
 	CompleteBranchCommand(ctx context.Context, arg CompleteBranchCommandParams) (BranchCommand, error)
+	CountBranchExpenseImages(ctx context.Context) (int64, error)
 	CountBranchExpenses(ctx context.Context, branchID sql.NullInt64) (int64, error)
 	CountBranchInvoices(ctx context.Context, branchID sql.NullInt64) (int64, error)
 	CountClients(ctx context.Context, clientType sql.NullString) (int64, error)
@@ -49,6 +50,8 @@ type Querier interface {
 	CreateBranch(ctx context.Context, arg CreateBranchParams) (Branch, error)
 	CreateBranchCommand(ctx context.Context, arg CreateBranchCommandParams) (BranchCommand, error)
 	CreateBranchExpense(ctx context.Context, arg CreateBranchExpenseParams) (BranchExpense, error)
+	CreateBranchExpenseImage(ctx context.Context, arg CreateBranchExpenseImageParams) (BranchExpenseImage, error)
+	CreateBranchExpenseUploadToken(ctx context.Context, arg CreateBranchExpenseUploadTokenParams) (BranchExpenseUploadToken, error)
 	CreateBranchInvoice(ctx context.Context, arg CreateBranchInvoiceParams) (BranchInvoice, error)
 	CreateBranchInvoiceItem(ctx context.Context, arg CreateBranchInvoiceItemParams) (BranchInvoiceItem, error)
 	CreateBranchLoan(ctx context.Context, arg CreateBranchLoanParams) (Loan, error)
@@ -125,7 +128,10 @@ type Querier interface {
 	GetBranch(ctx context.Context, id int64) (Branch, error)
 	GetBranchByCode(ctx context.Context, code string) (Branch, error)
 	GetBranchCommand(ctx context.Context, id int64) (BranchCommand, error)
+	GetBranchExpense(ctx context.Context, id int64) (BranchExpense, error)
 	GetBranchExpenseByClientRef(ctx context.Context, arg GetBranchExpenseByClientRefParams) (BranchExpense, error)
+	GetBranchExpenseImage(ctx context.Context, id int64) (BranchExpenseImage, error)
+	GetBranchExpenseUploadTokenByToken(ctx context.Context, token string) (BranchExpenseUploadToken, error)
 	GetBranchInvoice(ctx context.Context, id int64) (BranchInvoice, error)
 	GetBranchInvoiceByClientRef(ctx context.Context, arg GetBranchInvoiceByClientRefParams) (BranchInvoice, error)
 	GetBranchLoanByClientRef(ctx context.Context, arg GetBranchLoanByClientRefParams) (Loan, error)
@@ -183,6 +189,11 @@ type Querier interface {
 	ListAttributeValues(ctx context.Context, arg ListAttributeValuesParams) ([]ListAttributeValuesRow, error)
 	ListAttributes(ctx context.Context) ([]Attribute, error)
 	ListBranchCommands(ctx context.Context, arg ListBranchCommandsParams) ([]BranchCommand, error)
+	// Storage-explorer feed: every uploaded image, newest first, joined with
+	// its expense and branch so the admin UI never needs a second round trip
+	// per row.
+	ListBranchExpenseImages(ctx context.Context, arg ListBranchExpenseImagesParams) ([]ListBranchExpenseImagesRow, error)
+	ListBranchExpenseImagesForExpense(ctx context.Context, branchExpenseID int64) ([]BranchExpenseImage, error)
 	// sqlc.narg(branch_id) is nullable: NULL means "all branches", matching
 	// ListBranchInvoices' admin-filter convention.
 	ListBranchExpenses(ctx context.Context, arg ListBranchExpensesParams) ([]BranchExpense, error)
@@ -230,6 +241,12 @@ type Querier interface {
 	// have it locally (no delete propagation exists for any synced entity
 	// today); acceptable since that conversion is expected to be rare.
 	ListClientsUpdatedSince(ctx context.Context, updatedAt time.Time) ([]Client, error)
+	// Same rows as ListClients, but with each branch's reported loyalty points
+	// (branch_invoices.loyalty_points_delta, via client_links) summed in
+	// alongside kashi's own admin-invoice points. Used by the admin clients
+	// page so the displayed balance isn't missing everything earned at a
+	// branch till.
+	ListClientsWithLoyalty(ctx context.Context, arg ListClientsWithLoyaltyParams) ([]ListClientsWithLoyaltyRow, error)
 	ListColors(ctx context.Context) ([]Color, error)
 	ListCoupons(ctx context.Context, arg ListCouponsParams) ([]Coupon, error)
 	ListCurrencies(ctx context.Context, arg ListCurrenciesParams) ([]Currency, error)
@@ -241,6 +258,10 @@ type Querier interface {
 	// in kashi-pos), so a plain sum already nets returns against sales
 	// correctly without this query needing to know or guess that sign
 	// convention itself.
+	// The year filter is a >=/< range against a fixed pair of dates rather than
+	// EXTRACT(YEAR FROM occurred_at) = $1 -- EXTRACT on every row can't use a
+	// plain btree index on occurred_at (idx_branch_invoices_occurred_at), while
+	// a range comparison can.
 	ListDailyIncome(ctx context.Context, arg ListDailyIncomeParams) ([]ListDailyIncomeRow, error)
 	ListDiscountListItems(ctx context.Context, discountListID int64) ([]DiscountListItem, error)
 	ListDiscountLists(ctx context.Context, arg ListDiscountListsParams) ([]DiscountList, error)
@@ -295,6 +316,7 @@ type Querier interface {
 	ListTransferItems(ctx context.Context, transferID int64) ([]ListTransferItemsRow, error)
 	ListTransfers(ctx context.Context, arg ListTransfersParams) ([]Transfer, error)
 	ListUsers(ctx context.Context, arg ListUsersParams) ([]User, error)
+	MarkBranchExpenseUploadTokenUsed(ctx context.Context, id int64) error
 	SetBranchActive(ctx context.Context, arg SetBranchActiveParams) error
 	// The sync-facing "delete" -- see 000046_branch_target_soft_delete.up.sql
 	// for why this flips a flag instead of removing the row.

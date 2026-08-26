@@ -22,7 +22,8 @@ var (
 // executor (see commands.go there) how to run it via a real local function,
 // never adding a type that has no corresponding, validated execution path.
 var allowedBranchCommandTypes = map[string]bool{
-	"update_settings": true,
+	"update_settings":       true,
+	"remote_return_invoice": true,
 }
 
 type createBranchCommandRequest struct {

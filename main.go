@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"time"
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	_ "github.com/lib/pq"
@@ -30,6 +31,13 @@ func main() {
 	if err != nil {
 		log.Fatal("cannot connect to db:", err)
 	}
+	// database/sql defaults to unlimited open connections -- fine for one
+	// branch, but a burst of branches syncing at once could otherwise open
+	// enough connections to hit Postgres's own max_connections and take the
+	// whole app down at once instead of just queuing/slowing down.
+	conn.SetMaxOpenConns(25)
+	conn.SetMaxIdleConns(25)
+	conn.SetConnMaxLifetime(5 * time.Minute)
 	store := db.NewStore(conn)
 
 	server, err := api.NewServer(config, store)

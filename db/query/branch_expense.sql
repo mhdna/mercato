@@ -14,6 +14,11 @@ INSERT INTO branch_expenses (
 )
 RETURNING *;
 
+-- name: GetBranchExpense :one
+SELECT * FROM branch_expenses
+WHERE id = $1
+LIMIT 1;
+
 -- name: GetBranchExpenseByClientRef :one
 SELECT * FROM branch_expenses
 WHERE branch_id = $1 AND client_ref = $2

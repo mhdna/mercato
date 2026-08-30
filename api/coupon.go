@@ -73,7 +73,7 @@ func (server *Server) getCoupon(ctx *gin.Context) {
 }
 
 type listCouponsRequest struct {
-	PageSize int32 `form:"page_size,default=10" binding:"min=5,max=10"`
+	PageSize int32 `form:"page_size,default=10" binding:"min=5,max=100"`
 	PageID   int32 `form:"page_id,default=0" binding:"min=0"`
 }
 

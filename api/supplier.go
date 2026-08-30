@@ -68,8 +68,9 @@ func (server *Server) getSupplier(ctx *gin.Context) {
 }
 
 type listSupplierRequest struct {
-	PageSize int32 `form:"page_size,default=10" binding:"min=5,max=100"`
-	PageID   int32 `form:"page_id,default=0" binding:"min=0"`
+	PageSize int32  `form:"page_size,default=10" binding:"min=5,max=100"`
+	PageID   int32  `form:"page_id,default=0" binding:"min=0"`
+	Search   string `form:"search"`
 }
 
 func (server *Server) listSuppliers(ctx *gin.Context) {
@@ -80,8 +81,9 @@ func (server *Server) listSuppliers(ctx *gin.Context) {
 	}
 
 	arg := db.ListSuppliersParams{
-		Limit:  req.PageSize,
-		Offset: req.PageID,
+		Search:     req.Search,
+		PageSize:   req.PageSize,
+		PageOffset: req.PageID,
 	}
 	suppliers, err := server.store.ListSuppliers(ctx, arg)
 	if err != nil {
@@ -89,7 +91,7 @@ func (server *Server) listSuppliers(ctx *gin.Context) {
 		return
 	}
 
-	total, err := server.store.CountSuppliers(ctx)
+	total, err := server.store.CountSuppliersFiltered(ctx, req.Search)
 	if err != nil {
 		server.writeError(ctx, http.StatusInternalServerError, err)
 		return

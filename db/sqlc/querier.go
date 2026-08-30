@@ -15,47 +15,72 @@ import (
 type Querier interface {
 	AddCashboxAccountBalance(ctx context.Context, arg AddCashboxAccountBalanceParams) (ShiftsAccountsBalance, error)
 	AddClientLoyaltyPoints(ctx context.Context, arg AddClientLoyaltyPointsParams) error
-	AddInventoryProduct(ctx context.Context, arg AddInventoryProductParams) (InventoriesProduct, error)
-	AddInventoryProductQuantity(ctx context.Context, arg AddInventoryProductQuantityParams) error
+	// Apply a signed quantity delta to one SKU's on-hand in one inventory,
+	// creating the row if this SKU has never been stocked there. Cost is left
+	// untouched (used for sales, returns, transfers, adjustments).
+	AddInventoryStockQuantity(ctx context.Context, arg AddInventoryStockQuantityParams) (InventoryStock, error)
 	AddInvoiceProduct(ctx context.Context, arg AddInvoiceProductParams) (InvoiceProduct, error)
 	AddPurchaseItem(ctx context.Context, arg AddPurchaseItemParams) (PurchaseItem, error)
 	AddPurchasedProduct(ctx context.Context, arg AddPurchasedProductParams) (ProductSupplier, error)
 	AddPurchasedProductCost(ctx context.Context, arg AddPurchasedProductCostParams) (ProductSupplierCost, error)
 	CloseShift(ctx context.Context, id int64) error
 	CompleteBranchCommand(ctx context.Context, arg CompleteBranchCommandParams) (BranchCommand, error)
+	CountAttributeValues(ctx context.Context, arg CountAttributeValuesParams) (int64, error)
+	CountBranchAttendanceChanges(ctx context.Context, branchID sql.NullInt64) (int64, error)
+	CountBranchAttendanceEvents(ctx context.Context, branchID sql.NullInt64) (int64, error)
 	CountBranchExpenseImages(ctx context.Context) (int64, error)
 	CountBranchExpenses(ctx context.Context, branchID sql.NullInt64) (int64, error)
+	CountBranchInvoiceSettlements(ctx context.Context, branchID sql.NullInt64) (int64, error)
 	CountBranchInvoices(ctx context.Context, branchID sql.NullInt64) (int64, error)
+	CountBranchInvoicesFiltered(ctx context.Context, arg CountBranchInvoicesFilteredParams) (int64, error)
+	CountBranchShifts(ctx context.Context, branchID sql.NullInt64) (int64, error)
 	CountClients(ctx context.Context, clientType sql.NullString) (int64, error)
 	// Same filters as ListClientsBySpending, minus the spend computation --
 	// used for the rest-of-clients table's pagination total. Deliberately
 	// ignores branch_id: the count of matching clients doesn't change with
 	// which branch's sales are being summed, only who qualifies by type/search.
 	CountClientsBySpending(ctx context.Context, arg CountClientsBySpendingParams) (int64, error)
+	CountColors(ctx context.Context, search string) (int64, error)
 	CountCoupons(ctx context.Context) (int64, error)
 	CountCurrencies(ctx context.Context) (int64, error)
+	CountDashboardExpenses(ctx context.Context, arg CountDashboardExpensesParams) (int64, error)
+	CountDashboardPurchases(ctx context.Context, arg CountDashboardPurchasesParams) (int64, error)
+	CountDashboardSales(ctx context.Context, arg CountDashboardSalesParams) (int64, error)
 	CountDiscountLists(ctx context.Context) (int64, error)
+	CountExpenses(ctx context.Context) (int64, error)
 	CountInventories(ctx context.Context) (int64, error)
+	CountInventoryStock(ctx context.Context, arg CountInventoryStockParams) (int64, error)
 	CountInvoices(ctx context.Context) (int64, error)
+	CountInvoicesFiltered(ctx context.Context, search string) (int64, error)
 	CountLoanPayments(ctx context.Context, loanID sql.NullInt64) (int64, error)
 	CountLoans(ctx context.Context, arg CountLoansParams) (int64, error)
+	CountPriceListsFiltered(ctx context.Context, search string) (int64, error)
 	CountProductVariants(ctx context.Context) (int64, error)
-	CountProducts(ctx context.Context) (int64, error)
-	CountPurchases(ctx context.Context) (int64, error)
+	CountProducts(ctx context.Context, arg CountProductsParams) (int64, error)
+	CountPurchasesFiltered(ctx context.Context, search string) (int64, error)
 	CountShifts(ctx context.Context) (int64, error)
-	CountSuppliers(ctx context.Context) (int64, error)
+	CountSizes(ctx context.Context, search string) (int64, error)
+	CountStockMovements(ctx context.Context, arg CountStockMovementsParams) (int64, error)
+	CountSuppliersFiltered(ctx context.Context, search string) (int64, error)
 	CountTransfers(ctx context.Context) (int64, error)
+	CountVariantsForBarcodes(ctx context.Context, search string) (int64, error)
 	CreateAsset(ctx context.Context, arg CreateAssetParams) (Asset, error)
 	CreateAssetType(ctx context.Context, type_ string) (AssetsType, error)
 	CreateBranch(ctx context.Context, arg CreateBranchParams) (Branch, error)
+	CreateBranchAttendanceChange(ctx context.Context, arg CreateBranchAttendanceChangeParams) (BranchAttendanceChange, error)
+	CreateBranchAttendanceEvent(ctx context.Context, arg CreateBranchAttendanceEventParams) (BranchAttendanceEvent, error)
 	CreateBranchCommand(ctx context.Context, arg CreateBranchCommandParams) (BranchCommand, error)
 	CreateBranchExpense(ctx context.Context, arg CreateBranchExpenseParams) (BranchExpense, error)
 	CreateBranchExpenseImage(ctx context.Context, arg CreateBranchExpenseImageParams) (BranchExpenseImage, error)
 	CreateBranchExpenseUploadToken(ctx context.Context, arg CreateBranchExpenseUploadTokenParams) (BranchExpenseUploadToken, error)
 	CreateBranchInvoice(ctx context.Context, arg CreateBranchInvoiceParams) (BranchInvoice, error)
 	CreateBranchInvoiceItem(ctx context.Context, arg CreateBranchInvoiceItemParams) (BranchInvoiceItem, error)
+	CreateBranchInvoicePayment(ctx context.Context, arg CreateBranchInvoicePaymentParams) (BranchInvoicePayment, error)
+	CreateBranchInvoiceSettlement(ctx context.Context, arg CreateBranchInvoiceSettlementParams) (BranchInvoiceSettlement, error)
+	CreateBranchInvoiceSettlementPayment(ctx context.Context, arg CreateBranchInvoiceSettlementPaymentParams) (BranchInvoiceSettlementPayment, error)
 	CreateBranchLoan(ctx context.Context, arg CreateBranchLoanParams) (Loan, error)
 	CreateBranchSalesperson(ctx context.Context, arg CreateBranchSalespersonParams) (Salesperson, error)
+	CreateBranchShift(ctx context.Context, arg CreateBranchShiftParams) (BranchShift, error)
 	CreateBranchTarget(ctx context.Context, arg CreateBranchTargetParams) (BranchTarget, error)
 	CreateBranchTargetSeries(ctx context.Context, arg CreateBranchTargetSeriesParams) (BranchTargetSeries, error)
 	CreateCashbox(ctx context.Context, arg CreateCashboxParams) (Cashbox, error)
@@ -79,6 +104,7 @@ type Querier interface {
 	CreateGeneratedBranchTarget(ctx context.Context, arg CreateGeneratedBranchTargetParams) (BranchTarget, error)
 	CreateInventory(ctx context.Context, arg CreateInventoryParams) (Inventory, error)
 	CreateInvoice(ctx context.Context, arg CreateInvoiceParams) (Invoice, error)
+	CreateInvoicePayment(ctx context.Context, arg CreateInvoicePaymentParams) (InvoicePayment, error)
 	CreateInvoiceType(ctx context.Context, arg CreateInvoiceTypeParams) (InvoiceType, error)
 	CreateLoanCategory(ctx context.Context, arg CreateLoanCategoryParams) (LoanCategory, error)
 	CreateLoanPayment(ctx context.Context, arg CreateLoanPaymentParams) (LoanPayment, error)
@@ -95,10 +121,84 @@ type Querier interface {
 	CreateSession(ctx context.Context, arg CreateSessionParams) (Session, error)
 	CreateShift(ctx context.Context, cashboxID int64) (Shift, error)
 	CreateSize(ctx context.Context, arg CreateSizeParams) (Size, error)
+	// ---------------------------------------------------------------------------
+	// Stock movement ledger (append-only).
+	// ---------------------------------------------------------------------------
+	CreateStockMovement(ctx context.Context, arg CreateStockMovementParams) (StockMovement, error)
 	CreateSupplier(ctx context.Context, arg CreateSupplierParams) (Supplier, error)
 	CreateTransfer(ctx context.Context, arg CreateTransferParams) (Transfer, error)
 	CreateTransferItem(ctx context.Context, arg CreateTransferItemParams) (TransferItem, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
+	// Queries behind the home dashboard's Overview tab: the summary cards, the
+	// revenue/expense trend charts, and the aggregated Sales / Purchases /
+	// Recent Expenses tables. Every query takes a half-open [date_from,
+	// date_to) timestamptz range (the handler passes start-of-next-day as
+	// date_to) and, where a branch dimension exists, a nullable branch_id
+	// (NULL = all branches, same convention as ListBranchInvoices).
+	//
+	// "branch" data is what the POS branches sync up (branch_invoices,
+	// branch_expenses); "admin" data is kashi's own centrally-entered records
+	// (invoices/sales_invoices, expenses). The dashboard's scope filter picks
+	// one or both; the list queries take that as an explicit `scope` arg so a
+	// single UNION ALL can serve all three modes, while the scalar summary
+	// queries are split per source and the handler adds up whichever apply.
+	// One chronological feed across every kind of persisted branch sync. The
+	// union happens before LIMIT/OFFSET so pagination is correct globally, not
+	// independently per source table. received_at is used deliberately: this
+	// table answers "what synced recently", even when a branch catches up an
+	// older occurred_at record.
+	DashboardActivitiesList(ctx context.Context, arg DashboardActivitiesListParams) ([]DashboardActivitiesListRow, error)
+	DashboardAdminExpenseSeries(ctx context.Context, arg DashboardAdminExpenseSeriesParams) ([]DashboardAdminExpenseSeriesRow, error)
+	DashboardAdminExpensesTotal(ctx context.Context, arg DashboardAdminExpensesTotalParams) (int64, error)
+	DashboardAdminNewClients(ctx context.Context, arg DashboardAdminNewClientsParams) (int64, error)
+	DashboardAdminRevenueSeries(ctx context.Context, arg DashboardAdminRevenueSeriesParams) ([]DashboardAdminRevenueSeriesRow, error)
+	DashboardAdminSummary(ctx context.Context, arg DashboardAdminSummaryParams) (DashboardAdminSummaryRow, error)
+	DashboardBranchExpenseSeries(ctx context.Context, arg DashboardBranchExpenseSeriesParams) ([]DashboardBranchExpenseSeriesRow, error)
+	DashboardBranchExpensesTotal(ctx context.Context, arg DashboardBranchExpensesTotalParams) (int64, error)
+	// Clients first seen at a branch in the range. With a branch selected,
+	// count distinct linked clients whose central row was created in-range;
+	// with no branch, every client created in-range.
+	DashboardBranchNewClients(ctx context.Context, arg DashboardBranchNewClientsParams) (int64, error)
+	DashboardBranchRevenueSeries(ctx context.Context, arg DashboardBranchRevenueSeriesParams) ([]DashboardBranchRevenueSeriesRow, error)
+	// items_sold / revenue / invoice count for branch sales in the range.
+	// Returns are excluded from items_sold and the count (they aren't sales),
+	// but revenue sums every kind so refunds net out, matching ListDailyIncome.
+	DashboardBranchSummary(ctx context.Context, arg DashboardBranchSummaryParams) (DashboardBranchSummaryRow, error)
+	// Outstanding loan balance = disbursed - repaid. loans has no due date, so
+	// "due" here just means still owed. Branch arm = origin 'branch_loan'
+	// (scoped by branch_id when set); admin arm = origin 'central_loan'.
+	// loan_payments carry no branch dimension of their own, so they follow
+	// their parent loan's arm. Not date-range bound -- a balance, not a flow.
+	DashboardDueLoans(ctx context.Context, arg DashboardDueLoansParams) (int64, error)
+	// image_id is 0, not NULL, when an expense has no receipt photo (admin
+	// expenses never do): keeps the generated column a plain int64 and lets
+	// the frontend treat 0 as "no image".
+	DashboardExpensesList(ctx context.Context, arg DashboardExpensesListParams) ([]DashboardExpensesListRow, error)
+	DashboardPurchaseSeries(ctx context.Context, arg DashboardPurchaseSeriesParams) ([]DashboardPurchaseSeriesRow, error)
+	// Purchases are admin-only -- there is no branch purchase concept -- so the
+	// scope arg only ever excludes them (scope = 'branch'), never adds a second
+	// source. total is summed from purchase_items since purchases carries no
+	// amount column of its own.
+	DashboardPurchasesList(ctx context.Context, arg DashboardPurchasesListParams) ([]DashboardPurchasesListRow, error)
+	// Cost of goods bought in the range. Admin-only (no branch purchase
+	// concept); total is summed from purchase_items since purchases carries no
+	// amount column of its own, matching DashboardPurchasesList.
+	DashboardPurchasesTotal(ctx context.Context, arg DashboardPurchasesTotalParams) (int64, error)
+	// currency is the app's single default currency code (every amount in the
+	// schema is stored in its minor unit -- see 000009_create_currencies).
+	// The branch-invoice client name is resolved through client_links; when
+	// the branch never synced a client link it comes back empty.
+	DashboardSalesList(ctx context.Context, arg DashboardSalesListParams) ([]DashboardSalesListRow, error)
+	// Every branch_target that is active and spans `as_of` (today), with its
+	// live revenue (the target's own [date_from, date_to] window against its
+	// own branch). One progress bar per row on the dashboard; the handler also
+	// sums these for the overall attainment percentage. branch_targets are
+	// branch-only, so the handler skips this under admin scope.
+	DashboardTargetList(ctx context.Context, arg DashboardTargetListParams) ([]DashboardTargetListRow, error)
+	// The loans with the largest outstanding balance, for the dashboard's
+	// "Due Loans" list. Same scope/branch gating as DashboardDueLoans; fully
+	// repaid loans (outstanding <= 0) are dropped.
+	DashboardTopDueLoans(ctx context.Context, arg DashboardTopDueLoansParams) ([]DashboardTopDueLoansRow, error)
 	// Part of deleting a whole recurring series (see DeleteBranchTargetSeriesTx
 	// in tx_branch_target_series.go) -- every period it ever generated needs
 	// to disappear the same way a single deleted target does, not just stop
@@ -108,24 +208,40 @@ type Querier interface {
 	DecrementInvoicesIndex(ctx context.Context, arg DecrementInvoicesIndexParams) (int64, error)
 	DeleteAsset(ctx context.Context, id int64) error
 	DeleteAssetType(ctx context.Context, id int64) error
+	DeleteAttributeValue(ctx context.Context, id int64) error
+	DeleteBranchInvoicePaymentsForInvoice(ctx context.Context, branchInvoiceID int64) error
 	DeleteBranchTargetSeries(ctx context.Context, id int64) (BranchTargetSeries, error)
 	DeleteClient(ctx context.Context, id int64) error
+	DeleteColor(ctx context.Context, id int64) error
 	DeleteCurrency(ctx context.Context, code string) error
+	DeleteDiscountList(ctx context.Context, id int64) error
+	DeleteDiscountListBranch(ctx context.Context, branchID int64) error
+	DeleteDiscountListBranchesForList(ctx context.Context, discountListID int64) error
 	DeleteDiscountListItem(ctx context.Context, arg DeleteDiscountListItemParams) error
+	DeleteExpense(ctx context.Context, id int64) error
 	DeleteExpenseCategory(ctx context.Context, id int64) error
 	DeleteInventory(ctx context.Context, id int64) error
-	DeleteInventoryProduct(ctx context.Context, arg DeleteInventoryProductParams) error
 	DeleteLoanCategory(ctx context.Context, id int64) error
 	DeleteLoanPayment(ctx context.Context, id int64) error
+	DeletePriceList(ctx context.Context, id int64) error
+	DeletePriceListBranch(ctx context.Context, branchID int64) error
+	DeletePriceListBranchesForList(ctx context.Context, priceListID int64) error
 	DeletePriceListItem(ctx context.Context, arg DeletePriceListItemParams) error
 	DeleteProduct(ctx context.Context, id int64) error
+	DeleteProductVariant(ctx context.Context, id int64) error
+	DeletePurchaseItem(ctx context.Context, arg DeletePurchaseItemParams) error
 	DeleteSalesperson(ctx context.Context, id int64) error
+	DeleteSize(ctx context.Context, id int64) error
+	DeleteTransferItem(ctx context.Context, arg DeleteTransferItemParams) error
 	DeleteUser(ctx context.Context, id int64) error
+	GetAppSettings(ctx context.Context) (AppSetting, error)
 	GetAsset(ctx context.Context, id int64) (Asset, error)
 	GetAttribute(ctx context.Context, name string) (Attribute, error)
 	// upserting instead of inserting makes product creation with attributes easier
 	GetAttributeValue(ctx context.Context, id int64) (AttributesValue, error)
 	GetBranch(ctx context.Context, id int64) (Branch, error)
+	GetBranchAttendanceChangeByClientRef(ctx context.Context, arg GetBranchAttendanceChangeByClientRefParams) (BranchAttendanceChange, error)
+	GetBranchAttendanceEventByClientRef(ctx context.Context, arg GetBranchAttendanceEventByClientRefParams) (BranchAttendanceEvent, error)
 	GetBranchByCode(ctx context.Context, code string) (Branch, error)
 	GetBranchCommand(ctx context.Context, id int64) (BranchCommand, error)
 	GetBranchExpense(ctx context.Context, id int64) (BranchExpense, error)
@@ -134,8 +250,10 @@ type Querier interface {
 	GetBranchExpenseUploadTokenByToken(ctx context.Context, token string) (BranchExpenseUploadToken, error)
 	GetBranchInvoice(ctx context.Context, id int64) (BranchInvoice, error)
 	GetBranchInvoiceByClientRef(ctx context.Context, arg GetBranchInvoiceByClientRefParams) (BranchInvoice, error)
+	GetBranchInvoiceSettlementByClientRef(ctx context.Context, arg GetBranchInvoiceSettlementByClientRefParams) (BranchInvoiceSettlement, error)
 	GetBranchLoanByClientRef(ctx context.Context, arg GetBranchLoanByClientRefParams) (Loan, error)
 	GetBranchSettings(ctx context.Context, branchID int64) (BranchSetting, error)
+	GetBranchShiftByClientRef(ctx context.Context, arg GetBranchShiftByClientRefParams) (BranchShift, error)
 	GetBranchTarget(ctx context.Context, id int64) (BranchTarget, error)
 	GetBranchTargetBySeriesAndStart(ctx context.Context, arg GetBranchTargetBySeriesAndStartParams) (BranchTarget, error)
 	GetBranchTargetSeries(ctx context.Context, id int64) (BranchTargetSeries, error)
@@ -152,10 +270,15 @@ type Querier interface {
 	GetDefaultInvoiceType(ctx context.Context) (InvoiceType, error)
 	GetDefaultPriceForProduct(ctx context.Context, productID int64) (int64, error)
 	GetDiscountList(ctx context.Context, id int64) (DiscountList, error)
+	GetDiscountListBranch(ctx context.Context, branchID int64) (DiscountListBranch, error)
 	GetEntry(ctx context.Context, id int64) (Entry, error)
 	GetExpense(ctx context.Context, id int64) (Expense, error)
 	GetExpenseCategory(ctx context.Context, id int64) (ExpenseCategory, error)
 	GetInventory(ctx context.Context, id int64) (Inventory, error)
+	// ---------------------------------------------------------------------------
+	// Per-variant stock: cached on-hand quantity + moving-average cost.
+	// ---------------------------------------------------------------------------
+	GetInventoryStock(ctx context.Context, arg GetInventoryStockParams) (InventoryStock, error)
 	GetInvoice(ctx context.Context, id int64) (Invoice, error)
 	GetInvoiceType(ctx context.Context, id int64) (InvoiceType, error)
 	GetLoan(ctx context.Context, id int64) (Loan, error)
@@ -163,14 +286,16 @@ type Querier interface {
 	GetLoanPayment(ctx context.Context, id int64) (LoanPayment, error)
 	GetNextBarcodeItemValue(ctx context.Context) (int64, error)
 	GetPriceList(ctx context.Context, id int64) (PriceList, error)
+	GetPriceListBranch(ctx context.Context, branchID int64) (PriceListBranch, error)
 	GetProduct(ctx context.Context, id int64) (Product, error)
 	GetProductAttributeValue(ctx context.Context, arg GetProductAttributeValueParams) (ProductsAttribute, error)
 	GetProductAttributes(ctx context.Context, productID int64) ([]ProductsAttribute, error)
 	GetProductDiscountFromList(ctx context.Context, arg GetProductDiscountFromListParams) (DiscountListItem, error)
 	GetProductPriceFromList(ctx context.Context, arg GetProductPriceFromListParams) (PriceListItem, error)
+	GetProductSupplier(ctx context.Context, arg GetProductSupplierParams) (ProductSupplier, error)
 	GetProductVariant(ctx context.Context, id int64) (ProductVariant, error)
 	GetProductVariantByBarcode(ctx context.Context, barcode string) (ProductVariant, error)
-	GetPurchase(ctx context.Context, id int64) (Purchase, error)
+	GetPurchase(ctx context.Context, id int64) (GetPurchaseRow, error)
 	GetRecurringExpense(ctx context.Context, id int64) (RecurringExpense, error)
 	GetReturnInvoice(ctx context.Context, invoiceID int64) (ReturnInvoice, error)
 	GetSalesInvoice(ctx context.Context, invoiceID int64) (int64, error)
@@ -181,13 +306,19 @@ type Querier interface {
 	GetTransfer(ctx context.Context, id int64) (Transfer, error)
 	GetUser(ctx context.Context, id int64) (User, error)
 	GetUserByUsername(ctx context.Context, name string) (User, error)
+	GetVariantForLabel(ctx context.Context, id int64) (GetVariantForLabelRow, error)
+	GetVariantTotalOnHand(ctx context.Context, variantID int64) (int64, error)
 	IncrementInvoicesIndex(ctx context.Context, arg IncrementInvoicesIndexParams) (int64, error)
 	ListActiveBranchTargetSeries(ctx context.Context) ([]BranchTargetSeries, error)
+	ListAllAttributeValues(ctx context.Context) ([]ListAllAttributeValuesRow, error)
 	ListAllCashboxAccounts(ctx context.Context) ([]CashboxAccount, error)
 	ListAllCurrencies(ctx context.Context) ([]Currency, error)
 	ListAssets(ctx context.Context, arg ListAssetsParams) ([]Asset, error)
 	ListAttributeValues(ctx context.Context, arg ListAttributeValuesParams) ([]ListAttributeValuesRow, error)
+	ListAttributeValuesPage(ctx context.Context, arg ListAttributeValuesPageParams) ([]ListAttributeValuesPageRow, error)
 	ListAttributes(ctx context.Context) ([]Attribute, error)
+	ListBranchAttendanceChanges(ctx context.Context, arg ListBranchAttendanceChangesParams) ([]BranchAttendanceChange, error)
+	ListBranchAttendanceEvents(ctx context.Context, arg ListBranchAttendanceEventsParams) ([]BranchAttendanceEvent, error)
 	ListBranchCommands(ctx context.Context, arg ListBranchCommandsParams) ([]BranchCommand, error)
 	// Storage-explorer feed: every uploaded image, newest first, joined with
 	// its expense and branch so the admin UI never needs a second round trip
@@ -198,14 +329,23 @@ type Querier interface {
 	// ListBranchInvoices' admin-filter convention.
 	ListBranchExpenses(ctx context.Context, arg ListBranchExpensesParams) ([]BranchExpense, error)
 	ListBranchInvoiceItems(ctx context.Context, branchInvoiceID int64) ([]BranchInvoiceItem, error)
+	ListBranchInvoicePayments(ctx context.Context, branchInvoiceID int64) ([]BranchInvoicePayment, error)
+	ListBranchInvoiceSettlementPayments(ctx context.Context, branchInvoiceSettlementID int64) ([]BranchInvoiceSettlementPayment, error)
+	ListBranchInvoiceSettlements(ctx context.Context, arg ListBranchInvoiceSettlementsParams) ([]BranchInvoiceSettlement, error)
 	// sqlc.narg(branch_id) is nullable: NULL means "all branches", matching how
 	// the admin UI's branch filter works (a dropdown with an "All branches"
 	// option, not a required selection).
 	ListBranchInvoices(ctx context.Context, arg ListBranchInvoicesParams) ([]BranchInvoice, error)
+	ListBranchInvoicesPage(ctx context.Context, arg ListBranchInvoicesPageParams) ([]BranchInvoice, error)
+	// sqlc.narg(branch_id) is nullable: NULL means "all branches", matching
+	// ListBranchExpenses' admin-filter convention.
+	ListBranchShifts(ctx context.Context, arg ListBranchShiftsParams) ([]BranchShift, error)
 	ListBranchTargetSeriesForBranch(ctx context.Context, branchID int64) ([]BranchTargetSeries, error)
 	ListBranchTargetsForBranch(ctx context.Context, branchID int64) ([]BranchTarget, error)
 	ListBranchTargetsUpdatedSince(ctx context.Context, arg ListBranchTargetsUpdatedSinceParams) ([]BranchTarget, error)
 	ListBranches(ctx context.Context) ([]Branch, error)
+	ListBranchesForDiscountList(ctx context.Context, discountListID int64) ([]ListBranchesForDiscountListRow, error)
+	ListBranchesForPriceList(ctx context.Context, priceListID int64) ([]ListBranchesForPriceListRow, error)
 	ListCashboxAccounts(ctx context.Context, arg ListCashboxAccountsParams) ([]CashboxAccount, error)
 	ListCashboxAccountsUpdatedSince(ctx context.Context, updatedAt time.Time) ([]CashboxAccount, error)
 	ListCashboxes(ctx context.Context, arg ListCashboxesParams) ([]Cashbox, error)
@@ -248,6 +388,7 @@ type Querier interface {
 	// branch till.
 	ListClientsWithLoyalty(ctx context.Context, arg ListClientsWithLoyaltyParams) ([]ListClientsWithLoyaltyRow, error)
 	ListColors(ctx context.Context) ([]Color, error)
+	ListColorsPage(ctx context.Context, arg ListColorsPageParams) ([]Color, error)
 	ListCoupons(ctx context.Context, arg ListCouponsParams) ([]Coupon, error)
 	ListCurrencies(ctx context.Context, arg ListCurrenciesParams) ([]Currency, error)
 	ListCurrenciesUpdatedSince(ctx context.Context, updatedAt time.Time) ([]Currency, error)
@@ -263,16 +404,21 @@ type Querier interface {
 	// plain btree index on occurred_at (idx_branch_invoices_occurred_at), while
 	// a range comparison can.
 	ListDailyIncome(ctx context.Context, arg ListDailyIncomeParams) ([]ListDailyIncomeRow, error)
+	ListDiscountListBranchIDs(ctx context.Context, discountListID int64) ([]int64, error)
 	ListDiscountListItems(ctx context.Context, discountListID int64) ([]DiscountListItem, error)
+	ListDiscountListItemsWithProduct(ctx context.Context, discountListID int64) ([]ListDiscountListItemsWithProductRow, error)
 	ListDiscountLists(ctx context.Context, arg ListDiscountListsParams) ([]DiscountList, error)
 	ListDueRecurringExpenses(ctx context.Context, nextDueAt time.Time) ([]RecurringExpense, error)
 	ListEntries(ctx context.Context, arg ListEntriesParams) ([]Entry, error)
 	ListExpenseCategories(ctx context.Context) ([]ExpenseCategory, error)
 	ListExpenses(ctx context.Context, arg ListExpensesParams) ([]Expense, error)
 	ListInventories(ctx context.Context, arg ListInventoriesParams) ([]Inventory, error)
-	ListInventoryProducts(ctx context.Context, inventoryID int64) ([]ListInventoryProductsRow, error)
+	ListInventoryStock(ctx context.Context, arg ListInventoryStockParams) ([]ListInventoryStockRow, error)
+	ListInvoicePaymentsByInvoice(ctx context.Context, invoiceID int64) ([]ListInvoicePaymentsByInvoiceRow, error)
+	ListInvoiceProductsByInvoice(ctx context.Context, invoiceID int64) ([]ListInvoiceProductsByInvoiceRow, error)
 	ListInvoiceTypes(ctx context.Context) ([]InvoiceType, error)
 	ListInvoices(ctx context.Context, arg ListInvoicesParams) ([]Invoice, error)
+	ListInvoicesPage(ctx context.Context, arg ListInvoicesPageParams) ([]Invoice, error)
 	ListLoanCategories(ctx context.Context) ([]LoanCategory, error)
 	// sqlc.narg(loan_id) is nullable: NULL means "all loans".
 	ListLoanPayments(ctx context.Context, arg ListLoanPaymentsParams) ([]LoanPayment, error)
@@ -280,7 +426,9 @@ type Querier interface {
 	// filter", matching ListBranchExpenses' admin-filter convention.
 	ListLoans(ctx context.Context, arg ListLoansParams) ([]Loan, error)
 	ListPendingBranchCommands(ctx context.Context, branchID int64) ([]BranchCommand, error)
+	ListPriceListBranchIDs(ctx context.Context, priceListID int64) ([]int64, error)
 	ListPriceListItems(ctx context.Context, priceListID int64) ([]PriceListItem, error)
+	ListPriceListItemsWithProduct(ctx context.Context, priceListID int64) ([]ListPriceListItemsWithProductRow, error)
 	ListPriceLists(ctx context.Context, arg ListPriceListsParams) ([]PriceList, error)
 	ListProductAttributes(ctx context.Context, arg ListProductAttributesParams) ([]ProductsAttribute, error)
 	ListProductVariants(ctx context.Context, arg ListProductVariantsParams) ([]ListProductVariantsRow, error)
@@ -301,8 +449,13 @@ type Querier interface {
 	// so this doesn't miss anything in practice yet.
 	ListProductVariantsForSync(ctx context.Context, updatedAt time.Time) ([]ListProductVariantsForSyncRow, error)
 	ListProductVariantsUpdatedSince(ctx context.Context, updatedAt time.Time) ([]ProductVariant, error)
+	// Search matches code/name/description (case-insensitive). Every filter is
+	// optional: empty search string, NULL narg, or empty attribute_value_ids
+	// array all mean "don't filter on this". attribute_value_ids is an AND --
+	// the product must carry every selected value.
 	ListProducts(ctx context.Context, arg ListProductsParams) ([]Product, error)
-	ListPurchases(ctx context.Context, arg ListPurchasesParams) ([]Purchase, error)
+	ListPurchaseItems(ctx context.Context, purchaseID sql.NullInt64) ([]ListPurchaseItemsRow, error)
+	ListPurchases(ctx context.Context, arg ListPurchasesParams) ([]ListPurchasesRow, error)
 	ListRecurringExpenses(ctx context.Context) ([]RecurringExpense, error)
 	ListSalespersons(ctx context.Context, arg ListSalespersonsParams) ([]Salesperson, error)
 	ListSalespersonsByCashbox(ctx context.Context, cashboxID sql.NullInt64) ([]Salesperson, error)
@@ -310,20 +463,31 @@ type Querier interface {
 	ListSalespersonsUpdatedSince(ctx context.Context, arg ListSalespersonsUpdatedSinceParams) ([]Salesperson, error)
 	ListShifts(ctx context.Context, arg ListShiftsParams) ([]Shift, error)
 	ListSizes(ctx context.Context) ([]Size, error)
+	ListSizesPage(ctx context.Context, arg ListSizesPageParams) ([]Size, error)
+	ListStockMovements(ctx context.Context, arg ListStockMovementsParams) ([]ListStockMovementsRow, error)
 	// TOOD: add UpdateSupplier
 	ListSuppliers(ctx context.Context, arg ListSuppliersParams) ([]Supplier, error)
-	// TODO maybe this is not so clean
 	ListTransferItems(ctx context.Context, transferID int64) ([]ListTransferItemsRow, error)
-	ListTransfers(ctx context.Context, arg ListTransfersParams) ([]Transfer, error)
+	ListTransfers(ctx context.Context, arg ListTransfersParams) ([]ListTransfersRow, error)
 	ListUsers(ctx context.Context, arg ListUsersParams) ([]User, error)
+	ListVariantsForBarcodes(ctx context.Context, arg ListVariantsForBarcodesParams) ([]ListVariantsForBarcodesRow, error)
 	MarkBranchExpenseUploadTokenUsed(ctx context.Context, id int64) error
+	// Apply an inbound quantity delta and roll the per-location moving-average
+	// cost forward. When existing on-hand is <= 0 the average is just reset to
+	// the incoming cost (no meaningful prior average to blend).
+	ReceiveInventoryStock(ctx context.Context, arg ReceiveInventoryStockParams) (InventoryStock, error)
 	SetBranchActive(ctx context.Context, arg SetBranchActiveParams) error
+	SetBranchInventory(ctx context.Context, arg SetBranchInventoryParams) error
 	// The sync-facing "delete" -- see 000046_branch_target_soft_delete.up.sql
 	// for why this flips a flag instead of removing the row.
 	SetBranchTargetActive(ctx context.Context, arg SetBranchTargetActiveParams) (BranchTarget, error)
 	SetBranchTargetSeriesActive(ctx context.Context, arg SetBranchTargetSeriesActiveParams) (BranchTargetSeries, error)
+	SetPurchaseStatus(ctx context.Context, arg SetPurchaseStatusParams) (Purchase, error)
+	SetPurchaseTotals(ctx context.Context, arg SetPurchaseTotalsParams) error
 	SetRecurringExpenseActive(ctx context.Context, arg SetRecurringExpenseActiveParams) (RecurringExpense, error)
 	SetSalespersonActive(ctx context.Context, arg SetSalespersonActiveParams) (Salesperson, error)
+	SetTransferStatus(ctx context.Context, arg SetTransferStatusParams) (Transfer, error)
+	SetVariantBarcode(ctx context.Context, arg SetVariantBarcodeParams) (ProductVariant, error)
 	// Net sales revenue: same grand_total-sum convention as ListDailyIncome in
 	// branch_invoice.sql (returns already net out via their signed grand_total).
 	SumBranchRevenueForRange(ctx context.Context, arg SumBranchRevenueForRangeParams) (int64, error)
@@ -334,6 +498,7 @@ type Querier interface {
 	SumClientLoyaltyPoints(ctx context.Context, clientID int64) (int64, error)
 	UnsetDefaultDiscountList(ctx context.Context, id int64) error
 	UnsetDefaultPriceList(ctx context.Context, id int64) error
+	UpdateAppSettings(ctx context.Context, arg UpdateAppSettingsParams) (AppSetting, error)
 	UpdateAsset(ctx context.Context, arg UpdateAssetParams) error
 	UpdateAttributeValue(ctx context.Context, arg UpdateAttributeValueParams) (AttributesValue, error)
 	UpdateBranchAPIKeyHash(ctx context.Context, arg UpdateBranchAPIKeyHashParams) error
@@ -346,9 +511,11 @@ type Querier interface {
 	UpdateCashbox(ctx context.Context, arg UpdateCashboxParams) (Cashbox, error)
 	UpdateCashboxAccount(ctx context.Context, arg UpdateCashboxAccountParams) (CashboxAccount, error)
 	UpdateClient(ctx context.Context, arg UpdateClientParams) (Client, error)
+	UpdateColor(ctx context.Context, arg UpdateColorParams) (Color, error)
 	UpdateCurrency(ctx context.Context, arg UpdateCurrencyParams) (Currency, error)
 	UpdateDiscountList(ctx context.Context, arg UpdateDiscountListParams) error
 	UpdateDiscountListItem(ctx context.Context, arg UpdateDiscountListItemParams) error
+	UpdateExpense(ctx context.Context, arg UpdateExpenseParams) (Expense, error)
 	UpdateExpenseCategory(ctx context.Context, arg UpdateExpenseCategoryParams) (ExpenseCategory, error)
 	UpdateInventory(ctx context.Context, arg UpdateInventoryParams) error
 	UpdateInvoiceType(ctx context.Context, arg UpdateInvoiceTypeParams) (InvoiceType, error)
@@ -358,13 +525,20 @@ type Querier interface {
 	UpdateProduct(ctx context.Context, arg UpdateProductParams) error
 	UpdateProductAttribute(ctx context.Context, arg UpdateProductAttributeParams) error
 	UpdateProductVariant(ctx context.Context, arg UpdateProductVariantParams) (ProductVariant, error)
+	// Roll the variant's global moving-average cost forward on a stock receipt.
+	// current_qty is the on-hand across all locations before this receipt.
+	UpdateProductVariantAvgCost(ctx context.Context, arg UpdateProductVariantAvgCostParams) error
 	UpdateRecurringExpenseNextDue(ctx context.Context, arg UpdateRecurringExpenseNextDueParams) (RecurringExpense, error)
 	UpdateSalesperson(ctx context.Context, arg UpdateSalespersonParams) (Salesperson, error)
+	UpdateSize(ctx context.Context, arg UpdateSizeParams) (Size, error)
 	UpdateTransfer(ctx context.Context, arg UpdateTransferParams) error
 	UpdateUser(ctx context.Context, arg UpdateUserParams) error
 	UpsertAttributeValue(ctx context.Context, arg UpsertAttributeValueParams) (AttributesValue, error)
 	UpsertBranchSettings(ctx context.Context, arg UpsertBranchSettingsParams) (BranchSetting, error)
 	UpsertClientLink(ctx context.Context, arg UpsertClientLinkParams) error
+	UpsertDiscountListBranch(ctx context.Context, arg UpsertDiscountListBranchParams) error
+	UpsertPriceListBranch(ctx context.Context, arg UpsertPriceListBranchParams) error
+	UpsertProductAttribute(ctx context.Context, arg UpsertProductAttributeParams) error
 }
 
 var _ Querier = (*Queries)(nil)

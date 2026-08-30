@@ -1,16 +1,21 @@
 <template>
   <v-app>
-    <router-view />
+    <UnsupportedDevice v-if="isNonDesktopBlocked" />
+    <router-view v-else />
   </v-app>
 </template>
 
-<script setup>
-  import { onMounted } from 'vue'
-  import { useTheme } from 'vuetify'
+<script lang="ts" setup>
+  import { computed, onMounted } from 'vue'
+  import { useDisplay, useTheme } from 'vuetify'
+  import UnsupportedDevice from '@/components/UnsupportedDevice.vue'
+  import { BLOCK_NON_DESKTOP } from '@/config'
   import { useAppStore } from '@/stores/app'
 
   const vuetifyTheme = useTheme()
+  const { lgAndUp } = useDisplay()
   const appStore = useAppStore()
+  const isNonDesktopBlocked = computed(() => BLOCK_NON_DESKTOP && !lgAndUp.value)
 
   onMounted(() => {
     // Set initial theme from store

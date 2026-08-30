@@ -6,7 +6,7 @@
           class="me-4 mt-2"
           rounded="lg"
           v-bind="props"
-          style="border-color: rgb(var(--v-theme-surface-light));"
+          style="border-color: rgb(var(--v-theme-surface-light)); width: 120px;"
           variant="outlined"
         >
           {{ selectedLabel }}
@@ -14,7 +14,10 @@
       </template>
 
       <v-list>
-        <v-list-item :active="selectedBranchId === null" @click="selectedBranchId = null">
+        <v-list-item
+          :active="selectedBranchId === null"
+          @click="selectedBranchId = null"
+        >
           <v-list-item-title>All Branches</v-list-item-title>
         </v-list-item>
         <v-list-item

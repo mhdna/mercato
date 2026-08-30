@@ -10,6 +10,17 @@ import (
 	"database/sql"
 )
 
+const countExpenses = `-- name: CountExpenses :one
+SELECT COUNT(*) FROM expenses
+`
+
+func (q *Queries) CountExpenses(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countExpenses)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createExpense = `-- name: CreateExpense :one
 INSERT INTO expenses (
   description,
@@ -49,6 +60,16 @@ func (q *Queries) CreateExpense(ctx context.Context, arg CreateExpenseParams) (E
 		&i.CategoryID,
 	)
 	return i, err
+}
+
+const deleteExpense = `-- name: DeleteExpense :exec
+DELETE FROM expenses
+WHERE id = $1
+`
+
+func (q *Queries) DeleteExpense(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, deleteExpense, id)
+	return err
 }
 
 const getExpense = `-- name: GetExpense :one
@@ -112,4 +133,43 @@ func (q *Queries) ListExpenses(ctx context.Context, arg ListExpensesParams) ([]E
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateExpense = `-- name: UpdateExpense :one
+UPDATE expenses
+SET description = $2,
+    category_id = $3,
+    amount = $4,
+    currency_code = $5
+WHERE id = $1
+RETURNING id, description, amount, currency_code, created_at, recurring_expense_id, category_id
+`
+
+type UpdateExpenseParams struct {
+	ID           int64         `json:"id"`
+	Description  string        `json:"description"`
+	CategoryID   sql.NullInt64 `json:"category_id"`
+	Amount       int64         `json:"amount"`
+	CurrencyCode string        `json:"currency_code"`
+}
+
+func (q *Queries) UpdateExpense(ctx context.Context, arg UpdateExpenseParams) (Expense, error) {
+	row := q.db.QueryRowContext(ctx, updateExpense,
+		arg.ID,
+		arg.Description,
+		arg.CategoryID,
+		arg.Amount,
+		arg.CurrencyCode,
+	)
+	var i Expense
+	err := row.Scan(
+		&i.ID,
+		&i.Description,
+		&i.Amount,
+		&i.CurrencyCode,
+		&i.CreatedAt,
+		&i.RecurringExpenseID,
+		&i.CategoryID,
+	)
+	return i, err
 }

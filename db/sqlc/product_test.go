@@ -54,8 +54,9 @@ func TestListProducts(t *testing.T) {
 	}
 
 	arg := ListProductsParams{
-		Limit:  5,
-		Offset: 5,
+		PageLimit:         5,
+		PageOffset:        5,
+		AttributeValueIds: []int64{},
 	}
 
 	products, err := testQueries.ListProducts(context.Background(), arg)
@@ -74,6 +75,7 @@ func TestUpdateProduct(t *testing.T) {
 		Name:        util.RandomString(20),
 		Code:        util.RandomString(8),
 		Description: util.RandomString(200),
+		IsActive:    true,
 	}
 
 	err := testQueries.UpdateProduct(context.Background(), arg)

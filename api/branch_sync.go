@@ -29,10 +29,16 @@ func (server *Server) branchHealth(ctx *gin.Context) {
 // negative quantities, which pass required fine).
 type branchInvoiceItemRequest struct {
 	BranchProductID int64 `json:"branch_product_id" binding:"required"`
-	UnitPrice       int64 `json:"unit_price"`
-	LineTotal       int64 `json:"line_total"`
-	Discount        int16 `json:"discount"`
-	Quantity        int64 `json:"quantity" binding:"required"`
+	// Barcode is the SKU's globally-unique barcode; it's how kashi resolves
+	// a branch line to a central product_variants row so the branch's store
+	// inventory can be decremented. Optional -- an older kashi-pos build
+	// that hasn't been updated omits it, and such a line is recorded but
+	// doesn't move central stock.
+	Barcode   string `json:"barcode"`
+	UnitPrice int64  `json:"unit_price"`
+	LineTotal int64  `json:"line_total"`
+	Discount  int16  `json:"discount"`
+	Quantity  int64  `json:"quantity" binding:"required"`
 }
 
 // branchInvoiceRequest is deliberately NOT the same shape as
@@ -74,6 +80,18 @@ type branchInvoiceRequest struct {
 	// Required for returns only: the client_ref (within this same branch)
 	// of the sale being returned/exchanged against.
 	RelatedClientRef string `json:"related_client_ref"`
+
+	// Both best-effort display data, not synced/shared entities -- see the
+	// matching comment on branchInvoicePaymentPayload in kashi-pos's
+	// sync_outbox.go. Neither is required: an older kashi-pos build that
+	// hasn't been updated yet simply omits them.
+	SalespersonName string                        `json:"salesperson_name"`
+	Payments        []branchInvoicePaymentRequest `json:"payments"`
+}
+
+type branchInvoicePaymentRequest struct {
+	AccountName string `json:"account_name" binding:"required"`
+	Amount      int64  `json:"amount"`
 }
 
 func (server *Server) createBranchInvoice(ctx *gin.Context, kind string) {
@@ -113,10 +131,19 @@ func (server *Server) createBranchInvoice(ctx *gin.Context, kind string) {
 	for _, item := range req.Items {
 		items = append(items, db.BranchInvoiceItemParams{
 			BranchProductID: item.BranchProductID,
+			Barcode:         item.Barcode,
 			UnitPrice:       item.UnitPrice,
 			LineTotal:       item.LineTotal,
 			Discount:        item.Discount,
 			Quantity:        item.Quantity,
+		})
+	}
+
+	payments := make([]db.BranchInvoicePaymentParams, 0, len(req.Payments))
+	for _, payment := range req.Payments {
+		payments = append(payments, db.BranchInvoicePaymentParams{
+			AccountName: payment.AccountName,
+			Amount:      payment.Amount,
 		})
 	}
 
@@ -137,8 +164,10 @@ func (server *Server) createBranchInvoice(ctx *gin.Context, kind string) {
 			GrandTotal:             req.GrandTotal,
 			LoyaltyPointsDelta:     req.LoyaltyPointsDelta,
 			OccurredAt:             req.OccurredAt,
+			SalespersonName:        req.SalespersonName,
 		},
-		Items: items,
+		Items:    items,
+		Payments: payments,
 	})
 	if err != nil {
 		if isUniqueViolation(err) {
@@ -181,7 +210,7 @@ func (server *Server) createBranchInvoice(ctx *gin.Context, kind string) {
 		Label:        req.BranchInvoiceCode,
 	})
 
-	server.writeJSON(ctx, http.StatusOK, envelope{"invoice": result.Invoice, "items": result.Items})
+	server.writeJSON(ctx, http.StatusOK, envelope{"invoice": result.Invoice, "items": result.Items, "payments": result.Payments})
 }
 
 func (server *Server) createBranchSalesInvoice(ctx *gin.Context) {

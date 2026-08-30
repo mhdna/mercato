@@ -10,6 +10,19 @@ import (
 	"time"
 )
 
+const countPriceListsFiltered = `-- name: CountPriceListsFiltered :one
+SELECT COUNT(*) FROM price_lists
+WHERE BTRIM($1::text) = ''
+   OR name ILIKE '%' || BTRIM($1::text) || '%'
+`
+
+func (q *Queries) CountPriceListsFiltered(ctx context.Context, search string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countPriceListsFiltered, search)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createPriceList = `-- name: CreatePriceList :one
 INSERT INTO price_lists (
   name,
@@ -51,6 +64,16 @@ func (q *Queries) CreatePriceList(ctx context.Context, arg CreatePriceListParams
 	return i, err
 }
 
+const deletePriceList = `-- name: DeletePriceList :exec
+DELETE FROM price_lists
+WHERE id = $1
+`
+
+func (q *Queries) DeletePriceList(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, deletePriceList, id)
+	return err
+}
+
 const getPriceList = `-- name: GetPriceList :one
 SELECT id, name, is_active, is_default, valid_from, valid_to, created_at FROM price_lists
 WHERE id = $1 LIMIT 1
@@ -73,18 +96,21 @@ func (q *Queries) GetPriceList(ctx context.Context, id int64) (PriceList, error)
 
 const listPriceLists = `-- name: ListPriceLists :many
 SELECT id, name, is_active, is_default, valid_from, valid_to, created_at FROM price_lists
-ORDER BY name
-LIMIT $1
+WHERE BTRIM($1::text) = ''
+   OR name ILIKE '%' || BTRIM($1::text) || '%'
+ORDER BY id DESC
+LIMIT $3
 OFFSET $2
 `
 
 type ListPriceListsParams struct {
-	Limit  int32 `json:"limit"`
-	Offset int32 `json:"offset"`
+	Search     string `json:"search"`
+	PageOffset int32  `json:"page_offset"`
+	PageSize   int32  `json:"page_size"`
 }
 
 func (q *Queries) ListPriceLists(ctx context.Context, arg ListPriceListsParams) ([]PriceList, error) {
-	rows, err := q.db.QueryContext(ctx, listPriceLists, arg.Limit, arg.Offset)
+	rows, err := q.db.QueryContext(ctx, listPriceLists, arg.Search, arg.PageOffset, arg.PageSize)
 	if err != nil {
 		return nil, err
 	}

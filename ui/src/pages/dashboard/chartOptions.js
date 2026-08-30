@@ -35,20 +35,3 @@ export function buildChartOptions (dates, revenue, expenses) {
     },
   }
 }
-
-export function generateMockData () {
-  const dates = []
-  const revenue = []
-  const expenses = []
-
-  for (let i = 29; i >= 0; i--) {
-    const d = new Date()
-    d.setDate(d.getDate() - i)
-    dates.push(d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }))
-    const r = Math.round(Math.random() * 5000 + 500)
-    revenue.push(r)
-    expenses.push(Math.round(Math.random() * (r * 0.6) + 50))
-  }
-
-  return { dates, revenue, expenses }
-}

@@ -9,7 +9,7 @@ import (
 )
 
 type returnInvoiceItemRequest struct {
-	ProductID int64 `json:"product_id" binding:"required"`
+	VariantID int64 `json:"variant_id" binding:"required"`
 	UnitPrice int64 `json:"unit_price" binding:"required"`
 	LineTotal int64 `json:"line_total" binding:"required"`
 	Discount  int16 `json:"discount"`
@@ -30,6 +30,7 @@ type createReturnInvoiceRequest struct {
 	DiscountedTotal  int64                      `json:"discounted_total" binding:"required"`
 	Items            []returnInvoiceItemRequest `json:"items" binding:"required,min=1,dive"`
 	PriceListID      *int64                     `json:"price_list_id"`
+	SalespersonID    *int64                     `json:"salesperson_id"`
 }
 
 func (server *Server) createReturnInvoice(ctx *gin.Context) {
@@ -47,12 +48,17 @@ func (server *Server) createReturnInvoice(ctx *gin.Context) {
 	items := make([]db.ReturnInvoiceItem, 0, len(req.Items))
 	for _, item := range req.Items {
 		items = append(items, db.ReturnInvoiceItem{
-			ProductID: item.ProductID,
+			VariantID: item.VariantID,
 			UnitPrice: item.UnitPrice,
 			LineTotal: item.LineTotal,
 			Discount:  item.Discount,
 			Quantity:  item.Quantity,
 		})
+	}
+
+	var salespersonID sql.NullInt64
+	if req.SalespersonID != nil {
+		salespersonID = sql.NullInt64{Int64: *req.SalespersonID, Valid: true}
 	}
 
 	arg := db.ReturnInvoiceTxParams{
@@ -69,6 +75,7 @@ func (server *Server) createReturnInvoice(ctx *gin.Context) {
 		DiscountedTotal:  req.DiscountedTotal,
 		Items:            items,
 		PriceListID:      priceListID,
+		SalespersonID:    salespersonID,
 	}
 
 	returnInvoice, err := server.store.ReturnInvoiceTx(ctx, arg)

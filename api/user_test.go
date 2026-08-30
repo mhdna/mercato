@@ -41,8 +41,7 @@ func TestCreateUserAPI(t *testing.T) {
 			name: "OK",
 			body: map[string]interface{}{
 				"name":      user.Name,
-				"email":     user.Email,
-				"password":  "secret123",
+				"password":  "123456",
 				"activated": true,
 			},
 			buildStubs: func(store *mockdb.MockStore) {
@@ -60,8 +59,7 @@ func TestCreateUserAPI(t *testing.T) {
 			name: "InternalError",
 			body: map[string]interface{}{
 				"name":      user.Name,
-				"email":     user.Email,
-				"password":  "secret123",
+				"password":  "123456",
 				"activated": true,
 			},
 			buildStubs: func(store *mockdb.MockStore) {
@@ -108,6 +106,8 @@ func TestCreateUserAPI(t *testing.T) {
 
 			request, err := http.NewRequest(http.MethodPost, "/users", bytes.NewReader(body))
 			require.NoError(t, err)
+
+			addAuthorization(t, request, server.tokenMaker, authorizationTypeBearer, "user", time.Minute)
 
 			server.router.ServeHTTP(recorder, request)
 			tc.checkResponse(t, recorder)
@@ -364,7 +364,6 @@ func requiredBodyMatchUser(t *testing.T, body *bytes.Buffer, user db.User) {
 	err = json.Unmarshal(data, &gotUser)
 	require.NoError(t, err)
 	require.Equal(t, user.Name, gotUser.Name)
-	require.Equal(t, user.Email, gotUser.Email)
 	require.Equal(t, user.Activated, gotUser.Activated)
 }
 
@@ -378,7 +377,6 @@ func requireBodyMatchUsers(t *testing.T, body *bytes.Buffer, users []db.User) {
 	require.Equal(t, len(users), len(gotUsers))
 	for i := range users {
 		require.Equal(t, users[i].Name, gotUsers[i].Name)
-		require.Equal(t, users[i].Email, gotUsers[i].Email)
 		require.Equal(t, users[i].Activated, gotUsers[i].Activated)
 	}
 }

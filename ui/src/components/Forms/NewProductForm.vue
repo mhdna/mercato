@@ -1,169 +1,176 @@
 <template>
-  <form @submit.prevent="submit">
-    <v-row>
-      <v-col cols="8">
-        <div class="w-100">
-          <v-row>
-            <v-col cols="6">
-              <v-text-field
-                v-model="code.value.value"
-                :counter="20"
-                density="compact"
-                :error-messages="code.errorMessage.value"
-                label="Code"
-              />
-            </v-col>
-            <v-col cols="6">
-              <v-text-field
-                v-model="name.value.value"
-                :counter="100"
-                density="compact"
-                :error-messages="name.errorMessage.value"
-                label="Name"
-              />
-            </v-col>
-          </v-row>
+  <form class="new-product-form" @submit.prevent="submit">
+    <v-row dense>
+      <v-col cols="12" sm="6">
+        <v-text-field
+          v-model="code.value.value"
+          density="compact"
+          :error-messages="code.errorMessage.value"
+          label="Code"
+          variant="outlined"
+        />
+      </v-col>
+      <v-col cols="12" sm="6">
+        <v-text-field
+          v-model="name.value.value"
+          density="compact"
+          :error-messages="name.errorMessage.value"
+          label="Name"
+          variant="outlined"
+        />
+      </v-col>
+    </v-row>
 
-          <v-textarea
-            v-model="description.value.value"
-            :counter="100"
-            :error-messages="description.errorMessage.value"
-            label="Description"
-            no-resize
-            rows="2"
-          />
+    <v-textarea
+      v-model="description.value.value"
+      auto-grow
+      density="compact"
+      :error-messages="description.errorMessage.value"
+      label="Description"
+      rows="2"
+      variant="outlined"
+    />
 
-          <v-row>
-            <v-col cols="4">
-              <v-text-field v-model="category.value.value" density="compact" label="Category" />
-            </v-col>
-            <v-col cols="4">
-              <v-text-field v-model="subCategory.value.value" density="compact" label="Sub-Category" />
-            </v-col>
-            <v-col cols="4">
-              <v-text-field v-model="brand.value.value" density="compact" label="Brand" />
-            </v-col>
-            <v-col cols="4">
-              <v-text-field v-model="kind.value.value" density="compact" label="Kind" />
-            </v-col>
-            <v-col cols="4">
-              <v-text-field v-model="type.value.value" density="compact" label="Type" />
-            </v-col>
-            <v-col cols="4">
-              <v-text-field v-model="unit.value.value" density="compact" label="Unit" />
-            </v-col>
-            <v-col cols="4">
-              <v-text-field v-model="year.value.value" density="compact" label="Year" />
-            </v-col>
-            <v-col cols="4">
-              <v-text-field v-model="season.value.value" density="compact" label="Season" />
-            </v-col>
-            <v-col cols="4">
-              <v-text-field v-model="origin.value.value" density="compact" label="Origin" />
-            </v-col>
-          </v-row>
+    <div class="text-overline text-medium-emphasis mt-1 mb-1">Attributes</div>
+    <v-row dense>
+      <v-col v-for="field in attributeFields" :key="field.key" cols="12" sm="6">
+        <v-combobox
+          v-model="field.model.value.value"
+          clearable
+          density="compact"
+          hide-details="auto"
+          :items="optionsFor(field.attribute)"
+          :label="field.label"
+          variant="outlined"
+        />
+      </v-col>
+    </v-row>
 
-          <v-text-field
-            v-model.number="barcode.value.value"
-            clearable
-            density="compact"
-            :error-messages="barcode.errorMessage.value"
-            hint="Leave empty to auto-generate a barcode"
-            label="Barcode (optional)"
-            persistent-hint
-            type="number"
-          />
-
-          <div class="d-flex align-center mt-4" style="gap: 12px;">
-            <v-select
-              v-model="colorId.value.value"
-              clearable
-              density="compact"
-              :error-messages="colorId.errorMessage.value"
-              :item-title="c => c.name"
-              :item-value="c => c.id"
-              :items="colors"
-              label="Color"
-            >
-              <template #item="{ props: itemProps, item }">
-                <v-list-item v-bind="itemProps">
-                  <template #prepend>
-                    <div
-                      class="rounded me-2"
-                      :style="{ backgroundColor: item.raw.hexValue, width: '16px', height: '16px', border: '1px solid #999' }"
-                    />
-                  </template>
-                </v-list-item>
+    <div class="text-overline text-medium-emphasis mt-3 mb-1">Variants</div>
+    <v-row dense>
+      <v-col cols="12" sm="6">
+        <v-autocomplete
+          v-model="colorIds.value.value"
+          chips
+          clearable
+          closable-chips
+          density="compact"
+          hide-details="auto"
+          item-title="name"
+          item-value="id"
+          :items="colors"
+          label="Colors"
+          :menu-props="{ maxHeight: 320 }"
+          multiple
+          variant="outlined"
+        >
+          <!-- Vuetify 4: #item slot's `item` is the raw record, not an InternalItem. -->
+          <template #item="{ props: itemProps, item }">
+            <v-list-item v-bind="itemProps" :title="item.name">
+              <template #prepend>
+                <div
+                  class="rounded me-2 swatch"
+                  :style="{ backgroundColor: item.hex_value || 'transparent' }"
+                />
               </template>
-            </v-select>
-            <v-select
-              v-model="sizeId.value.value"
-              clearable
-              density="compact"
-              :error-messages="sizeId.errorMessage.value"
-              :item-title="s => `${s.type}: ${s.name}`"
-              :item-value="s => s.id"
-              :items="sizes"
-              label="Size"
-            />
-            <ColorsSizesDialog />
-          </div>
-        </div>
+            </v-list-item>
+          </template>
+        </v-autocomplete>
       </v-col>
-      <v-col class="4">
-        <v-card class="pa-5" flat height="650" width="100%">
-          <FileUploadCard />
-        </v-card>
-      </v-col>
-    </v-row>
-
-    <v-alert v-if="submitError" class="mb-4" type="error" variant="tonal">{{ submitError }}</v-alert>
-
-    <v-row>
-      <v-col>
-        <v-btn class="w-100" variant="solid" @click="handleReset"> clear </v-btn>
-      </v-col>
-      <v-col>
-        <v-btn class="me-4 w-100" :loading="submitting" type="submit" variant="solid"> Add Product </v-btn>
+      <v-col cols="12" sm="6">
+        <v-autocomplete
+          v-model="sizeIds.value.value"
+          chips
+          clearable
+          closable-chips
+          density="compact"
+          hide-details="auto"
+          :item-title="s => `${s.type}: ${s.name}`"
+          item-value="id"
+          :items="sizes"
+          label="Sizes"
+          :menu-props="{ maxHeight: 320 }"
+          multiple
+          variant="outlined"
+        />
       </v-col>
     </v-row>
+    <div class="text-caption text-medium-emphasis mt-1">
+      {{ variantCount }} variant{{ variantCount === 1 ? '' : 's' }} will be created,
+      each with its own barcode.
+    </div>
+
+    <v-text-field
+      v-model.number="barcode.value.value"
+      class="mt-3"
+      clearable
+      density="compact"
+      :disabled="variantCount > 1"
+      :error-messages="barcode.errorMessage.value"
+      :hint="variantCount > 1 ? 'Barcodes are auto-generated when creating multiple variants' : 'Leave empty to auto-generate'"
+      label="Barcode (optional)"
+      persistent-hint
+      type="number"
+      variant="outlined"
+    />
+
+    <v-alert
+      v-if="submitError"
+      class="mt-4"
+      density="compact"
+      type="error"
+      variant="tonal"
+    >
+      {{ submitError }}
+    </v-alert>
+
+    <div class="d-flex justify-end ga-2 mt-4">
+      <v-btn text="Clear" variant="text" @click="handleReset" />
+      <v-btn
+        color="primary"
+        :loading="submitting"
+        text="Add Product"
+        type="submit"
+        variant="flat"
+      />
+    </div>
   </form>
 </template>
+
 <script setup>
   import { useField, useForm } from 'vee-validate'
-  import { ref } from 'vue'
-  import ColorsSizesDialog from '@/components/Forms/ColorsSizesDialog.vue'
+  import { computed, ref } from 'vue'
   import { authFetch } from '@/composables/useApi'
+  import { useAttributes } from '@/composables/useAttributes'
   import { useColorsAndSizes } from '@/composables/useColorsAndSizes'
   import { API_BASE } from '@/config'
 
   const emit = defineEmits(['created'])
 
   const { colors, sizes, fetchColors, fetchSizes } = useColorsAndSizes()
+  const { valuesByType, fetchAll: fetchAttributes } = useAttributes()
   fetchColors()
   fetchSizes()
+  fetchAttributes()
 
   const { handleSubmit, handleReset } = useForm({
     validationSchema: {
       code (value) {
-        if (value?.length >= 1) return true
-        return 'Code is required.'
+        return value?.length >= 1 ? true : 'Code is required.'
       },
       name (value) {
-        if (value?.length >= 2) return true
-        return 'Name needs to be at least 2 characters.'
+        return value?.length >= 2 ? true : 'Name needs to be at least 2 characters.'
       },
       description (value) {
-        if (value?.length >= 1) return true
-        return 'Description is required.'
+        return value?.length >= 1 ? true : 'Description is required.'
       },
       barcode () {
         return true
       },
-      colorId () {
+      colorIds () {
         return true
       },
-      sizeId () {
+      sizeIds () {
         return true
       },
     },
@@ -172,18 +179,33 @@
   const code = useField('code')
   const name = useField('name')
   const description = useField('description')
-  const category = useField('category')
-  const subCategory = useField('subCategory')
-  const brand = useField('brand')
-  const kind = useField('kind')
-  const type = useField('type')
-  const unit = useField('unit')
-  const year = useField('year')
-  const season = useField('season')
-  const origin = useField('origin')
   const barcode = useField('barcode')
-  const colorId = useField('colorId')
-  const sizeId = useField('sizeId')
+  const colorIds = useField('colorIds', undefined, { initialValue: [] })
+  const sizeIds = useField('sizeIds', undefined, { initialValue: [] })
+
+  // One variant per colour x size; at least one either way.
+  const variantCount = computed(() => {
+    const c = colorIds.value.value?.length || 0
+    const s = sizeIds.value.value?.length || 0
+    return Math.max(1, c || 1) * Math.max(1, s || 1)
+  })
+
+  // key -> payload key sent to the API; attribute -> seeded attribute type name.
+  const attributeFields = [
+    { key: 'category', attribute: 'category', label: 'Category', model: useField('category') },
+    { key: 'subcategory', attribute: 'sub-category', label: 'Sub-Category', model: useField('subcategory') },
+    { key: 'brand', attribute: 'brand', label: 'Brand', model: useField('brand') },
+    { key: 'kind', attribute: 'kind', label: 'Kind', model: useField('kind') },
+    { key: 'type', attribute: 'type', label: 'Type', model: useField('type') },
+    { key: 'unit', attribute: 'unit', label: 'Unit', model: useField('unit') },
+    { key: 'year', attribute: 'year', label: 'Year', model: useField('year') },
+    { key: 'season', attribute: 'season', label: 'Season', model: useField('season') },
+    { key: 'origin', attribute: 'origin', label: 'Origin', model: useField('origin') },
+  ]
+
+  function optionsFor (attribute) {
+    return (valuesByType.value[attribute] ?? []).map(v => v.value)
+  }
 
   const submitting = ref(false)
   const submitError = ref('')
@@ -192,6 +214,11 @@
     submitting.value = true
     submitError.value = ''
     try {
+      const attributes = {}
+      for (const field of attributeFields) {
+        attributes[field.key] = values[field.key] ?? ''
+      }
+
       const res = await authFetch(`${API_BASE}/products`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -199,20 +226,10 @@
           code: values.code,
           name: values.name,
           description: values.description,
-          attributes: {
-            category: values.category ?? '',
-            subcategory: values.subCategory ?? '',
-            brand: values.brand ?? '',
-            kind: values.kind ?? '',
-            type: values.type ?? '',
-            unit: values.unit ?? '',
-            year: values.year ?? '',
-            season: values.season ?? '',
-            origin: values.origin ?? '',
-          },
-          barcode: values.barcode || null,
-          color_id: values.colorId || null,
-          size_id: values.sizeId || null,
+          attributes,
+          barcode: variantCount.value > 1 ? null : (values.barcode || null),
+          color_ids: values.colorIds ?? [],
+          size_ids: values.sizeIds ?? [],
         }),
       })
 
@@ -230,3 +247,14 @@
     }
   })
 </script>
+
+<style scoped>
+.new-product-form {
+  width: 100%;
+}
+.swatch {
+  width: 16px;
+  height: 16px;
+  border: 1px solid rgba(128, 128, 128, 0.6);
+}
+</style>

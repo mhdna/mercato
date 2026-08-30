@@ -14,19 +14,19 @@ import (
 const addPurchaseItem = `-- name: AddPurchaseItem :one
 INSERT INTO purchase_items (
   purchase_id,
-  product_id,
+  variant_id,
   asset_id,
   quantity,
   unit_price,
   currency_code
-) 
+)
 VALUES ( $1, $2, $3, $4, $5, $6 )
-RETURNING id, purchase_id, product_id, asset_id, quantity, unit_price, currency_code
+RETURNING id, purchase_id, asset_id, quantity, unit_price, currency_code, variant_id
 `
 
 type AddPurchaseItemParams struct {
 	PurchaseID   sql.NullInt64 `json:"purchase_id"`
-	ProductID    sql.NullInt64 `json:"product_id"`
+	VariantID    sql.NullInt64 `json:"variant_id"`
 	AssetID      sql.NullInt64 `json:"asset_id"`
 	Quantity     int64         `json:"quantity"`
 	UnitPrice    int64         `json:"unit_price"`
@@ -36,7 +36,7 @@ type AddPurchaseItemParams struct {
 func (q *Queries) AddPurchaseItem(ctx context.Context, arg AddPurchaseItemParams) (PurchaseItem, error) {
 	row := q.db.QueryRowContext(ctx, addPurchaseItem,
 		arg.PurchaseID,
-		arg.ProductID,
+		arg.VariantID,
 		arg.AssetID,
 		arg.Quantity,
 		arg.UnitPrice,
@@ -46,11 +46,11 @@ func (q *Queries) AddPurchaseItem(ctx context.Context, arg AddPurchaseItemParams
 	err := row.Scan(
 		&i.ID,
 		&i.PurchaseID,
-		&i.ProductID,
 		&i.AssetID,
 		&i.Quantity,
 		&i.UnitPrice,
 		&i.CurrencyCode,
+		&i.VariantID,
 	)
 	return i, err
 }
@@ -59,7 +59,7 @@ const addPurchasedProduct = `-- name: AddPurchasedProduct :one
 INSERT INTO product_suppliers (
   product_id,
   supplier_id
-) 
+)
 VALUES ( $1, $2 )
 RETURNING id, product_id, supplier_id
 `
@@ -81,8 +81,9 @@ INSERT INTO product_supplier_costs (
   product_supplier_id,
   unit_cost,
   currency_code
-) 
+)
 VALUES ( $1, $2, $3 )
+ON CONFLICT (product_supplier_id, unit_cost) DO NOTHING
 RETURNING product_supplier_id, unit_cost, currency_code, created_at
 `
 
@@ -104,12 +105,23 @@ func (q *Queries) AddPurchasedProductCost(ctx context.Context, arg AddPurchasedP
 	return i, err
 }
 
-const countPurchases = `-- name: CountPurchases :one
-SELECT COUNT(*) FROM purchases
+const countPurchasesFiltered = `-- name: CountPurchasesFiltered :one
+SELECT COUNT(*)
+FROM purchases p
+JOIN suppliers s ON s.id = p.supplier_id
+LEFT JOIN inventories i ON i.id = p.inventory_id
+WHERE (
+  BTRIM($1::text) = ''
+  OR p.code ILIKE '%' || BTRIM($1::text) || '%'
+  OR s.name ILIKE '%' || BTRIM($1::text) || '%'
+  OR COALESCE(i.name, '') ILIKE '%' || BTRIM($1::text) || '%'
+  OR p.status::text ILIKE '%' || BTRIM($1::text) || '%'
+  OR p.currency_code ILIKE '%' || BTRIM($1::text) || '%'
+)
 `
 
-func (q *Queries) CountPurchases(ctx context.Context) (int64, error) {
-	row := q.db.QueryRowContext(ctx, countPurchases)
+func (q *Queries) CountPurchasesFiltered(ctx context.Context, search string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countPurchasesFiltered, search)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -118,58 +130,187 @@ func (q *Queries) CountPurchases(ctx context.Context) (int64, error) {
 const createPurchase = `-- name: CreatePurchase :one
 INSERT INTO purchases (
   supplier_id,
-  purchased_at
-) 
-VALUES ( $1, $2 )
-RETURNING id, supplier_id, purchased_at
+  inventory_id,
+  code,
+  currency_code,
+  purchased_at,
+  note
+)
+VALUES ( $1, $2, $3, $4, $5, $6 )
+RETURNING id, supplier_id, purchased_at, inventory_id, code, currency_code, subtotal, grand_total, status, received_at, note
 `
 
 type CreatePurchaseParams struct {
-	SupplierID  int64     `json:"supplier_id"`
-	PurchasedAt time.Time `json:"purchased_at"`
+	SupplierID   int64         `json:"supplier_id"`
+	InventoryID  sql.NullInt64 `json:"inventory_id"`
+	Code         string        `json:"code"`
+	CurrencyCode string        `json:"currency_code"`
+	PurchasedAt  time.Time     `json:"purchased_at"`
+	Note         string        `json:"note"`
 }
 
 func (q *Queries) CreatePurchase(ctx context.Context, arg CreatePurchaseParams) (Purchase, error) {
-	row := q.db.QueryRowContext(ctx, createPurchase, arg.SupplierID, arg.PurchasedAt)
+	row := q.db.QueryRowContext(ctx, createPurchase,
+		arg.SupplierID,
+		arg.InventoryID,
+		arg.Code,
+		arg.CurrencyCode,
+		arg.PurchasedAt,
+		arg.Note,
+	)
 	var i Purchase
-	err := row.Scan(&i.ID, &i.SupplierID, &i.PurchasedAt)
+	err := row.Scan(
+		&i.ID,
+		&i.SupplierID,
+		&i.PurchasedAt,
+		&i.InventoryID,
+		&i.Code,
+		&i.CurrencyCode,
+		&i.Subtotal,
+		&i.GrandTotal,
+		&i.Status,
+		&i.ReceivedAt,
+		&i.Note,
+	)
+	return i, err
+}
+
+const deletePurchaseItem = `-- name: DeletePurchaseItem :exec
+DELETE FROM purchase_items
+WHERE purchase_items.id = $1
+  AND purchase_items.purchase_id IN (
+    SELECT purchases.id FROM purchases
+    WHERE purchases.id = $2 AND purchases.status = 'draft'
+  )
+`
+
+type DeletePurchaseItemParams struct {
+	ID   int64 `json:"id"`
+	ID_2 int64 `json:"id_2"`
+}
+
+func (q *Queries) DeletePurchaseItem(ctx context.Context, arg DeletePurchaseItemParams) error {
+	_, err := q.db.ExecContext(ctx, deletePurchaseItem, arg.ID, arg.ID_2)
+	return err
+}
+
+const getProductSupplier = `-- name: GetProductSupplier :one
+SELECT id, product_id, supplier_id FROM product_suppliers
+WHERE product_id = $1 AND supplier_id = $2
+LIMIT 1
+`
+
+type GetProductSupplierParams struct {
+	ProductID  int64 `json:"product_id"`
+	SupplierID int64 `json:"supplier_id"`
+}
+
+func (q *Queries) GetProductSupplier(ctx context.Context, arg GetProductSupplierParams) (ProductSupplier, error) {
+	row := q.db.QueryRowContext(ctx, getProductSupplier, arg.ProductID, arg.SupplierID)
+	var i ProductSupplier
+	err := row.Scan(&i.ID, &i.ProductID, &i.SupplierID)
 	return i, err
 }
 
 const getPurchase = `-- name: GetPurchase :one
-SELECT id, supplier_id, purchased_at FROM purchases
-WHERE id = $1 LIMIT 1
+SELECT
+  p.id, p.supplier_id, p.purchased_at, p.inventory_id, p.code, p.currency_code, p.subtotal, p.grand_total, p.status, p.received_at, p.note,
+  s.name AS supplier_name,
+  i.name AS inventory_name
+FROM purchases p
+JOIN suppliers s ON s.id = p.supplier_id
+LEFT JOIN inventories i ON i.id = p.inventory_id
+WHERE p.id = $1 LIMIT 1
 `
 
-func (q *Queries) GetPurchase(ctx context.Context, id int64) (Purchase, error) {
+type GetPurchaseRow struct {
+	ID            int64          `json:"id"`
+	SupplierID    int64          `json:"supplier_id"`
+	PurchasedAt   time.Time      `json:"purchased_at"`
+	InventoryID   sql.NullInt64  `json:"inventory_id"`
+	Code          string         `json:"code"`
+	CurrencyCode  string         `json:"currency_code"`
+	Subtotal      int64          `json:"subtotal"`
+	GrandTotal    int64          `json:"grand_total"`
+	Status        PurchaseStatus `json:"status"`
+	ReceivedAt    sql.NullTime   `json:"received_at"`
+	Note          string         `json:"note"`
+	SupplierName  string         `json:"supplier_name"`
+	InventoryName sql.NullString `json:"inventory_name"`
+}
+
+func (q *Queries) GetPurchase(ctx context.Context, id int64) (GetPurchaseRow, error) {
 	row := q.db.QueryRowContext(ctx, getPurchase, id)
-	var i Purchase
-	err := row.Scan(&i.ID, &i.SupplierID, &i.PurchasedAt)
+	var i GetPurchaseRow
+	err := row.Scan(
+		&i.ID,
+		&i.SupplierID,
+		&i.PurchasedAt,
+		&i.InventoryID,
+		&i.Code,
+		&i.CurrencyCode,
+		&i.Subtotal,
+		&i.GrandTotal,
+		&i.Status,
+		&i.ReceivedAt,
+		&i.Note,
+		&i.SupplierName,
+		&i.InventoryName,
+	)
 	return i, err
 }
 
-const listPurchases = `-- name: ListPurchases :many
-SELECT id, supplier_id, purchased_at FROM purchases
-ORDER BY id
-LIMIT $1
-OFFSET $2
+const listPurchaseItems = `-- name: ListPurchaseItems :many
+SELECT
+  pi.id, pi.purchase_id, pi.asset_id, pi.quantity, pi.unit_price, pi.currency_code, pi.variant_id,
+  p.name AS product_name,
+  p.code AS product_code,
+  pv.barcode AS variant_barcode,
+  a.name AS asset_name
+FROM purchase_items pi
+LEFT JOIN product_variants pv ON pv.id = pi.variant_id
+LEFT JOIN products p ON p.id = pv.product_id
+LEFT JOIN assets a ON a.id = pi.asset_id
+WHERE pi.purchase_id = $1
+ORDER BY pi.id
 `
 
-type ListPurchasesParams struct {
-	Limit  int32 `json:"limit"`
-	Offset int32 `json:"offset"`
+type ListPurchaseItemsRow struct {
+	ID             int64          `json:"id"`
+	PurchaseID     sql.NullInt64  `json:"purchase_id"`
+	AssetID        sql.NullInt64  `json:"asset_id"`
+	Quantity       int64          `json:"quantity"`
+	UnitPrice      int64          `json:"unit_price"`
+	CurrencyCode   string         `json:"currency_code"`
+	VariantID      sql.NullInt64  `json:"variant_id"`
+	ProductName    sql.NullString `json:"product_name"`
+	ProductCode    sql.NullString `json:"product_code"`
+	VariantBarcode sql.NullString `json:"variant_barcode"`
+	AssetName      sql.NullString `json:"asset_name"`
 }
 
-func (q *Queries) ListPurchases(ctx context.Context, arg ListPurchasesParams) ([]Purchase, error) {
-	rows, err := q.db.QueryContext(ctx, listPurchases, arg.Limit, arg.Offset)
+func (q *Queries) ListPurchaseItems(ctx context.Context, purchaseID sql.NullInt64) ([]ListPurchaseItemsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listPurchaseItems, purchaseID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []Purchase{}
+	items := []ListPurchaseItemsRow{}
 	for rows.Next() {
-		var i Purchase
-		if err := rows.Scan(&i.ID, &i.SupplierID, &i.PurchasedAt); err != nil {
+		var i ListPurchaseItemsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.PurchaseID,
+			&i.AssetID,
+			&i.Quantity,
+			&i.UnitPrice,
+			&i.CurrencyCode,
+			&i.VariantID,
+			&i.ProductName,
+			&i.ProductCode,
+			&i.VariantBarcode,
+			&i.AssetName,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -181,4 +322,138 @@ func (q *Queries) ListPurchases(ctx context.Context, arg ListPurchasesParams) ([
 		return nil, err
 	}
 	return items, nil
+}
+
+const listPurchases = `-- name: ListPurchases :many
+SELECT
+  p.id, p.supplier_id, p.purchased_at, p.inventory_id, p.code, p.currency_code, p.subtotal, p.grand_total, p.status, p.received_at, p.note,
+  s.name AS supplier_name,
+  i.name AS inventory_name,
+  (SELECT COUNT(*) FROM purchase_items x WHERE x.purchase_id = p.id) AS item_count
+FROM purchases p
+JOIN suppliers s ON s.id = p.supplier_id
+LEFT JOIN inventories i ON i.id = p.inventory_id
+WHERE (
+  BTRIM($1::text) = ''
+  OR p.code ILIKE '%' || BTRIM($1::text) || '%'
+  OR s.name ILIKE '%' || BTRIM($1::text) || '%'
+  OR COALESCE(i.name, '') ILIKE '%' || BTRIM($1::text) || '%'
+  OR p.status::text ILIKE '%' || BTRIM($1::text) || '%'
+  OR p.currency_code ILIKE '%' || BTRIM($1::text) || '%'
+)
+ORDER BY p.id DESC
+LIMIT $3
+OFFSET $2
+`
+
+type ListPurchasesParams struct {
+	Search     string `json:"search"`
+	PageOffset int32  `json:"page_offset"`
+	PageSize   int32  `json:"page_size"`
+}
+
+type ListPurchasesRow struct {
+	ID            int64          `json:"id"`
+	SupplierID    int64          `json:"supplier_id"`
+	PurchasedAt   time.Time      `json:"purchased_at"`
+	InventoryID   sql.NullInt64  `json:"inventory_id"`
+	Code          string         `json:"code"`
+	CurrencyCode  string         `json:"currency_code"`
+	Subtotal      int64          `json:"subtotal"`
+	GrandTotal    int64          `json:"grand_total"`
+	Status        PurchaseStatus `json:"status"`
+	ReceivedAt    sql.NullTime   `json:"received_at"`
+	Note          string         `json:"note"`
+	SupplierName  string         `json:"supplier_name"`
+	InventoryName sql.NullString `json:"inventory_name"`
+	ItemCount     int64          `json:"item_count"`
+}
+
+func (q *Queries) ListPurchases(ctx context.Context, arg ListPurchasesParams) ([]ListPurchasesRow, error) {
+	rows, err := q.db.QueryContext(ctx, listPurchases, arg.Search, arg.PageOffset, arg.PageSize)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListPurchasesRow{}
+	for rows.Next() {
+		var i ListPurchasesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.SupplierID,
+			&i.PurchasedAt,
+			&i.InventoryID,
+			&i.Code,
+			&i.CurrencyCode,
+			&i.Subtotal,
+			&i.GrandTotal,
+			&i.Status,
+			&i.ReceivedAt,
+			&i.Note,
+			&i.SupplierName,
+			&i.InventoryName,
+			&i.ItemCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const setPurchaseStatus = `-- name: SetPurchaseStatus :one
+UPDATE purchases
+SET status = $1,
+    received_at = COALESCE($2, received_at)
+WHERE id = $3
+RETURNING id, supplier_id, purchased_at, inventory_id, code, currency_code, subtotal, grand_total, status, received_at, note
+`
+
+type SetPurchaseStatusParams struct {
+	Status     PurchaseStatus `json:"status"`
+	ReceivedAt sql.NullTime   `json:"received_at"`
+	ID         int64          `json:"id"`
+}
+
+func (q *Queries) SetPurchaseStatus(ctx context.Context, arg SetPurchaseStatusParams) (Purchase, error) {
+	row := q.db.QueryRowContext(ctx, setPurchaseStatus, arg.Status, arg.ReceivedAt, arg.ID)
+	var i Purchase
+	err := row.Scan(
+		&i.ID,
+		&i.SupplierID,
+		&i.PurchasedAt,
+		&i.InventoryID,
+		&i.Code,
+		&i.CurrencyCode,
+		&i.Subtotal,
+		&i.GrandTotal,
+		&i.Status,
+		&i.ReceivedAt,
+		&i.Note,
+	)
+	return i, err
+}
+
+const setPurchaseTotals = `-- name: SetPurchaseTotals :exec
+UPDATE purchases
+SET subtotal = $2,
+    grand_total = $3
+WHERE id = $1
+`
+
+type SetPurchaseTotalsParams struct {
+	ID         int64 `json:"id"`
+	Subtotal   int64 `json:"subtotal"`
+	GrandTotal int64 `json:"grand_total"`
+}
+
+func (q *Queries) SetPurchaseTotals(ctx context.Context, arg SetPurchaseTotalsParams) error {
+	_, err := q.db.ExecContext(ctx, setPurchaseTotals, arg.ID, arg.Subtotal, arg.GrandTotal)
+	return err
 }

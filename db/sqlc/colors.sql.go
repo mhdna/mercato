@@ -9,13 +9,29 @@ import (
 	"context"
 )
 
+const countColors = `-- name: CountColors :one
+SELECT COUNT(*) FROM colors
+WHERE (
+  $1::text = ''
+  OR name ILIKE '%' || $1::text || '%'
+  OR hex_value ILIKE '%' || $1::text || '%'
+)
+`
+
+func (q *Queries) CountColors(ctx context.Context, search string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countColors, search)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createColor = `-- name: CreateColor :one
 INSERT INTO colors (
   name,
   hex_value
 ) VALUES (
     $1, $2
-) RETURNING id, name, hex_value, version
+) RETURNING id, name, hex_value, version, created_at
 `
 
 type CreateColorParams struct {
@@ -31,12 +47,23 @@ func (q *Queries) CreateColor(ctx context.Context, arg CreateColorParams) (Color
 		&i.Name,
 		&i.HexValue,
 		&i.Version,
+		&i.CreatedAt,
 	)
 	return i, err
 }
 
+const deleteColor = `-- name: DeleteColor :exec
+DELETE FROM colors
+WHERE id = $1
+`
+
+func (q *Queries) DeleteColor(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, deleteColor, id)
+	return err
+}
+
 const listColors = `-- name: ListColors :many
-SELECT id, name, hex_value, version FROM colors
+SELECT id, name, hex_value, version, created_at FROM colors
 ORDER BY name
 `
 
@@ -54,6 +81,7 @@ func (q *Queries) ListColors(ctx context.Context) ([]Color, error) {
 			&i.Name,
 			&i.HexValue,
 			&i.Version,
+			&i.CreatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -66,4 +94,94 @@ func (q *Queries) ListColors(ctx context.Context) ([]Color, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const listColorsPage = `-- name: ListColorsPage :many
+SELECT id, name, hex_value, version, created_at FROM colors
+WHERE (
+  $1::text = ''
+  OR name ILIKE '%' || $1::text || '%'
+  OR hex_value ILIKE '%' || $1::text || '%'
+)
+ORDER BY
+  CASE WHEN $2::text = 'name' AND $3::text = 'asc' THEN name END ASC,
+  CASE WHEN $2::text = 'name' AND $3::text = 'desc' THEN name END DESC,
+  CASE WHEN $2::text = 'hex_value' AND $3::text = 'asc' THEN hex_value END ASC,
+  CASE WHEN $2::text = 'hex_value' AND $3::text = 'desc' THEN hex_value END DESC,
+  CASE WHEN $2::text = 'id' AND $3::text = 'asc' THEN id END ASC,
+  CASE WHEN $2::text = 'id' AND $3::text = 'desc' THEN id END DESC,
+  CASE WHEN $2::text = 'created_at' AND $3::text = 'asc' THEN created_at END ASC,
+  created_at DESC,
+  id DESC
+LIMIT $5
+OFFSET $4
+`
+
+type ListColorsPageParams struct {
+	Search     string `json:"search"`
+	SortBy     string `json:"sort_by"`
+	SortOrder  string `json:"sort_order"`
+	PageOffset int32  `json:"page_offset"`
+	PageSize   int32  `json:"page_size"`
+}
+
+func (q *Queries) ListColorsPage(ctx context.Context, arg ListColorsPageParams) ([]Color, error) {
+	rows, err := q.db.QueryContext(ctx, listColorsPage,
+		arg.Search,
+		arg.SortBy,
+		arg.SortOrder,
+		arg.PageOffset,
+		arg.PageSize,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Color{}
+	for rows.Next() {
+		var i Color
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.HexValue,
+			&i.Version,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const updateColor = `-- name: UpdateColor :one
+UPDATE colors
+SET name = $2, hex_value = $3, version = version + 1
+WHERE id = $1
+RETURNING id, name, hex_value, version, created_at
+`
+
+type UpdateColorParams struct {
+	ID       int64  `json:"id"`
+	Name     string `json:"name"`
+	HexValue string `json:"hex_value"`
+}
+
+func (q *Queries) UpdateColor(ctx context.Context, arg UpdateColorParams) (Color, error) {
+	row := q.db.QueryRowContext(ctx, updateColor, arg.ID, arg.Name, arg.HexValue)
+	var i Color
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.HexValue,
+		&i.Version,
+		&i.CreatedAt,
+	)
+	return i, err
 }

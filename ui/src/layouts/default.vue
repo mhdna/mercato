@@ -1,6 +1,6 @@
 <template>
   <v-main>
-    <v-app-bar color="indigo" density="compact" :elevation="2">
+    <v-app-bar color="grey-darken-3" density="compact" :elevation="2">
       <template #prepend>
         <v-btn icon="mdi-menu" variant="text" @click.stop="toggleDrawer" />
       </template>
@@ -35,7 +35,7 @@
 
     <NavigationDrawer v-model="showDrawer" :mobile="mobile" :rail="isRail" />
 
-    <div class="page-wrapper mx-4">
+    <div class="page-wrapper">
       <div v-if="isNavigating" class="loading-overlay">
         <div class="google-spinner">
           <div class="google-spinner-inner" />
@@ -61,7 +61,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { ref } from 'vue'
+  import { onMounted, ref } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
   import { useDisplay } from 'vuetify'
   import BranchActivityToast from '@/components/BranchActivityToast.vue'
@@ -70,8 +70,15 @@
   import ConnectedBranchesCard from '@/components/ConnectedBranchesCard.vue'
   // import NotificationMenu from '@/components/Menus/NotificationMenu.vue'
   import { useAuthStore } from '@/stores/auth'
+  import { useSettingsStore } from '@/stores/settings'
 
   const auth = useAuthStore()
+  const settingsStore = useSettingsStore()
+  // Loads the global app settings (activity display prefs, financials high
+  // season months) once per session -- BranchActivityToast/SyncCard read
+  // settingsStore's activity fields reactively, so this can resolve after
+  // they mount without any special handling.
+  onMounted(() => settingsStore.init())
 
   function handleLogout () {
     auth.logout()

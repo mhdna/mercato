@@ -227,6 +227,140 @@ func (ns NullInventoryType) Value() (driver.Value, error) {
 	return string(ns.InventoryType), nil
 }
 
+type PurchaseStatus string
+
+const (
+	PurchaseStatusDraft     PurchaseStatus = "draft"
+	PurchaseStatusReceived  PurchaseStatus = "received"
+	PurchaseStatusCancelled PurchaseStatus = "cancelled"
+)
+
+func (e *PurchaseStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = PurchaseStatus(s)
+	case string:
+		*e = PurchaseStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for PurchaseStatus: %T", src)
+	}
+	return nil
+}
+
+type NullPurchaseStatus struct {
+	PurchaseStatus PurchaseStatus `json:"purchase_status"`
+	Valid          bool           `json:"valid"` // Valid is true if PurchaseStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullPurchaseStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.PurchaseStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.PurchaseStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullPurchaseStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.PurchaseStatus), nil
+}
+
+type StockMovementReason string
+
+const (
+	StockMovementReasonPurchase    StockMovementReason = "purchase"
+	StockMovementReasonSale        StockMovementReason = "sale"
+	StockMovementReasonReturn      StockMovementReason = "return"
+	StockMovementReasonTransferOut StockMovementReason = "transfer_out"
+	StockMovementReasonTransferIn  StockMovementReason = "transfer_in"
+	StockMovementReasonAdjustment  StockMovementReason = "adjustment"
+	StockMovementReasonCount       StockMovementReason = "count"
+)
+
+func (e *StockMovementReason) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = StockMovementReason(s)
+	case string:
+		*e = StockMovementReason(s)
+	default:
+		return fmt.Errorf("unsupported scan type for StockMovementReason: %T", src)
+	}
+	return nil
+}
+
+type NullStockMovementReason struct {
+	StockMovementReason StockMovementReason `json:"stock_movement_reason"`
+	Valid               bool                `json:"valid"` // Valid is true if StockMovementReason is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullStockMovementReason) Scan(value interface{}) error {
+	if value == nil {
+		ns.StockMovementReason, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.StockMovementReason.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullStockMovementReason) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.StockMovementReason), nil
+}
+
+type TransferStatus string
+
+const (
+	TransferStatusDraft      TransferStatus = "draft"
+	TransferStatusDispatched TransferStatus = "dispatched"
+	TransferStatusReceived   TransferStatus = "received"
+	TransferStatusCancelled  TransferStatus = "cancelled"
+)
+
+func (e *TransferStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = TransferStatus(s)
+	case string:
+		*e = TransferStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for TransferStatus: %T", src)
+	}
+	return nil
+}
+
+type NullTransferStatus struct {
+	TransferStatus TransferStatus `json:"transfer_status"`
+	Valid          bool           `json:"valid"` // Valid is true if TransferStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullTransferStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.TransferStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.TransferStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullTransferStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.TransferStatus), nil
+}
+
 type TransferType string
 
 const (
@@ -269,6 +403,16 @@ func (ns NullTransferType) Value() (driver.Value, error) {
 	return string(ns.TransferType), nil
 }
 
+type AppSetting struct {
+	ID                         int16           `json:"id"`
+	FinancialsHighSeasonMonths json.RawMessage `json:"financials_high_season_months"`
+	UpdatedAt                  time.Time       `json:"updated_at"`
+	ActivityMessageSeconds     int16           `json:"activity_message_seconds"`
+	ActivityDisplayMode        string          `json:"activity_display_mode"`
+	BarcodeLabelWidth          float32         `json:"barcode_label_width"`
+	BarcodeLabelHeight         float32         `json:"barcode_label_height"`
+}
+
 type Asset struct {
 	ID        int64     `json:"id"`
 	Name      string    `json:"name"`
@@ -290,19 +434,53 @@ type Attribute struct {
 }
 
 type AttributesValue struct {
-	ID          int64  `json:"id"`
-	AttributeID int64  `json:"attribute_id"`
-	Value       string `json:"value"`
+	ID          int64     `json:"id"`
+	AttributeID int64     `json:"attribute_id"`
+	Value       string    `json:"value"`
+	CreatedAt   time.Time `json:"created_at"`
 }
 
 type Branch struct {
-	ID         int64        `json:"id"`
-	Name       string       `json:"name"`
-	Code       string       `json:"code"`
-	ApiKeyHash string       `json:"api_key_hash"`
-	IsActive   bool         `json:"is_active"`
-	LastSeenAt sql.NullTime `json:"last_seen_at"`
-	CreatedAt  time.Time    `json:"created_at"`
+	ID          int64         `json:"id"`
+	Name        string        `json:"name"`
+	Code        string        `json:"code"`
+	ApiKeyHash  string        `json:"api_key_hash"`
+	IsActive    bool          `json:"is_active"`
+	LastSeenAt  sql.NullTime  `json:"last_seen_at"`
+	CreatedAt   time.Time     `json:"created_at"`
+	InventoryID sql.NullInt64 `json:"inventory_id"`
+}
+
+type BranchAttendanceChange struct {
+	ID              int64     `json:"id"`
+	BranchID        int64     `json:"branch_id"`
+	ClientRef       string    `json:"client_ref"`
+	Kind            string    `json:"kind"`
+	SalespersonName string    `json:"salesperson_name"`
+	AttendanceDate  string    `json:"attendance_date"`
+	OriginalTime    string    `json:"original_time"`
+	RequestedTime   string    `json:"requested_time"`
+	RequestedType   string    `json:"requested_type"`
+	Action          string    `json:"action"`
+	Status          string    `json:"status"`
+	Note            string    `json:"note"`
+	Actor           string    `json:"actor"`
+	OccurredAt      time.Time `json:"occurred_at"`
+	ReceivedAt      time.Time `json:"received_at"`
+}
+
+type BranchAttendanceEvent struct {
+	ID               int64     `json:"id"`
+	BranchID         int64     `json:"branch_id"`
+	ClientRef        string    `json:"client_ref"`
+	SalespersonName  string    `json:"salesperson_name"`
+	AttendanceUserID string    `json:"attendance_user_id"`
+	EventDate        string    `json:"event_date"`
+	EventTime        string    `json:"event_time"`
+	EventAt          string    `json:"event_at"`
+	Type             string    `json:"type"`
+	Status           string    `json:"status"`
+	ReceivedAt       time.Time `json:"received_at"`
 }
 
 type BranchCommand struct {
@@ -368,6 +546,7 @@ type BranchInvoice struct {
 	LoyaltyPointsDelta     int64          `json:"loyalty_points_delta"`
 	OccurredAt             time.Time      `json:"occurred_at"`
 	ReceivedAt             time.Time      `json:"received_at"`
+	SalespersonName        string         `json:"salesperson_name"`
 }
 
 type BranchInvoiceItem struct {
@@ -378,6 +557,30 @@ type BranchInvoiceItem struct {
 	LineTotal       int64 `json:"line_total"`
 	Discount        int16 `json:"discount"`
 	Quantity        int64 `json:"quantity"`
+}
+
+type BranchInvoicePayment struct {
+	ID              int64  `json:"id"`
+	BranchInvoiceID int64  `json:"branch_invoice_id"`
+	AccountName     string `json:"account_name"`
+	Amount          int64  `json:"amount"`
+}
+
+type BranchInvoiceSettlement struct {
+	ID            int64     `json:"id"`
+	BranchID      int64     `json:"branch_id"`
+	ClientRef     string    `json:"client_ref"`
+	SaleClientRef string    `json:"sale_client_ref"`
+	GrandTotal    int64     `json:"grand_total"`
+	OccurredAt    time.Time `json:"occurred_at"`
+	ReceivedAt    time.Time `json:"received_at"`
+}
+
+type BranchInvoiceSettlementPayment struct {
+	ID                        int64  `json:"id"`
+	BranchInvoiceSettlementID int64  `json:"branch_invoice_settlement_id"`
+	AccountName               string `json:"account_name"`
+	Amount                    int64  `json:"amount"`
 }
 
 type BranchSetting struct {
@@ -397,6 +600,32 @@ type BranchSetting struct {
 	SocialPlatforms     json.RawMessage `json:"social_platforms"`
 	SocialHandles       json.RawMessage `json:"social_handles"`
 	UpdatedAt           time.Time       `json:"updated_at"`
+}
+
+type BranchShift struct {
+	ID                int64        `json:"id"`
+	BranchID          int64        `json:"branch_id"`
+	ClientRef         string       `json:"client_ref"`
+	BranchShiftID     int64        `json:"branch_shift_id"`
+	OpenedAt          sql.NullTime `json:"opened_at"`
+	ClosedAt          sql.NullTime `json:"closed_at"`
+	ClosingPersonName string       `json:"closing_person_name"`
+	OpeningFloatUsd   int64        `json:"opening_float_usd"`
+	OpeningFloatLbp   int64        `json:"opening_float_lbp"`
+	ExpectedUsd       int64        `json:"expected_usd"`
+	ExpectedLbp       int64        `json:"expected_lbp"`
+	ExpectedVisa      int64        `json:"expected_visa"`
+	ExpectedWhish     int64        `json:"expected_whish"`
+	CountedUsd        int64        `json:"counted_usd"`
+	CountedLbp        int64        `json:"counted_lbp"`
+	CountedVisa       int64        `json:"counted_visa"`
+	CountedWhish      int64        `json:"counted_whish"`
+	VarianceUsd       int64        `json:"variance_usd"`
+	VarianceLbp       int64        `json:"variance_lbp"`
+	VarianceVisa      int64        `json:"variance_visa"`
+	VarianceWhish     int64        `json:"variance_whish"`
+	OccurredAt        time.Time    `json:"occurred_at"`
+	ReceivedAt        time.Time    `json:"received_at"`
 }
 
 type BranchTarget struct {
@@ -459,10 +688,11 @@ type ClientLink struct {
 }
 
 type Color struct {
-	ID       int64  `json:"id"`
-	Name     string `json:"name"`
-	HexValue string `json:"hex_value"`
-	Version  int32  `json:"version"`
+	ID        int64     `json:"id"`
+	Name      string    `json:"name"`
+	HexValue  string    `json:"hex_value"`
+	Version   int32     `json:"version"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 type Coupon struct {
@@ -497,6 +727,12 @@ type DiscountList struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+type DiscountListBranch struct {
+	BranchID       int64     `json:"branch_id"`
+	DiscountListID int64     `json:"discount_list_id"`
+	CreatedAt      time.Time `json:"created_at"`
+}
+
 type DiscountListItem struct {
 	DiscountListID int64 `json:"discount_list_id"`
 	ProductID      int64 `json:"product_id"`
@@ -528,16 +764,12 @@ type ExpenseCategory struct {
 	Name      string    `json:"name"`
 	IsActive  bool      `json:"is_active"`
 	CreatedAt time.Time `json:"created_at"`
+	Icon      string    `json:"icon"`
+	Color     string    `json:"color"`
 }
 
 type InventoriesAsset struct {
 	AssetID     int64 `json:"asset_id"`
-	InventoryID int64 `json:"inventory_id"`
-	Quantity    int64 `json:"quantity"`
-}
-
-type InventoriesProduct struct {
-	ProductID   int64 `json:"product_id"`
 	InventoryID int64 `json:"inventory_id"`
 	Quantity    int64 `json:"quantity"`
 }
@@ -552,21 +784,31 @@ type Inventory struct {
 	CreatedAt time.Time       `json:"created_at"`
 }
 
+type InventoryStock struct {
+	InventoryID int64     `json:"inventory_id"`
+	VariantID   int64     `json:"variant_id"`
+	Quantity    int64     `json:"quantity"`
+	AvgCost     int64     `json:"avg_cost"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
 type Invoice struct {
-	ID              int64     `json:"id"`
-	CashboxID       int64     `json:"cashbox_id"`
-	ShiftID         int64     `json:"shift_id"`
-	InvoiceCode     string    `json:"invoice_code"`
-	InvoiceIndex    int64     `json:"invoice_index"`
-	Year            int32     `json:"year"`
-	ClientID        int64     `json:"client_id"`
-	InventoryID     int64     `json:"inventory_id"`
-	Discount        int16     `json:"discount"`
-	Subtotal        int64     `json:"subtotal"`
-	DiscountedTotal int64     `json:"discounted_total"`
-	GrandTotal      int64     `json:"grand_total"`
-	CreatedAt       time.Time `json:"created_at"`
-	InvoiceTypeID   int64     `json:"invoice_type_id"`
+	ID                 int64         `json:"id"`
+	CashboxID          int64         `json:"cashbox_id"`
+	ShiftID            int64         `json:"shift_id"`
+	InvoiceCode        string        `json:"invoice_code"`
+	InvoiceIndex       int64         `json:"invoice_index"`
+	Year               int32         `json:"year"`
+	ClientID           int64         `json:"client_id"`
+	InventoryID        int64         `json:"inventory_id"`
+	Discount           int16         `json:"discount"`
+	Subtotal           int64         `json:"subtotal"`
+	DiscountedTotal    int64         `json:"discounted_total"`
+	GrandTotal         int64         `json:"grand_total"`
+	CreatedAt          time.Time     `json:"created_at"`
+	InvoiceTypeID      int64         `json:"invoice_type_id"`
+	SalespersonID      sql.NullInt64 `json:"salesperson_id"`
+	LoyaltyPointsDelta int64         `json:"loyalty_points_delta"`
 }
 
 type InvoiceIndex struct {
@@ -577,13 +819,22 @@ type InvoiceIndex struct {
 	InvoiceTypeID int64     `json:"invoice_type_id"`
 }
 
+type InvoicePayment struct {
+	ID               int64 `json:"id"`
+	InvoiceID        int64 `json:"invoice_id"`
+	CashboxAccountID int64 `json:"cashbox_account_id"`
+	Amount           int64 `json:"amount"`
+}
+
 type InvoiceProduct struct {
-	InvoiceID int64 `json:"invoice_id"`
-	ProductID int64 `json:"product_id"`
-	UnitPrice int64 `json:"unit_price"`
-	LineTotal int64 `json:"line_total"`
-	Discount  int16 `json:"discount"`
-	Quantity  int64 `json:"quantity"`
+	InvoiceID int64         `json:"invoice_id"`
+	ProductID int64         `json:"product_id"`
+	UnitPrice int64         `json:"unit_price"`
+	LineTotal int64         `json:"line_total"`
+	Discount  int16         `json:"discount"`
+	Quantity  int64         `json:"quantity"`
+	VariantID sql.NullInt64 `json:"variant_id"`
+	UnitCost  int64         `json:"unit_cost"`
 }
 
 type InvoiceType struct {
@@ -641,6 +892,12 @@ type PriceList struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+type PriceListBranch struct {
+	BranchID    int64     `json:"branch_id"`
+	PriceListID int64     `json:"price_list_id"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
 type PriceListItem struct {
 	PriceListID int64 `json:"price_list_id"`
 	ProductID   int64 `json:"product_id"`
@@ -679,6 +936,7 @@ type ProductVariant struct {
 	IsActive  bool          `json:"is_active"`
 	CreatedAt time.Time     `json:"created_at"`
 	UpdatedAt time.Time     `json:"updated_at"`
+	AvgCost   int64         `json:"avg_cost"`
 }
 
 type ProductsAttribute struct {
@@ -688,19 +946,27 @@ type ProductsAttribute struct {
 }
 
 type Purchase struct {
-	ID          int64     `json:"id"`
-	SupplierID  int64     `json:"supplier_id"`
-	PurchasedAt time.Time `json:"purchased_at"`
+	ID           int64          `json:"id"`
+	SupplierID   int64          `json:"supplier_id"`
+	PurchasedAt  time.Time      `json:"purchased_at"`
+	InventoryID  sql.NullInt64  `json:"inventory_id"`
+	Code         string         `json:"code"`
+	CurrencyCode string         `json:"currency_code"`
+	Subtotal     int64          `json:"subtotal"`
+	GrandTotal   int64          `json:"grand_total"`
+	Status       PurchaseStatus `json:"status"`
+	ReceivedAt   sql.NullTime   `json:"received_at"`
+	Note         string         `json:"note"`
 }
 
 type PurchaseItem struct {
 	ID           int64         `json:"id"`
 	PurchaseID   sql.NullInt64 `json:"purchase_id"`
-	ProductID    sql.NullInt64 `json:"product_id"`
 	AssetID      sql.NullInt64 `json:"asset_id"`
 	Quantity     int64         `json:"quantity"`
 	UnitPrice    int64         `json:"unit_price"`
 	CurrencyCode string        `json:"currency_code"`
+	VariantID    sql.NullInt64 `json:"variant_id"`
 }
 
 type RecurringExpense struct {
@@ -768,6 +1034,20 @@ type Size struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+type StockMovement struct {
+	ID            int64               `json:"id"`
+	InventoryID   int64               `json:"inventory_id"`
+	VariantID     int64               `json:"variant_id"`
+	Quantity      int64               `json:"quantity"`
+	Reason        StockMovementReason `json:"reason"`
+	ReferenceType sql.NullString      `json:"reference_type"`
+	ReferenceID   sql.NullInt64       `json:"reference_id"`
+	UnitCost      sql.NullInt64       `json:"unit_cost"`
+	Note          string              `json:"note"`
+	CreatedBy     sql.NullInt64       `json:"created_by"`
+	CreatedAt     time.Time           `json:"created_at"`
+}
+
 type Supplier struct {
 	ID               int64           `json:"id"`
 	Name             string          `json:"name"`
@@ -787,20 +1067,25 @@ type Token struct {
 }
 
 type Transfer struct {
-	ID              int64        `json:"id"`
-	FromInventoryID int64        `json:"from_inventory_id"`
-	ToInventoryID   int64        `json:"to_inventory_id"`
-	Type            TransferType `json:"type"`
-	CreatedAt       time.Time    `json:"created_at"`
+	ID              int64          `json:"id"`
+	FromInventoryID int64          `json:"from_inventory_id"`
+	ToInventoryID   int64          `json:"to_inventory_id"`
+	Type            TransferType   `json:"type"`
+	CreatedAt       time.Time      `json:"created_at"`
+	Code            string         `json:"code"`
+	Status          TransferStatus `json:"status"`
+	DispatchedAt    sql.NullTime   `json:"dispatched_at"`
+	ReceivedAt      sql.NullTime   `json:"received_at"`
+	Note            string         `json:"note"`
 }
 
 // Each row references either a product or an asset. Never both.
 type TransferItem struct {
 	ID         int64         `json:"id"`
 	TransferID int64         `json:"transfer_id"`
-	ProductID  sql.NullInt64 `json:"product_id"`
 	AssetID    sql.NullInt64 `json:"asset_id"`
 	Quantity   int64         `json:"quantity"`
+	VariantID  sql.NullInt64 `json:"variant_id"`
 }
 
 type User struct {

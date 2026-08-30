@@ -72,10 +72,10 @@ func (server *Server) createBranch(ctx *gin.Context) {
 		return
 	}
 
-	branch, err := server.store.CreateBranch(ctx, db.CreateBranchParams{
+	result, err := server.store.CreateBranchTx(ctx, db.CreateBranchTxParams{
 		Name:       req.Name,
 		Code:       req.Code,
-		ApiKeyHash: apiKeyHash,
+		APIKeyHash: apiKeyHash,
 	})
 	if err != nil {
 		server.writeError(ctx, http.StatusInternalServerError, err)
@@ -83,7 +83,7 @@ func (server *Server) createBranch(ctx *gin.Context) {
 	}
 
 	server.writeJSON(ctx, http.StatusOK, envelope{
-		"branch":  newBranchResponse(branch),
+		"branch":  newBranchResponse(result.Branch),
 		"api_key": apiKey,
 	})
 }

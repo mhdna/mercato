@@ -8,6 +8,7 @@ package db
 import (
 	"context"
 	"database/sql"
+	"time"
 )
 
 const countTransfers = `-- name: CountTransfers :one
@@ -25,19 +26,29 @@ const createTransfer = `-- name: CreateTransfer :one
 INSERT INTO transfers (
   from_inventory_id,
   to_inventory_id,
-  type
-) VALUES ( $1, $2, $3 )
-RETURNING id, from_inventory_id, to_inventory_id, type, created_at
+  type,
+  code,
+  note
+) VALUES ( $1, $2, $3, $4, $5 )
+RETURNING id, from_inventory_id, to_inventory_id, type, created_at, code, status, dispatched_at, received_at, note
 `
 
 type CreateTransferParams struct {
 	FromInventoryID int64        `json:"from_inventory_id"`
 	ToInventoryID   int64        `json:"to_inventory_id"`
 	Type            TransferType `json:"type"`
+	Code            string       `json:"code"`
+	Note            string       `json:"note"`
 }
 
 func (q *Queries) CreateTransfer(ctx context.Context, arg CreateTransferParams) (Transfer, error) {
-	row := q.db.QueryRowContext(ctx, createTransfer, arg.FromInventoryID, arg.ToInventoryID, arg.Type)
+	row := q.db.QueryRowContext(ctx, createTransfer,
+		arg.FromInventoryID,
+		arg.ToInventoryID,
+		arg.Type,
+		arg.Code,
+		arg.Note,
+	)
 	var i Transfer
 	err := row.Scan(
 		&i.ID,
@@ -45,6 +56,11 @@ func (q *Queries) CreateTransfer(ctx context.Context, arg CreateTransferParams) 
 		&i.ToInventoryID,
 		&i.Type,
 		&i.CreatedAt,
+		&i.Code,
+		&i.Status,
+		&i.DispatchedAt,
+		&i.ReceivedAt,
+		&i.Note,
 	)
 	return i, err
 }
@@ -52,16 +68,16 @@ func (q *Queries) CreateTransfer(ctx context.Context, arg CreateTransferParams) 
 const createTransferItem = `-- name: CreateTransferItem :one
 INSERT INTO transfer_items (
   transfer_id,
-  product_id,
+  variant_id,
   asset_id,
   quantity
 ) VALUES ( $1, $2, $3, $4 )
-RETURNING id, transfer_id, product_id, asset_id, quantity
+RETURNING id, transfer_id, asset_id, quantity, variant_id
 `
 
 type CreateTransferItemParams struct {
 	TransferID int64         `json:"transfer_id"`
-	ProductID  sql.NullInt64 `json:"product_id"`
+	VariantID  sql.NullInt64 `json:"variant_id"`
 	AssetID    sql.NullInt64 `json:"asset_id"`
 	Quantity   int64         `json:"quantity"`
 }
@@ -69,7 +85,7 @@ type CreateTransferItemParams struct {
 func (q *Queries) CreateTransferItem(ctx context.Context, arg CreateTransferItemParams) (TransferItem, error) {
 	row := q.db.QueryRowContext(ctx, createTransferItem,
 		arg.TransferID,
-		arg.ProductID,
+		arg.VariantID,
 		arg.AssetID,
 		arg.Quantity,
 	)
@@ -77,15 +93,34 @@ func (q *Queries) CreateTransferItem(ctx context.Context, arg CreateTransferItem
 	err := row.Scan(
 		&i.ID,
 		&i.TransferID,
-		&i.ProductID,
 		&i.AssetID,
 		&i.Quantity,
+		&i.VariantID,
 	)
 	return i, err
 }
 
+const deleteTransferItem = `-- name: DeleteTransferItem :exec
+DELETE FROM transfer_items
+WHERE transfer_items.id = $1
+  AND transfer_items.transfer_id IN (
+    SELECT transfers.id FROM transfers
+    WHERE transfers.id = $2 AND transfers.status = 'draft'
+  )
+`
+
+type DeleteTransferItemParams struct {
+	ID   int64 `json:"id"`
+	ID_2 int64 `json:"id_2"`
+}
+
+func (q *Queries) DeleteTransferItem(ctx context.Context, arg DeleteTransferItemParams) error {
+	_, err := q.db.ExecContext(ctx, deleteTransferItem, arg.ID, arg.ID_2)
+	return err
+}
+
 const getTransfer = `-- name: GetTransfer :one
-SELECT id, from_inventory_id, to_inventory_id, type, created_at FROM transfers
+SELECT id, from_inventory_id, to_inventory_id, type, created_at, code, status, dispatched_at, received_at, note FROM transfers
 WHERE id = $1 LIMIT 1
 `
 
@@ -98,29 +133,42 @@ func (q *Queries) GetTransfer(ctx context.Context, id int64) (Transfer, error) {
 		&i.ToInventoryID,
 		&i.Type,
 		&i.CreatedAt,
+		&i.Code,
+		&i.Status,
+		&i.DispatchedAt,
+		&i.ReceivedAt,
+		&i.Note,
 	)
 	return i, err
 }
 
 const listTransferItems = `-- name: ListTransferItems :many
-SELECT t.id, t.transfer_id, t.product_id, t.asset_id, t.quantity, p.name as product_name, a.name as asset_name
-FROM transfer_items t
-left join products p on product_id = p.id
-left join assets a on asset_id = a.id
-where t.transfer_id = $1
+SELECT
+  ti.id, ti.transfer_id, ti.asset_id, ti.quantity, ti.variant_id,
+  p.name AS product_name,
+  p.code AS product_code,
+  pv.barcode AS variant_barcode,
+  a.name AS asset_name
+FROM transfer_items ti
+LEFT JOIN product_variants pv ON pv.id = ti.variant_id
+LEFT JOIN products p ON p.id = pv.product_id
+LEFT JOIN assets a ON a.id = ti.asset_id
+WHERE ti.transfer_id = $1
+ORDER BY ti.id
 `
 
 type ListTransferItemsRow struct {
-	ID          int64          `json:"id"`
-	TransferID  int64          `json:"transfer_id"`
-	ProductID   sql.NullInt64  `json:"product_id"`
-	AssetID     sql.NullInt64  `json:"asset_id"`
-	Quantity    int64          `json:"quantity"`
-	ProductName sql.NullString `json:"product_name"`
-	AssetName   sql.NullString `json:"asset_name"`
+	ID             int64          `json:"id"`
+	TransferID     int64          `json:"transfer_id"`
+	AssetID        sql.NullInt64  `json:"asset_id"`
+	Quantity       int64          `json:"quantity"`
+	VariantID      sql.NullInt64  `json:"variant_id"`
+	ProductName    sql.NullString `json:"product_name"`
+	ProductCode    sql.NullString `json:"product_code"`
+	VariantBarcode sql.NullString `json:"variant_barcode"`
+	AssetName      sql.NullString `json:"asset_name"`
 }
 
-// TODO maybe this is not so clean
 func (q *Queries) ListTransferItems(ctx context.Context, transferID int64) ([]ListTransferItemsRow, error) {
 	rows, err := q.db.QueryContext(ctx, listTransferItems, transferID)
 	if err != nil {
@@ -133,10 +181,12 @@ func (q *Queries) ListTransferItems(ctx context.Context, transferID int64) ([]Li
 		if err := rows.Scan(
 			&i.ID,
 			&i.TransferID,
-			&i.ProductID,
 			&i.AssetID,
 			&i.Quantity,
+			&i.VariantID,
 			&i.ProductName,
+			&i.ProductCode,
+			&i.VariantBarcode,
 			&i.AssetName,
 		); err != nil {
 			return nil, err
@@ -153,8 +203,15 @@ func (q *Queries) ListTransferItems(ctx context.Context, transferID int64) ([]Li
 }
 
 const listTransfers = `-- name: ListTransfers :many
-SELECT id, from_inventory_id, to_inventory_id, type, created_at FROM transfers
-ORDER BY id
+SELECT
+  t.id, t.from_inventory_id, t.to_inventory_id, t.type, t.created_at, t.code, t.status, t.dispatched_at, t.received_at, t.note,
+  fi.name AS from_inventory_name,
+  ti.name AS to_inventory_name,
+  (SELECT COUNT(*) FROM transfer_items x WHERE x.transfer_id = t.id) AS item_count
+FROM transfers t
+JOIN inventories fi ON fi.id = t.from_inventory_id
+JOIN inventories ti ON ti.id = t.to_inventory_id
+ORDER BY t.id DESC
 LIMIT $1
 OFFSET $2
 `
@@ -164,21 +221,45 @@ type ListTransfersParams struct {
 	Offset int32 `json:"offset"`
 }
 
-func (q *Queries) ListTransfers(ctx context.Context, arg ListTransfersParams) ([]Transfer, error) {
+type ListTransfersRow struct {
+	ID                int64          `json:"id"`
+	FromInventoryID   int64          `json:"from_inventory_id"`
+	ToInventoryID     int64          `json:"to_inventory_id"`
+	Type              TransferType   `json:"type"`
+	CreatedAt         time.Time      `json:"created_at"`
+	Code              string         `json:"code"`
+	Status            TransferStatus `json:"status"`
+	DispatchedAt      sql.NullTime   `json:"dispatched_at"`
+	ReceivedAt        sql.NullTime   `json:"received_at"`
+	Note              string         `json:"note"`
+	FromInventoryName string         `json:"from_inventory_name"`
+	ToInventoryName   string         `json:"to_inventory_name"`
+	ItemCount         int64          `json:"item_count"`
+}
+
+func (q *Queries) ListTransfers(ctx context.Context, arg ListTransfersParams) ([]ListTransfersRow, error) {
 	rows, err := q.db.QueryContext(ctx, listTransfers, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []Transfer{}
+	items := []ListTransfersRow{}
 	for rows.Next() {
-		var i Transfer
+		var i ListTransfersRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.FromInventoryID,
 			&i.ToInventoryID,
 			&i.Type,
 			&i.CreatedAt,
+			&i.Code,
+			&i.Status,
+			&i.DispatchedAt,
+			&i.ReceivedAt,
+			&i.Note,
+			&i.FromInventoryName,
+			&i.ToInventoryName,
+			&i.ItemCount,
 		); err != nil {
 			return nil, err
 		}
@@ -193,12 +274,52 @@ func (q *Queries) ListTransfers(ctx context.Context, arg ListTransfersParams) ([
 	return items, nil
 }
 
+const setTransferStatus = `-- name: SetTransferStatus :one
+UPDATE transfers
+SET status = $1,
+    dispatched_at = COALESCE($2, dispatched_at),
+    received_at = COALESCE($3, received_at)
+WHERE id = $4
+RETURNING id, from_inventory_id, to_inventory_id, type, created_at, code, status, dispatched_at, received_at, note
+`
+
+type SetTransferStatusParams struct {
+	Status       TransferStatus `json:"status"`
+	DispatchedAt sql.NullTime   `json:"dispatched_at"`
+	ReceivedAt   sql.NullTime   `json:"received_at"`
+	ID           int64          `json:"id"`
+}
+
+func (q *Queries) SetTransferStatus(ctx context.Context, arg SetTransferStatusParams) (Transfer, error) {
+	row := q.db.QueryRowContext(ctx, setTransferStatus,
+		arg.Status,
+		arg.DispatchedAt,
+		arg.ReceivedAt,
+		arg.ID,
+	)
+	var i Transfer
+	err := row.Scan(
+		&i.ID,
+		&i.FromInventoryID,
+		&i.ToInventoryID,
+		&i.Type,
+		&i.CreatedAt,
+		&i.Code,
+		&i.Status,
+		&i.DispatchedAt,
+		&i.ReceivedAt,
+		&i.Note,
+	)
+	return i, err
+}
+
 const updateTransfer = `-- name: UpdateTransfer :exec
-UPDATE transfers 
+UPDATE transfers
 SET from_inventory_id = $2,
-to_inventory_id = $3,
-type = $4
-WHERE id = $1
+    to_inventory_id = $3,
+    type = $4,
+    note = $5
+WHERE id = $1 AND status = 'draft'
 `
 
 type UpdateTransferParams struct {
@@ -206,6 +327,7 @@ type UpdateTransferParams struct {
 	FromInventoryID int64        `json:"from_inventory_id"`
 	ToInventoryID   int64        `json:"to_inventory_id"`
 	Type            TransferType `json:"type"`
+	Note            string       `json:"note"`
 }
 
 func (q *Queries) UpdateTransfer(ctx context.Context, arg UpdateTransferParams) error {
@@ -214,6 +336,7 @@ func (q *Queries) UpdateTransfer(ctx context.Context, arg UpdateTransferParams) 
 		arg.FromInventoryID,
 		arg.ToInventoryID,
 		arg.Type,
+		arg.Note,
 	)
 	return err
 }

@@ -63,20 +63,47 @@
     </v-card>
   </v-dialog>
 
-  <div class="d-flex justify-space-between align-center mb-2">
-    <h2 class="text-h6">Suppliers</h2>
-    <v-btn color="primary" prepend-icon="mdi-plus" text="Add Supplier" @click="dialog = true" />
-  </div>
+  <div class="page-root">
+    <v-card class="suppliers-card" flat>
+      <v-card-title class="page-heading d-flex flex-wrap align-center ga-3 px-4 py-3">
+        <v-icon icon="mdi-truck-delivery" />
+        <span>Suppliers</span>
+        <v-spacer />
+        <v-text-field
+          v-model="search"
+          class="supplier-search"
+          clearable
+          density="compact"
+          hide-details
+          label="Search suppliers"
+          prepend-inner-icon="mdi-magnify"
+          variant="outlined"
+        />
+        <v-btn
+          color="primary"
+          prepend-icon="mdi-plus"
+          text="Add Supplier"
+          variant="flat"
+          @click="dialog = true"
+        />
+      </v-card-title>
+      <v-divider />
 
-  <ServerSideTable
-    ref="tableRef"
-    :api-u-r-l="apiURL"
-    :headers="headers"
-    root-key="suppliers"
-  />
+      <ServerSideTable
+        ref="tableRef"
+        :api-u-r-l="apiURL"
+        density="comfortable"
+        :external-search="search"
+        flush
+        :headers="headers"
+        root-key="suppliers"
+        :show-search-icon="false"
+      />
+    </v-card>
+  </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
   import { useField, useForm } from 'vee-validate'
   import { ref } from 'vue'
   import ServerSideTable from '@/components/Tables/ServerSideTable.vue'
@@ -94,6 +121,7 @@
   ])
 
   const tableRef = ref(null)
+  const search = ref('')
   const dialog = ref(false)
   const submitting = ref(false)
   const submitError = ref('')
@@ -171,3 +199,23 @@
     }
   })
 </script>
+
+<style scoped>
+.page-root {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  flex-direction: column;
+}
+
+.suppliers-card {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  flex-direction: column;
+}
+
+.supplier-search {
+  flex: 0 1 320px;
+}
+</style>

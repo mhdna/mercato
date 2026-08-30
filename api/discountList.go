@@ -2,6 +2,7 @@ package api
 
 import (
 	"database/sql"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -37,6 +38,14 @@ func (server *Server) createDiscountList(ctx *gin.Context) {
 		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
+
+	if discountList.IsDefault {
+		if err := server.store.UnsetDefaultDiscountList(ctx, discountList.ID); err != nil {
+			server.writeError(ctx, http.StatusInternalServerError, err)
+			return
+		}
+	}
+
 	ctx.JSON(http.StatusOK, discountList)
 }
 
@@ -64,7 +73,7 @@ func (server *Server) getDiscountList(ctx *gin.Context) {
 }
 
 type listDiscountListsRequest struct {
-	PageSize int32 `form:"page_size,default=10" binding:"min=5,max=10"`
+	PageSize int32 `form:"page_size,default=10" binding:"min=5,max=100"`
 	PageID   int32 `form:"page_id,default=0" binding:"min=0"`
 }
 
@@ -126,13 +135,40 @@ func (server *Server) updateDiscountList(ctx *gin.Context) {
 		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
+
+	if req.IsDefault {
+		if err := server.store.UnsetDefaultDiscountList(ctx, req.ID); err != nil {
+			server.writeError(ctx, http.StatusInternalServerError, err)
+			return
+		}
+	}
+
 	ctx.JSON(http.StatusOK, gin.H{"status": "updated"})
+}
+
+type deleteDiscountListRequest struct {
+	ID int64 `uri:"id" binding:"required,min=1"`
+}
+
+func (server *Server) deleteDiscountList(ctx *gin.Context) {
+	var req deleteDiscountListRequest
+	if err := ctx.ShouldBindUri(&req); err != nil {
+		server.writeError(ctx, http.StatusBadRequest, err)
+		return
+	}
+
+	if err := server.store.DeleteDiscountList(ctx, req.ID); err != nil {
+		server.writeError(ctx, http.StatusInternalServerError, err)
+		return
+	}
+	ctx.JSON(http.StatusOK, gin.H{"status": "deleted"})
 }
 
 type createDiscountListItemRequest struct {
 	DiscountListID int64 `json:"discount_list_id" binding:"required"`
 	ProductID      int64 `json:"product_id" binding:"required"`
-	Discount       int16 `json:"discount" binding:"required"`
+	// 0 is a legitimate value, so no "required" here -- it's validated by range.
+	Discount int16 `json:"discount" binding:"min=0,max=100"`
 }
 
 func (server *Server) createDiscountListItem(ctx *gin.Context) {
@@ -167,12 +203,12 @@ func (server *Server) listDiscountListItems(ctx *gin.Context) {
 		return
 	}
 
-	items, err := server.store.ListDiscountListItems(ctx, req.DiscountListID)
+	items, err := server.store.ListDiscountListItemsWithProduct(ctx, req.DiscountListID)
 	if err != nil {
 		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
-	ctx.JSON(http.StatusOK, items)
+	ctx.JSON(http.StatusOK, gin.H{"items": items})
 }
 
 type deleteDiscountListItemRequest struct {
@@ -196,4 +232,78 @@ func (server *Server) deleteDiscountListItem(ctx *gin.Context) {
 		return
 	}
 	ctx.JSON(http.StatusOK, gin.H{"status": "deleted"})
+}
+
+// ---- branch assignments -----------------------------------------------
+//
+// Mirrors price_list_branches: a branch has at most one discount list, and
+// stealing a branch from another list is an explicit 409 rather than a
+// silent move.
+
+type discountListBranchesURI struct {
+	ID int64 `uri:"id" binding:"required,min=1"`
+}
+
+func (server *Server) listDiscountListBranches(ctx *gin.Context) {
+	var req discountListBranchesURI
+	if err := ctx.ShouldBindUri(&req); err != nil {
+		server.writeError(ctx, http.StatusBadRequest, err)
+		return
+	}
+
+	branchIDs, err := server.store.ListDiscountListBranchIDs(ctx, req.ID)
+	if err != nil {
+		server.writeError(ctx, http.StatusInternalServerError, err)
+		return
+	}
+	ctx.JSON(http.StatusOK, gin.H{"branch_ids": branchIDs})
+}
+
+type setDiscountListBranchesRequest struct {
+	BranchIDs []int64 `json:"branch_ids"`
+}
+
+func (server *Server) setDiscountListBranches(ctx *gin.Context) {
+	var uri discountListBranchesURI
+	if err := ctx.ShouldBindUri(&uri); err != nil {
+		server.writeError(ctx, http.StatusBadRequest, err)
+		return
+	}
+	var req setDiscountListBranchesRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		server.writeError(ctx, http.StatusBadRequest, err)
+		return
+	}
+
+	for _, branchID := range req.BranchIDs {
+		existing, err := server.store.GetDiscountListBranch(ctx, branchID)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				continue
+			}
+			server.writeError(ctx, http.StatusInternalServerError, err)
+			return
+		}
+		if existing.DiscountListID != uri.ID {
+			server.writeError(ctx, http.StatusConflict, fmt.Errorf(
+				"branch %d is already assigned to discount list %d; remove it there first",
+				branchID, existing.DiscountListID))
+			return
+		}
+	}
+
+	if err := server.store.DeleteDiscountListBranchesForList(ctx, uri.ID); err != nil {
+		server.writeError(ctx, http.StatusInternalServerError, err)
+		return
+	}
+	for _, branchID := range req.BranchIDs {
+		if err := server.store.UpsertDiscountListBranch(ctx, db.UpsertDiscountListBranchParams{
+			BranchID:       branchID,
+			DiscountListID: uri.ID,
+		}); err != nil {
+			server.writeError(ctx, http.StatusInternalServerError, err)
+			return
+		}
+	}
+	ctx.JSON(http.StatusOK, gin.H{"branch_ids": req.BranchIDs})
 }

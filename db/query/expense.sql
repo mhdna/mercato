@@ -18,3 +18,19 @@ SELECT * FROM expenses
 ORDER BY id DESC
 LIMIT $1
 OFFSET $2;
+
+-- name: CountExpenses :one
+SELECT COUNT(*) FROM expenses;
+
+-- name: UpdateExpense :one
+UPDATE expenses
+SET description = $2,
+    category_id = $3,
+    amount = $4,
+    currency_code = $5
+WHERE id = $1
+RETURNING *;
+
+-- name: DeleteExpense :exec
+DELETE FROM expenses
+WHERE id = $1;

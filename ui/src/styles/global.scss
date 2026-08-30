@@ -33,6 +33,24 @@ code,
   transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 
+// Keep Vuetify table headers visually clean; sorting remains available by
+// clicking the header, but its hover/active icon is hidden globally.
+.v-data-table .v-data-table-header__sort-icon {
+  display: none !important;
+}
+
+// Controls placed beside page titles should keep their normal compact sizing
+// instead of inheriting the card-title typography.
+.page-heading {
+  .v-btn,
+  .v-field,
+  .v-field__input,
+  .v-label,
+  .v-tab {
+    font-size: 0.875rem;
+  }
+}
+
 ::-webkit-scrollbar {
   width: 2px;
   height: 2px;

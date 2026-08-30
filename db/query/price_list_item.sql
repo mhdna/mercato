@@ -30,3 +30,11 @@ WHERE price_list_id = $1 AND product_id = $2;
 SELECT * FROM price_list_items
 WHERE price_list_id = $1
 ORDER BY product_id;
+
+-- name: ListPriceListItemsWithProduct :many
+SELECT pli.price_list_id, pli.product_id, pli.price,
+       p.code AS product_code, p.name AS product_name
+FROM price_list_items pli
+JOIN products p ON p.id = pli.product_id
+WHERE pli.price_list_id = $1
+ORDER BY p.name;

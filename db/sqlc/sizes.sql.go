@@ -9,6 +9,23 @@ import (
 	"context"
 )
 
+const countSizes = `-- name: CountSizes :one
+SELECT COUNT(*) FROM sizes
+WHERE (
+  $1::text = ''
+  OR name ILIKE '%' || $1::text || '%'
+  OR type ILIKE '%' || $1::text || '%'
+  OR "order" ILIKE '%' || $1::text || '%'
+)
+`
+
+func (q *Queries) CountSizes(ctx context.Context, search string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countSizes, search)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createSize = `-- name: CreateSize :one
 INSERT INTO sizes (
   name,
@@ -37,6 +54,16 @@ func (q *Queries) CreateSize(ctx context.Context, arg CreateSizeParams) (Size, e
 		&i.CreatedAt,
 	)
 	return i, err
+}
+
+const deleteSize = `-- name: DeleteSize :exec
+DELETE FROM sizes
+WHERE id = $1
+`
+
+func (q *Queries) DeleteSize(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, deleteSize, id)
+	return err
 }
 
 const listSizes = `-- name: ListSizes :many
@@ -72,4 +99,105 @@ func (q *Queries) ListSizes(ctx context.Context) ([]Size, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const listSizesPage = `-- name: ListSizesPage :many
+SELECT id, name, type, "order", version, created_at FROM sizes
+WHERE (
+  $1::text = ''
+  OR name ILIKE '%' || $1::text || '%'
+  OR type ILIKE '%' || $1::text || '%'
+  OR "order" ILIKE '%' || $1::text || '%'
+)
+ORDER BY
+  CASE WHEN $2::text = 'type' AND $3::text = 'asc' THEN type END ASC,
+  CASE WHEN $2::text = 'type' AND $3::text = 'desc' THEN type END DESC,
+  CASE WHEN $2::text = 'name' AND $3::text = 'asc' THEN name END ASC,
+  CASE WHEN $2::text = 'name' AND $3::text = 'desc' THEN name END DESC,
+  CASE WHEN $2::text = 'order' AND $3::text = 'asc' THEN "order" END ASC,
+  CASE WHEN $2::text = 'order' AND $3::text = 'desc' THEN "order" END DESC,
+  CASE WHEN $2::text = 'id' AND $3::text = 'asc' THEN id END ASC,
+  CASE WHEN $2::text = 'id' AND $3::text = 'desc' THEN id END DESC,
+  CASE WHEN $2::text = 'created_at' AND $3::text = 'asc' THEN created_at END ASC,
+  created_at DESC,
+  id DESC
+LIMIT $5
+OFFSET $4
+`
+
+type ListSizesPageParams struct {
+	Search     string `json:"search"`
+	SortBy     string `json:"sort_by"`
+	SortOrder  string `json:"sort_order"`
+	PageOffset int32  `json:"page_offset"`
+	PageSize   int32  `json:"page_size"`
+}
+
+func (q *Queries) ListSizesPage(ctx context.Context, arg ListSizesPageParams) ([]Size, error) {
+	rows, err := q.db.QueryContext(ctx, listSizesPage,
+		arg.Search,
+		arg.SortBy,
+		arg.SortOrder,
+		arg.PageOffset,
+		arg.PageSize,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Size{}
+	for rows.Next() {
+		var i Size
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Type,
+			&i.Order,
+			&i.Version,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const updateSize = `-- name: UpdateSize :one
+UPDATE sizes
+SET name = $2, type = $3, "order" = $4, version = version + 1
+WHERE id = $1
+RETURNING id, name, type, "order", version, created_at
+`
+
+type UpdateSizeParams struct {
+	ID    int64  `json:"id"`
+	Name  string `json:"name"`
+	Type  string `json:"type"`
+	Order string `json:"order"`
+}
+
+func (q *Queries) UpdateSize(ctx context.Context, arg UpdateSizeParams) (Size, error) {
+	row := q.db.QueryRowContext(ctx, updateSize,
+		arg.ID,
+		arg.Name,
+		arg.Type,
+		arg.Order,
+	)
+	var i Size
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Type,
+		&i.Order,
+		&i.Version,
+		&i.CreatedAt,
+	)
+	return i, err
 }

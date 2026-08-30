@@ -7,7 +7,41 @@ package db
 
 import (
 	"context"
+	"time"
 )
+
+const countAttributeValues = `-- name: CountAttributeValues :one
+SELECT COUNT(*)
+FROM attributes_values av
+INNER JOIN attributes a ON a.id = av.attribute_id
+WHERE a.name = $1::text
+  AND (
+    $2::text = ''
+    OR av.value ILIKE '%' || $2::text || '%'
+  )
+`
+
+type CountAttributeValuesParams struct {
+	AttributeName string `json:"attribute_name"`
+	Search        string `json:"search"`
+}
+
+func (q *Queries) CountAttributeValues(ctx context.Context, arg CountAttributeValuesParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countAttributeValues, arg.AttributeName, arg.Search)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const deleteAttributeValue = `-- name: DeleteAttributeValue :exec
+DELETE FROM attributes_values
+WHERE id = $1
+`
+
+func (q *Queries) DeleteAttributeValue(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, deleteAttributeValue, id)
+	return err
+}
 
 const getAttribute = `-- name: GetAttribute :one
 Select id, name
@@ -24,7 +58,7 @@ func (q *Queries) GetAttribute(ctx context.Context, name string) (Attribute, err
 
 const getAttributeValue = `-- name: GetAttributeValue :one
 
-SELECT id, attribute_id, value FROM attributes_values
+SELECT id, attribute_id, value, created_at FROM attributes_values
 WHERE id = $1
 `
 
@@ -32,12 +66,61 @@ WHERE id = $1
 func (q *Queries) GetAttributeValue(ctx context.Context, id int64) (AttributesValue, error) {
 	row := q.db.QueryRowContext(ctx, getAttributeValue, id)
 	var i AttributesValue
-	err := row.Scan(&i.ID, &i.AttributeID, &i.Value)
+	err := row.Scan(
+		&i.ID,
+		&i.AttributeID,
+		&i.Value,
+		&i.CreatedAt,
+	)
 	return i, err
 }
 
+const listAllAttributeValues = `-- name: ListAllAttributeValues :many
+SELECT av.id, av.attribute_id, av.value, av.created_at, a.name AS attribute_name
+FROM attributes_values av
+INNER JOIN attributes a ON a.id = av.attribute_id
+ORDER BY a.name, av.value
+`
+
+type ListAllAttributeValuesRow struct {
+	ID            int64     `json:"id"`
+	AttributeID   int64     `json:"attribute_id"`
+	Value         string    `json:"value"`
+	CreatedAt     time.Time `json:"created_at"`
+	AttributeName string    `json:"attribute_name"`
+}
+
+func (q *Queries) ListAllAttributeValues(ctx context.Context) ([]ListAllAttributeValuesRow, error) {
+	rows, err := q.db.QueryContext(ctx, listAllAttributeValues)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListAllAttributeValuesRow{}
+	for rows.Next() {
+		var i ListAllAttributeValuesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.AttributeID,
+			&i.Value,
+			&i.CreatedAt,
+			&i.AttributeName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listAttributeValues = `-- name: ListAttributeValues :many
-SELECT a.id, a.name, av.id, av.attribute_id, av.value
+SELECT a.id, a.name, av.id, av.attribute_id, av.value, av.created_at
 FROM attributes a
 INNER JOIN attributes_values av
 ON a.id = av.attribute_id
@@ -52,11 +135,12 @@ type ListAttributeValuesParams struct {
 }
 
 type ListAttributeValuesRow struct {
-	ID          int64  `json:"id"`
-	Name        string `json:"name"`
-	ID_2        int64  `json:"id_2"`
-	AttributeID int64  `json:"attribute_id"`
-	Value       string `json:"value"`
+	ID          int64     `json:"id"`
+	Name        string    `json:"name"`
+	ID_2        int64     `json:"id_2"`
+	AttributeID int64     `json:"attribute_id"`
+	Value       string    `json:"value"`
+	CreatedAt   time.Time `json:"created_at"`
 }
 
 func (q *Queries) ListAttributeValues(ctx context.Context, arg ListAttributeValuesParams) ([]ListAttributeValuesRow, error) {
@@ -74,6 +158,81 @@ func (q *Queries) ListAttributeValues(ctx context.Context, arg ListAttributeValu
 			&i.ID_2,
 			&i.AttributeID,
 			&i.Value,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listAttributeValuesPage = `-- name: ListAttributeValuesPage :many
+SELECT av.id, av.attribute_id, av.value, av.created_at, a.name AS attribute_name
+FROM attributes_values av
+INNER JOIN attributes a ON a.id = av.attribute_id
+WHERE a.name = $1::text
+  AND (
+    $2::text = ''
+    OR av.value ILIKE '%' || $2::text || '%'
+  )
+ORDER BY
+  CASE WHEN $3::text = 'value' AND $4::text = 'asc' THEN av.value END ASC,
+  CASE WHEN $3::text = 'value' AND $4::text = 'desc' THEN av.value END DESC,
+  CASE WHEN $3::text = 'id' AND $4::text = 'asc' THEN av.id END ASC,
+  CASE WHEN $3::text = 'id' AND $4::text = 'desc' THEN av.id END DESC,
+  CASE WHEN $3::text = 'created_at' AND $4::text = 'asc' THEN av.created_at END ASC,
+  av.created_at DESC,
+  av.id DESC
+LIMIT $6
+OFFSET $5
+`
+
+type ListAttributeValuesPageParams struct {
+	AttributeName string `json:"attribute_name"`
+	Search        string `json:"search"`
+	SortBy        string `json:"sort_by"`
+	SortOrder     string `json:"sort_order"`
+	PageOffset    int32  `json:"page_offset"`
+	PageSize      int32  `json:"page_size"`
+}
+
+type ListAttributeValuesPageRow struct {
+	ID            int64     `json:"id"`
+	AttributeID   int64     `json:"attribute_id"`
+	Value         string    `json:"value"`
+	CreatedAt     time.Time `json:"created_at"`
+	AttributeName string    `json:"attribute_name"`
+}
+
+func (q *Queries) ListAttributeValuesPage(ctx context.Context, arg ListAttributeValuesPageParams) ([]ListAttributeValuesPageRow, error) {
+	rows, err := q.db.QueryContext(ctx, listAttributeValuesPage,
+		arg.AttributeName,
+		arg.Search,
+		arg.SortBy,
+		arg.SortOrder,
+		arg.PageOffset,
+		arg.PageSize,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListAttributeValuesPageRow{}
+	for rows.Next() {
+		var i ListAttributeValuesPageRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.AttributeID,
+			&i.Value,
+			&i.CreatedAt,
+			&i.AttributeName,
 		); err != nil {
 			return nil, err
 		}
@@ -121,7 +280,7 @@ const updateAttributeValue = `-- name: UpdateAttributeValue :one
 UPDATE attributes_values
 SET value = $2
 WHERE id = $1
-RETURNING id, attribute_id, value
+RETURNING id, attribute_id, value, created_at
 `
 
 type UpdateAttributeValueParams struct {
@@ -132,7 +291,12 @@ type UpdateAttributeValueParams struct {
 func (q *Queries) UpdateAttributeValue(ctx context.Context, arg UpdateAttributeValueParams) (AttributesValue, error) {
 	row := q.db.QueryRowContext(ctx, updateAttributeValue, arg.ID, arg.Value)
 	var i AttributesValue
-	err := row.Scan(&i.ID, &i.AttributeID, &i.Value)
+	err := row.Scan(
+		&i.ID,
+		&i.AttributeID,
+		&i.Value,
+		&i.CreatedAt,
+	)
 	return i, err
 }
 
@@ -140,7 +304,7 @@ const upsertAttributeValue = `-- name: UpsertAttributeValue :one
 INSERT INTO attributes_values (attribute_id, value)
 VALUES ($1, $2)
 ON CONFLICT (attribute_id, value) DO UPDATE SET value = $2
-RETURNING id, attribute_id, value
+RETURNING id, attribute_id, value, created_at
 `
 
 type UpsertAttributeValueParams struct {
@@ -151,6 +315,11 @@ type UpsertAttributeValueParams struct {
 func (q *Queries) UpsertAttributeValue(ctx context.Context, arg UpsertAttributeValueParams) (AttributesValue, error) {
 	row := q.db.QueryRowContext(ctx, upsertAttributeValue, arg.AttributeID, arg.Value)
 	var i AttributesValue
-	err := row.Scan(&i.ID, &i.AttributeID, &i.Value)
+	err := row.Scan(
+		&i.ID,
+		&i.AttributeID,
+		&i.Value,
+		&i.CreatedAt,
+	)
 	return i, err
 }

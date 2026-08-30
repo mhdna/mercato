@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/gin-gonic/gin"
 	db "github.com/mhdna/kashi/db/sqlc"
@@ -46,6 +47,10 @@ func (server *Server) BranchHub() *branchHub {
 }
 
 func (server *Server) setupRoutes() {
+	// Persist Gin access and recovery output through the same bounded writer
+	// configured for the standard Go logger while keeping Gin's middleware.
+	gin.DefaultWriter = log.Writer()
+	gin.DefaultErrorWriter = log.Writer()
 	router := gin.Default()
 	router.Use(corsMiddleware())
 
@@ -56,17 +61,27 @@ func (server *Server) setupRoutes() {
 	authRoutes.GET("/inventories/", server.listInventories)
 	authRoutes.PUT("/inventories", server.updateInventory)
 	authRoutes.DELETE("/inventories/:id", server.deleteInventory)
+	authRoutes.GET("/inventories/:id/stock", server.listInventoryStock)
+	authRoutes.POST("/inventories/:id/adjustments", server.createStockAdjustment)
+	authRoutes.GET("/stock_movements", server.listStockMovements)
 	authRoutes.POST("/products", server.createProduct)
 	authRoutes.PUT("/products", server.updateProduct)
 	authRoutes.GET("/products/:id", server.getProduct)
 	authRoutes.GET("/products", server.listProducts)
 	authRoutes.PUT("/product_variants", server.updateProductVariant)
+	authRoutes.POST("/product_variants", server.createProductVariant)
+	authRoutes.DELETE("/product_variants/:id", server.deleteProductVariant)
 	authRoutes.GET("/barcodes", server.listBarcodes)
+	authRoutes.POST("/barcodes/assign", server.assignBarcodes)
+	authRoutes.POST("/barcodes/print", server.printBarcodes)
 	authRoutes.DELETE("/products/:id", server.deleteProduct)
 	authRoutes.POST("/attributes/batch", server.createAttributeValues)
 	authRoutes.POST("/attributes", server.createAttributeValue)
 	authRoutes.PUT("/attributes", server.updateAttributeValue)
 	authRoutes.GET("/attributes/", server.listAttributeValues)
+	authRoutes.GET("/attribute_types", server.listAttributes)
+	authRoutes.GET("/attribute_values", server.listAllAttributeValues)
+	authRoutes.DELETE("/attributes/:id", server.deleteAttributeValue)
 	// TODO: add updateAsset
 	authRoutes.POST("/assets", server.createAsset)
 	authRoutes.DELETE("/assets/:id", server.deleteAsset)
@@ -103,14 +118,22 @@ func (server *Server) setupRoutes() {
 
 	authRoutes.GET("/pos_settings", server.posSettings)
 
+	authRoutes.GET("/app_settings", server.getAppSettings)
+	authRoutes.PUT("/app_settings", server.updateAppSettings)
+	authRoutes.GET("/logs", server.listAppLogs)
+
 	authRoutes.POST("/suppliers", server.createSupplier)
 	authRoutes.GET("/suppliers/:id", server.getSupplier)
 	authRoutes.GET("/suppliers", server.listSuppliers)
 
 	authRoutes.POST("/colors", server.createColor)
 	authRoutes.GET("/colors", server.listColors)
+	authRoutes.PUT("/colors", server.updateColor)
+	authRoutes.DELETE("/colors/:id", server.deleteColor)
 	authRoutes.POST("/sizes", server.createSize)
 	authRoutes.GET("/sizes", server.listSizes)
+	authRoutes.PUT("/sizes", server.updateSize)
+	authRoutes.DELETE("/sizes/:id", server.deleteSize)
 
 	authRoutes.POST("/sales_invoices", server.createSalesInvoice)
 	authRoutes.GET("/sales_invoices/:id", server.getSalesInvoice)
@@ -120,6 +143,9 @@ func (server *Server) setupRoutes() {
 	authRoutes.GET("/return_invoices/:id", server.getReturnInvoice)
 	authRoutes.GET("/return_invoices", server.listReturnInvoices)
 
+	authRoutes.GET("/invoices/:id/details", server.getInvoiceDetails)
+	authRoutes.GET("/branch_invoices/:id/details", server.getBranchInvoiceDetails)
+
 	authRoutes.POST("/invoice_types", server.createInvoiceType)
 	authRoutes.GET("/invoice_types/:id", server.getInvoiceType)
 	authRoutes.GET("/invoice_types", server.listInvoiceTypes)
@@ -128,21 +154,28 @@ func (server *Server) setupRoutes() {
 	authRoutes.POST("/price_lists", server.createPriceList)
 	authRoutes.GET("/price_lists/:id", server.getPriceList)
 	authRoutes.GET("/price_lists", server.listPriceLists)
+	authRoutes.PUT("/price_lists", server.updatePriceList)
+	authRoutes.DELETE("/price_lists/:id", server.deletePriceList)
 	authRoutes.POST("/price_lists/items", server.createPriceListItem)
 	authRoutes.GET("/price_lists/:id/items", server.listPriceListItems)
 	authRoutes.DELETE("/price_lists/:id/items/:product_id", server.deletePriceListItem)
+	authRoutes.GET("/price_lists/:id/branches", server.listPriceListBranches)
+	authRoutes.PUT("/price_lists/:id/branches", server.setPriceListBranches)
 
 	authRoutes.POST("/discount_lists", server.createDiscountList)
 	authRoutes.GET("/discount_lists/:id", server.getDiscountList)
 	authRoutes.GET("/discount_lists", server.listDiscountLists)
 	authRoutes.PUT("/discount_lists", server.updateDiscountList)
+	authRoutes.DELETE("/discount_lists/:id", server.deleteDiscountList)
 	authRoutes.POST("/discount_lists/items", server.createDiscountListItem)
 	authRoutes.GET("/discount_lists/:id/items", server.listDiscountListItems)
 	authRoutes.DELETE("/discount_lists/:id/items/:product_id", server.deleteDiscountListItem)
+	authRoutes.GET("/discount_lists/:id/branches", server.listDiscountListBranches)
+	authRoutes.PUT("/discount_lists/:id/branches", server.setDiscountListBranches)
 
 	router.POST("/users/login", server.loginUser)
 	router.POST("/tokens/renew_access", server.renewAccessToken)
-	router.POST("/users", server.createUser)
+	authRoutes.POST("/users", server.createUser)
 	authRoutes.GET("/users/:id", server.getUser)
 	authRoutes.GET("/users", server.listUsers)
 	authRoutes.PUT("/users", server.updateUser)
@@ -159,6 +192,8 @@ func (server *Server) setupRoutes() {
 	authRoutes.DELETE("/expense_categories/:id", server.deleteExpenseCategory)
 
 	authRoutes.POST("/expenses", server.createExpense)
+	authRoutes.PUT("/expenses", server.updateExpense)
+	authRoutes.DELETE("/expenses/:id", server.deleteExpense)
 	authRoutes.GET("/expenses/:id", server.getExpense)
 	authRoutes.GET("/expenses", server.listExpenses)
 
@@ -189,13 +224,16 @@ func (server *Server) setupRoutes() {
 	authRoutes.GET("/transfers/:id", server.getTransfer)
 	authRoutes.GET("/transfers", server.listTransfers)
 	authRoutes.PUT("/transfers", server.updateTransfer)
+	authRoutes.POST("/transfers/:id/dispatch", server.dispatchTransfer)
+	authRoutes.POST("/transfers/:id/receive", server.receiveTransfer)
 	authRoutes.POST("/transfer_items", server.createTransferItem)
 	authRoutes.GET("/transfer_items/:transfer_id", server.listTransferItems)
 
 	authRoutes.POST("/purchases", server.createPurchase)
 	authRoutes.GET("/purchases/:id", server.getPurchase)
 	authRoutes.GET("/purchases", server.listPurchases)
-	authRoutes.POST("/purchases/items", server.addPurchaseItem)
+	authRoutes.POST("/purchase_items", server.addPurchaseItem)
+	authRoutes.POST("/purchases/:id/receive", server.receivePurchase)
 
 	authRoutes.POST("/branches", server.createBranch)
 	authRoutes.GET("/branches", server.listBranches)
@@ -211,6 +249,16 @@ func (server *Server) setupRoutes() {
 	authRoutes.GET("/branch_invoices", server.listBranchInvoices)
 	authRoutes.GET("/branch_invoices/:id/items", server.listBranchInvoiceItems)
 	authRoutes.GET("/branch_invoices/daily_income", server.dailyIncome)
+	authRoutes.GET("/branch_shifts", server.listBranchShifts)
+	authRoutes.GET("/branch_invoice_settlements", server.listBranchInvoiceSettlements)
+	authRoutes.GET("/branch_attendance_changes", server.listBranchAttendanceChanges)
+	authRoutes.GET("/branch_attendance_events", server.listBranchAttendanceEvents)
+
+	authRoutes.GET("/dashboard/summary", server.getDashboardSummary)
+	authRoutes.GET("/dashboard/sales", server.listDashboardSales)
+	authRoutes.GET("/dashboard/purchases", server.listDashboardPurchases)
+	authRoutes.GET("/dashboard/expenses", server.listDashboardExpenses)
+	authRoutes.GET("/dashboard/activities", server.listDashboardActivities)
 	authRoutes.GET("/branches/:id/settings", server.getBranchSettings)
 	authRoutes.POST("/branches/:id/commands", server.createBranchCommand)
 	authRoutes.GET("/branches/:id/commands", server.listBranchCommands)
@@ -248,6 +296,10 @@ func (server *Server) setupRoutes() {
 	branchRoutes.POST("/exchange_invoices", server.createBranchExchangeInvoice)
 	branchRoutes.POST("/expenses", server.createBranchExpense)
 	branchRoutes.POST("/loans", server.createBranchLoan)
+	branchRoutes.POST("/shift_closes", server.createBranchShiftClose)
+	branchRoutes.POST("/invoice_settlements", server.createBranchInvoiceSettlement)
+	branchRoutes.POST("/attendance_events", server.createBranchAttendanceEvents)
+	branchRoutes.POST("/attendance_changes", server.createBranchAttendanceChange)
 	branchRoutes.GET("/sync/changes", server.branchSyncChanges)
 	branchRoutes.GET("/ws", server.branchWS)
 	branchRoutes.PUT("/settings", server.putBranchSettings)

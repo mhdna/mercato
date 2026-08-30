@@ -15,9 +15,16 @@ WHERE id = $1 LIMIT 1;
 
 -- name: ListPriceLists :many
 SELECT * FROM price_lists
-ORDER BY name
-LIMIT $1
-OFFSET $2;
+WHERE BTRIM(sqlc.arg(search)::text) = ''
+   OR name ILIKE '%' || BTRIM(sqlc.arg(search)::text) || '%'
+ORDER BY id DESC
+LIMIT sqlc.arg(page_size)
+OFFSET sqlc.arg(page_offset);
+
+-- name: CountPriceListsFiltered :one
+SELECT COUNT(*) FROM price_lists
+WHERE BTRIM(sqlc.arg(search)::text) = ''
+   OR name ILIKE '%' || BTRIM(sqlc.arg(search)::text) || '%';
 
 -- name: UpdatePriceList :exec
 UPDATE price_lists
@@ -28,3 +35,7 @@ WHERE id = $1;
 UPDATE price_lists
 SET is_default = false
 WHERE is_default = true AND id != $1;
+
+-- name: DeletePriceList :exec
+DELETE FROM price_lists
+WHERE id = $1;

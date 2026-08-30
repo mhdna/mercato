@@ -12,15 +12,19 @@ import (
 
 func createRandomPurchase(t *testing.T) Purchase {
 	supplier := createRandomSupplier(t)
+	currency := createRandomCurrency(t)
 	arg := CreatePurchaseParams{
-		SupplierID:  supplier.ID,
-		PurchasedAt: time.Now(),
+		SupplierID:   supplier.ID,
+		CurrencyCode: currency.Code,
+		Code:         util.RandomCode(),
+		PurchasedAt:  time.Now(),
 	}
 
 	purchase, err := testQueries.CreatePurchase(context.Background(), arg)
 	require.NoError(t, err)
 	require.NotEmpty(t, purchase)
 	require.Equal(t, arg.SupplierID, purchase.SupplierID)
+	require.Equal(t, PurchaseStatusDraft, purchase.Status)
 	require.WithinDuration(t, arg.PurchasedAt, purchase.PurchasedAt, time.Second)
 
 	require.NotZero(t, purchase.ID)
@@ -48,8 +52,9 @@ func TestListPurchases(t *testing.T) {
 	}
 
 	arg := ListPurchasesParams{
-		Limit:  5,
-		Offset: 5,
+		Search:     "",
+		PageSize:   5,
+		PageOffset: 5,
 	}
 
 	purchases, err := testQueries.ListPurchases(context.Background(), arg)
@@ -62,12 +67,12 @@ func TestListPurchases(t *testing.T) {
 }
 
 func TestAddPurchaseItem(t *testing.T) {
-	product := createRandomProduct(t)
+	variant := createRandomVariant(t)
 	purchase := createRandomPurchase(t)
 	currency := createRandomCurrency(t)
 	arg := AddPurchaseItemParams{
 		PurchaseID:   sql.NullInt64{Int64: purchase.ID, Valid: true},
-		ProductID:    sql.NullInt64{Int64: product.ID, Valid: true},
+		VariantID:    sql.NullInt64{Int64: variant.ID, Valid: true},
 		Quantity:     util.RandomQuantity(),
 		UnitPrice:    util.RandomAmount(),
 		CurrencyCode: currency.Code,
@@ -77,12 +82,53 @@ func TestAddPurchaseItem(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, purchase)
 	require.Equal(t, arg.PurchaseID, purchased_item.PurchaseID)
-	require.Equal(t, arg.ProductID, purchased_item.ProductID)
+	require.Equal(t, arg.VariantID, purchased_item.VariantID)
 	require.Equal(t, arg.Quantity, purchased_item.Quantity)
 	require.Equal(t, arg.UnitPrice, purchased_item.UnitPrice)
 	require.Equal(t, arg.CurrencyCode, purchased_item.CurrencyCode)
 
 	require.NotZero(t, purchased_item.ID)
+}
+
+func TestPurchaseReceiveTx(t *testing.T) {
+	inventory := createRandomInventory(t)
+	variant := createRandomVariant(t)
+	supplier := createRandomSupplier(t)
+	currency := createRandomCurrency(t)
+
+	created, err := testStore.CreatePurchaseTx(context.Background(), CreatePurchaseTxParams{
+		SupplierID:   supplier.ID,
+		InventoryID:  inventory.ID,
+		CurrencyCode: currency.Code,
+		Items: []PurchaseItemParams{
+			{VariantID: sql.NullInt64{Int64: variant.ID, Valid: true}, Quantity: 5, UnitPrice: 200},
+		},
+	})
+	require.NoError(t, err)
+	require.EqualValues(t, 1000, created.Purchase.GrandTotal)
+
+	received, err := testStore.PurchaseReceiveTx(context.Background(), PurchaseReceiveTxParams{
+		PurchaseID: created.Purchase.ID,
+	})
+	require.NoError(t, err)
+	require.Equal(t, PurchaseStatusReceived, received.Purchase.Status)
+	require.Len(t, received.Movements, 1)
+
+	stock, err := testQueries.GetInventoryStock(context.Background(), GetInventoryStockParams{
+		InventoryID: inventory.ID,
+		VariantID:   variant.ID,
+	})
+	require.NoError(t, err)
+	require.EqualValues(t, 5, stock.Quantity)
+	require.EqualValues(t, 200, stock.AvgCost)
+
+	// Receiving again is a no-op (idempotent on status).
+	again, err := testStore.PurchaseReceiveTx(context.Background(), PurchaseReceiveTxParams{
+		PurchaseID: created.Purchase.ID,
+	})
+	require.NoError(t, err)
+	require.Equal(t, PurchaseStatusReceived, again.Purchase.Status)
+	require.Empty(t, again.Movements)
 }
 
 func TestAddPurchasedProduct(t *testing.T) {

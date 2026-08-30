@@ -1,12 +1,8 @@
 <template>
-  <div>
-    <v-img
-      class="mx-auto my-6"
-      max-width="228"
-      src="/app-icon-inverted.png"
-    />
+  <div class="login-form">
+    <div class="login-form-content">
+      <GbLogo class="login-logo mx-auto" />
 
-    <v-card class="mx-auto pa-12 pb-8" elevation="8" max-width="448" rounded="lg">
       <div class="text-subtitle-1 text-medium-emphasis">Account</div>
 
       <v-text-field
@@ -46,16 +42,15 @@
         {{ error }}
       </v-alert>
 
-      <v-card class="mb-12" color="surface-variant" variant="tonal">
+      <v-card v-if="failedAttempts >= 3" class="mb-12" color="surface-variant" variant="tonal">
         <v-card-text class="text-medium-emphasis text-caption">
-          Warning: After 3 consecutive failed login attempts, you account will be temporarily locked for three hours. If
+          Warning: After 3 consecutive failed login attempts, your account will be temporarily locked for three hours. If
           you must login now, you can also click "Forgot login password?" below to reset the login password.
         </v-card-text>
       </v-card>
 
       <v-btn
         block
-        class="mb-8"
         color="blue"
         :loading="submitting"
         size="large"
@@ -65,17 +60,14 @@
         Log In
       </v-btn>
 
-      <v-card-text class="text-center">
-        <a class="text-blue text-decoration-none" href="#" rel="noopener noreferrer" target="_blank">
-          Sign up now <v-icon icon="mdi-chevron-right" />
-        </a>
-      </v-card-text>
-    </v-card>
+    </div>
   </div>
 </template>
+
 <script setup lang="ts">
   import { ref } from 'vue'
   import { useRouter } from 'vue-router'
+  import GbLogo from '@/components/GbLogo.vue'
   import { useAuthStore } from '@/stores/auth'
 
   const router = useRouter()
@@ -86,6 +78,7 @@
   const password = ref('')
   const submitting = ref(false)
   const error = ref('')
+  const failedAttempts = ref(0)
 
   async function submit () {
     error.value = ''
@@ -94,9 +87,43 @@
       await authStore.login(username.value, password.value)
       router.push('/')
     } catch (error_) {
+      failedAttempts.value += 1
       error.value = error_.message
     } finally {
       submitting.value = false
     }
   }
 </script>
+
+<style scoped>
+.login-form {
+  align-items: center;
+  box-sizing: border-box;
+  display: flex;
+  justify-content: center;
+  min-height: 100dvh;
+  padding: 24px 24px 72px;
+  width: 100%;
+}
+
+.login-form-content {
+  flex-shrink: 0;
+  margin: auto;
+  padding: 48px;
+  width: min(100%, 448px);
+}
+
+.login-logo {
+  margin-bottom: 24px;
+}
+
+@media (max-width: 600px) {
+  .login-form {
+    padding-bottom: 56px;
+  }
+
+  .login-form-content {
+    padding: 24px 0;
+  }
+}
+</style>

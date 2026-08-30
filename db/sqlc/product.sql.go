@@ -7,14 +7,49 @@ package db
 
 import (
 	"context"
+	"database/sql"
+
+	"github.com/lib/pq"
 )
 
 const countProducts = `-- name: CountProducts :one
-SELECT COUNT(*) FROM products
+SELECT count(*)
+FROM products p
+WHERE ($1::text = ''
+       OR p.code ILIKE '%' || $1 || '%'
+       OR p.name ILIKE '%' || $1 || '%'
+       OR p.description ILIKE '%' || $1 || '%')
+  AND ($2::bool IS NULL OR p.is_active = $2)
+  AND ($3::timestamptz IS NULL OR p.created_at >= $3)
+  AND ($4::timestamptz IS NULL OR p.created_at < $4)
+  AND ($5::bool IS NULL
+       OR EXISTS (SELECT 1 FROM product_variants v WHERE v.product_id = p.id) = $5)
+  AND (cardinality($6::bigint[]) = 0
+       OR (SELECT count(DISTINCT pa.attribute_value_id)
+             FROM products_attributes pa
+            WHERE pa.product_id = p.id
+              AND pa.attribute_value_id = ANY($6::bigint[]))
+           = cardinality($6::bigint[]))
 `
 
-func (q *Queries) CountProducts(ctx context.Context) (int64, error) {
-	row := q.db.QueryRowContext(ctx, countProducts)
+type CountProductsParams struct {
+	Search            string       `json:"search"`
+	IsActive          sql.NullBool `json:"is_active"`
+	CreatedFrom       sql.NullTime `json:"created_from"`
+	CreatedTo         sql.NullTime `json:"created_to"`
+	HasVariants       sql.NullBool `json:"has_variants"`
+	AttributeValueIds []int64      `json:"attribute_value_ids"`
+}
+
+func (q *Queries) CountProducts(ctx context.Context, arg CountProductsParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countProducts,
+		arg.Search,
+		arg.IsActive,
+		arg.CreatedFrom,
+		arg.CreatedTo,
+		arg.HasVariants,
+		pq.Array(arg.AttributeValueIds),
+	)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -80,19 +115,53 @@ func (q *Queries) GetProduct(ctx context.Context, id int64) (Product, error) {
 }
 
 const listProducts = `-- name: ListProducts :many
-SELECT id, code, name, description, is_active, created_at FROM products
-ORDER BY id
-LIMIT $1
-OFFSET $2
+SELECT p.id, p.code, p.name, p.description, p.is_active, p.created_at
+FROM products p
+WHERE ($1::text = ''
+       OR p.code ILIKE '%' || $1 || '%'
+       OR p.name ILIKE '%' || $1 || '%'
+       OR p.description ILIKE '%' || $1 || '%')
+  AND ($2::bool IS NULL OR p.is_active = $2)
+  AND ($3::timestamptz IS NULL OR p.created_at >= $3)
+  AND ($4::timestamptz IS NULL OR p.created_at < $4)
+  AND ($5::bool IS NULL
+       OR EXISTS (SELECT 1 FROM product_variants v WHERE v.product_id = p.id) = $5)
+  AND (cardinality($6::bigint[]) = 0
+       OR (SELECT count(DISTINCT pa.attribute_value_id)
+             FROM products_attributes pa
+            WHERE pa.product_id = p.id
+              AND pa.attribute_value_id = ANY($6::bigint[]))
+           = cardinality($6::bigint[]))
+ORDER BY p.id
+LIMIT $8 OFFSET $7
 `
 
 type ListProductsParams struct {
-	Limit  int32 `json:"limit"`
-	Offset int32 `json:"offset"`
+	Search            string       `json:"search"`
+	IsActive          sql.NullBool `json:"is_active"`
+	CreatedFrom       sql.NullTime `json:"created_from"`
+	CreatedTo         sql.NullTime `json:"created_to"`
+	HasVariants       sql.NullBool `json:"has_variants"`
+	AttributeValueIds []int64      `json:"attribute_value_ids"`
+	PageOffset        int32        `json:"page_offset"`
+	PageLimit         int32        `json:"page_limit"`
 }
 
+// Search matches code/name/description (case-insensitive). Every filter is
+// optional: empty search string, NULL narg, or empty attribute_value_ids
+// array all mean "don't filter on this". attribute_value_ids is an AND --
+// the product must carry every selected value.
 func (q *Queries) ListProducts(ctx context.Context, arg ListProductsParams) ([]Product, error) {
-	rows, err := q.db.QueryContext(ctx, listProducts, arg.Limit, arg.Offset)
+	rows, err := q.db.QueryContext(ctx, listProducts,
+		arg.Search,
+		arg.IsActive,
+		arg.CreatedFrom,
+		arg.CreatedTo,
+		arg.HasVariants,
+		pq.Array(arg.AttributeValueIds),
+		arg.PageOffset,
+		arg.PageLimit,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -125,7 +194,8 @@ const updateProduct = `-- name: UpdateProduct :exec
 UPDATE products
   SET name = $2,
   code = $3,
-  description = $4
+  description = $4,
+  is_active = $5
 WHERE id = $1
 `
 
@@ -134,6 +204,7 @@ type UpdateProductParams struct {
 	Name        string `json:"name"`
 	Code        string `json:"code"`
 	Description string `json:"description"`
+	IsActive    bool   `json:"is_active"`
 }
 
 func (q *Queries) UpdateProduct(ctx context.Context, arg UpdateProductParams) error {
@@ -142,6 +213,25 @@ func (q *Queries) UpdateProduct(ctx context.Context, arg UpdateProductParams) er
 		arg.Name,
 		arg.Code,
 		arg.Description,
+		arg.IsActive,
 	)
+	return err
+}
+
+const upsertProductAttribute = `-- name: UpsertProductAttribute :exec
+INSERT INTO products_attributes (attribute_id, product_id, attribute_value_id)
+VALUES ($1, $2, $3)
+ON CONFLICT (attribute_id, product_id)
+DO UPDATE SET attribute_value_id = EXCLUDED.attribute_value_id
+`
+
+type UpsertProductAttributeParams struct {
+	AttributeID      int64 `json:"attribute_id"`
+	ProductID        int64 `json:"product_id"`
+	AttributeValueID int64 `json:"attribute_value_id"`
+}
+
+func (q *Queries) UpsertProductAttribute(ctx context.Context, arg UpsertProductAttributeParams) error {
+	_, err := q.db.ExecContext(ctx, upsertProductAttribute, arg.AttributeID, arg.ProductID, arg.AttributeValueID)
 	return err
 }

@@ -22,6 +22,23 @@ func (q *Queries) CountProductVariants(ctx context.Context) (int64, error) {
 	return count, err
 }
 
+const countVariantsForBarcodes = `-- name: CountVariantsForBarcodes :one
+SELECT COUNT(*)
+FROM product_variants pv
+JOIN products p ON p.id = pv.product_id
+WHERE ($1::text = ''
+       OR p.name ILIKE '%' || $1 || '%'
+       OR p.code ILIKE '%' || $1 || '%'
+       OR pv.barcode ILIKE '%' || $1 || '%')
+`
+
+func (q *Queries) CountVariantsForBarcodes(ctx context.Context, search string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countVariantsForBarcodes, search)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createProductVariant = `-- name: CreateProductVariant :one
 INSERT INTO product_variants (
   product_id,
@@ -31,7 +48,7 @@ INSERT INTO product_variants (
   price
 ) VALUES (
   $1, $2, $3, $4, $5
-) RETURNING id, product_id, color_id, size_id, barcode, price, is_active, created_at, updated_at
+) RETURNING id, product_id, color_id, size_id, barcode, price, is_active, created_at, updated_at, avg_cost
 `
 
 type CreateProductVariantParams struct {
@@ -61,12 +78,23 @@ func (q *Queries) CreateProductVariant(ctx context.Context, arg CreateProductVar
 		&i.IsActive,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.AvgCost,
 	)
 	return i, err
 }
 
+const deleteProductVariant = `-- name: DeleteProductVariant :exec
+DELETE FROM product_variants
+WHERE id = $1
+`
+
+func (q *Queries) DeleteProductVariant(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, deleteProductVariant, id)
+	return err
+}
+
 const getProductVariant = `-- name: GetProductVariant :one
-SELECT id, product_id, color_id, size_id, barcode, price, is_active, created_at, updated_at FROM product_variants
+SELECT id, product_id, color_id, size_id, barcode, price, is_active, created_at, updated_at, avg_cost FROM product_variants
 WHERE id = $1 LIMIT 1
 `
 
@@ -83,12 +111,13 @@ func (q *Queries) GetProductVariant(ctx context.Context, id int64) (ProductVaria
 		&i.IsActive,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.AvgCost,
 	)
 	return i, err
 }
 
 const getProductVariantByBarcode = `-- name: GetProductVariantByBarcode :one
-SELECT id, product_id, color_id, size_id, barcode, price, is_active, created_at, updated_at FROM product_variants
+SELECT id, product_id, color_id, size_id, barcode, price, is_active, created_at, updated_at, avg_cost FROM product_variants
 WHERE barcode = $1 LIMIT 1
 `
 
@@ -105,12 +134,72 @@ func (q *Queries) GetProductVariantByBarcode(ctx context.Context, barcode string
 		&i.IsActive,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.AvgCost,
 	)
 	return i, err
 }
 
+const getVariantForLabel = `-- name: GetVariantForLabel :one
+SELECT
+  pv.id,
+  pv.barcode,
+  pv.price,
+  p.code AS product_code,
+  p.name AS product_name,
+  COALESCE(c.name, '')  AS color_name,
+  COALESCE(s.name, '')  AS size_name,
+  COALESCE(brand_val.value, '') AS brand
+FROM product_variants pv
+JOIN products p ON p.id = pv.product_id
+LEFT JOIN colors c ON c.id = pv.color_id
+LEFT JOIN sizes  s ON s.id = pv.size_id
+LEFT JOIN products_attributes brand_pa ON brand_pa.product_id = p.id AND brand_pa.attribute_id = 2
+LEFT JOIN attributes_values brand_val ON brand_val.id = brand_pa.attribute_value_id
+WHERE pv.id = $1
+`
+
+type GetVariantForLabelRow struct {
+	ID          int64         `json:"id"`
+	Barcode     string        `json:"barcode"`
+	Price       sql.NullInt64 `json:"price"`
+	ProductCode string        `json:"product_code"`
+	ProductName string        `json:"product_name"`
+	ColorName   string        `json:"color_name"`
+	SizeName    string        `json:"size_name"`
+	Brand       string        `json:"brand"`
+}
+
+func (q *Queries) GetVariantForLabel(ctx context.Context, id int64) (GetVariantForLabelRow, error) {
+	row := q.db.QueryRowContext(ctx, getVariantForLabel, id)
+	var i GetVariantForLabelRow
+	err := row.Scan(
+		&i.ID,
+		&i.Barcode,
+		&i.Price,
+		&i.ProductCode,
+		&i.ProductName,
+		&i.ColorName,
+		&i.SizeName,
+		&i.Brand,
+	)
+	return i, err
+}
+
+const getVariantTotalOnHand = `-- name: GetVariantTotalOnHand :one
+SELECT COALESCE(SUM(quantity), 0)::bigint AS total
+FROM inventory_stock
+WHERE variant_id = $1
+`
+
+func (q *Queries) GetVariantTotalOnHand(ctx context.Context, variantID int64) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getVariantTotalOnHand, variantID)
+	var total int64
+	err := row.Scan(&total)
+	return total, err
+}
+
 const listProductVariants = `-- name: ListProductVariants :many
-SELECT product_variants.id, product_variants.product_id, product_variants.color_id, product_variants.size_id, product_variants.barcode, product_variants.price, product_variants.is_active, product_variants.created_at, product_variants.updated_at, products.id, products.code, products.name, products.description, products.is_active, products.created_at FROM product_variants
+SELECT product_variants.id, product_variants.product_id, product_variants.color_id, product_variants.size_id, product_variants.barcode, product_variants.price, product_variants.is_active, product_variants.created_at, product_variants.updated_at, product_variants.avg_cost, products.id, products.code, products.name, products.description, products.is_active, products.created_at FROM product_variants
 INNER JOIN products ON products.id = product_variants.product_id
 ORDER BY product_variants.id
 LIMIT $1
@@ -146,6 +235,7 @@ func (q *Queries) ListProductVariants(ctx context.Context, arg ListProductVarian
 			&i.ProductVariant.IsActive,
 			&i.ProductVariant.CreatedAt,
 			&i.ProductVariant.UpdatedAt,
+			&i.ProductVariant.AvgCost,
 			&i.Product.ID,
 			&i.Product.Code,
 			&i.Product.Name,
@@ -167,7 +257,7 @@ func (q *Queries) ListProductVariants(ctx context.Context, arg ListProductVarian
 }
 
 const listProductVariantsByProduct = `-- name: ListProductVariantsByProduct :many
-SELECT id, product_id, color_id, size_id, barcode, price, is_active, created_at, updated_at FROM product_variants
+SELECT id, product_id, color_id, size_id, barcode, price, is_active, created_at, updated_at, avg_cost FROM product_variants
 WHERE product_id = $1
 ORDER BY id
 `
@@ -191,6 +281,7 @@ func (q *Queries) ListProductVariantsByProduct(ctx context.Context, productID in
 			&i.IsActive,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.AvgCost,
 		); err != nil {
 			return nil, err
 		}
@@ -312,7 +403,7 @@ func (q *Queries) ListProductVariantsForSync(ctx context.Context, updatedAt time
 }
 
 const listProductVariantsUpdatedSince = `-- name: ListProductVariantsUpdatedSince :many
-SELECT id, product_id, color_id, size_id, barcode, price, is_active, created_at, updated_at FROM product_variants
+SELECT id, product_id, color_id, size_id, barcode, price, is_active, created_at, updated_at, avg_cost FROM product_variants
 WHERE updated_at > $1
 ORDER BY updated_at
 `
@@ -336,6 +427,7 @@ func (q *Queries) ListProductVariantsUpdatedSince(ctx context.Context, updatedAt
 			&i.IsActive,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.AvgCost,
 		); err != nil {
 			return nil, err
 		}
@@ -350,6 +442,122 @@ func (q *Queries) ListProductVariantsUpdatedSince(ctx context.Context, updatedAt
 	return items, nil
 }
 
+const listVariantsForBarcodes = `-- name: ListVariantsForBarcodes :many
+SELECT
+  pv.id,
+  pv.barcode,
+  pv.price,
+  pv.is_active,
+  pv.created_at,
+  p.id   AS product_id,
+  p.code AS product_code,
+  p.name AS product_name,
+  COALESCE(c.name, '')  AS color_name,
+  COALESCE(s.type, '')  AS size_type,
+  COALESCE(s.name, '')  AS size_name,
+  COALESCE(brand_val.value, '') AS brand
+FROM product_variants pv
+JOIN products p ON p.id = pv.product_id
+LEFT JOIN colors c ON c.id = pv.color_id
+LEFT JOIN sizes  s ON s.id = pv.size_id
+LEFT JOIN products_attributes brand_pa ON brand_pa.product_id = p.id AND brand_pa.attribute_id = 2
+LEFT JOIN attributes_values brand_val ON brand_val.id = brand_pa.attribute_value_id
+WHERE ($1::text = ''
+       OR p.name ILIKE '%' || $1 || '%'
+       OR p.code ILIKE '%' || $1 || '%'
+       OR pv.barcode ILIKE '%' || $1 || '%')
+ORDER BY pv.id DESC
+LIMIT $3
+OFFSET $2
+`
+
+type ListVariantsForBarcodesParams struct {
+	Search     string `json:"search"`
+	PageOffset int32  `json:"page_offset"`
+	PageLimit  int32  `json:"page_limit"`
+}
+
+type ListVariantsForBarcodesRow struct {
+	ID          int64         `json:"id"`
+	Barcode     string        `json:"barcode"`
+	Price       sql.NullInt64 `json:"price"`
+	IsActive    bool          `json:"is_active"`
+	CreatedAt   time.Time     `json:"created_at"`
+	ProductID   int64         `json:"product_id"`
+	ProductCode string        `json:"product_code"`
+	ProductName string        `json:"product_name"`
+	ColorName   string        `json:"color_name"`
+	SizeType    string        `json:"size_type"`
+	SizeName    string        `json:"size_name"`
+	Brand       string        `json:"brand"`
+}
+
+func (q *Queries) ListVariantsForBarcodes(ctx context.Context, arg ListVariantsForBarcodesParams) ([]ListVariantsForBarcodesRow, error) {
+	rows, err := q.db.QueryContext(ctx, listVariantsForBarcodes, arg.Search, arg.PageOffset, arg.PageLimit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListVariantsForBarcodesRow{}
+	for rows.Next() {
+		var i ListVariantsForBarcodesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Barcode,
+			&i.Price,
+			&i.IsActive,
+			&i.CreatedAt,
+			&i.ProductID,
+			&i.ProductCode,
+			&i.ProductName,
+			&i.ColorName,
+			&i.SizeType,
+			&i.SizeName,
+			&i.Brand,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const setVariantBarcode = `-- name: SetVariantBarcode :one
+UPDATE product_variants
+SET barcode = $2, updated_at = now()
+WHERE id = $1
+RETURNING id, product_id, color_id, size_id, barcode, price, is_active, created_at, updated_at, avg_cost
+`
+
+type SetVariantBarcodeParams struct {
+	ID      int64  `json:"id"`
+	Barcode string `json:"barcode"`
+}
+
+func (q *Queries) SetVariantBarcode(ctx context.Context, arg SetVariantBarcodeParams) (ProductVariant, error) {
+	row := q.db.QueryRowContext(ctx, setVariantBarcode, arg.ID, arg.Barcode)
+	var i ProductVariant
+	err := row.Scan(
+		&i.ID,
+		&i.ProductID,
+		&i.ColorID,
+		&i.SizeID,
+		&i.Barcode,
+		&i.Price,
+		&i.IsActive,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.AvgCost,
+	)
+	return i, err
+}
+
 const updateProductVariant = `-- name: UpdateProductVariant :one
 UPDATE product_variants
 SET color_id = $2,
@@ -359,7 +567,7 @@ price = $5,
 is_active = $6,
 updated_at = now()
 WHERE id = $1
-RETURNING id, product_id, color_id, size_id, barcode, price, is_active, created_at, updated_at
+RETURNING id, product_id, color_id, size_id, barcode, price, is_active, created_at, updated_at, avg_cost
 `
 
 type UpdateProductVariantParams struct {
@@ -391,6 +599,38 @@ func (q *Queries) UpdateProductVariant(ctx context.Context, arg UpdateProductVar
 		&i.IsActive,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.AvgCost,
 	)
 	return i, err
+}
+
+const updateProductVariantAvgCost = `-- name: UpdateProductVariantAvgCost :exec
+UPDATE product_variants
+SET avg_cost = CASE
+    WHEN $1::bigint <= 0 THEN $2
+    ELSE ($1::bigint * avg_cost
+          + $3::bigint * $2)
+         / NULLIF($1::bigint + $3::bigint, 0)
+  END,
+  updated_at = now()
+WHERE id = $4
+`
+
+type UpdateProductVariantAvgCostParams struct {
+	CurrentQty int64 `json:"current_qty"`
+	UnitCost   int64 `json:"unit_cost"`
+	InQty      int64 `json:"in_qty"`
+	ID         int64 `json:"id"`
+}
+
+// Roll the variant's global moving-average cost forward on a stock receipt.
+// current_qty is the on-hand across all locations before this receipt.
+func (q *Queries) UpdateProductVariantAvgCost(ctx context.Context, arg UpdateProductVariantAvgCostParams) error {
+	_, err := q.db.ExecContext(ctx, updateProductVariantAvgCost,
+		arg.CurrentQty,
+		arg.UnitCost,
+		arg.InQty,
+		arg.ID,
+	)
+	return err
 }

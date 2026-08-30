@@ -7,7 +7,7 @@ import (
 )
 
 type ReturnInvoiceItem struct {
-	ProductID int64 `json:"product_id"`
+	VariantID int64 `json:"variant_id"`
 	UnitPrice int64 `json:"unit_price"`
 	LineTotal int64 `json:"line_total"`
 	Discount  int16 `json:"discount"`
@@ -27,6 +27,7 @@ type ReturnInvoiceTxParams struct {
 	SalesInvoiceID   int64         `json:"sales_invoice_id"`
 	CashboxAccountID int64         `json:"cashbox_account_id"`
 	PriceListID      sql.NullInt64 `json:"price_list_id"`
+	SalespersonID    sql.NullInt64 `json:"salesperson_id"`
 
 	Items []ReturnInvoiceItem `json:"items"`
 }
@@ -81,19 +82,32 @@ func (store *SQLStore) ReturnInvoiceTx(ctx context.Context, arg ReturnInvoiceTxP
 			return err
 		}
 
+		client, err := q.GetClient(ctx, arg.ClientID)
+		if err != nil {
+			return err
+		}
+		// Wholesale clients never earned points on the original sale (see
+		// SalesInvoiceTx), so nothing to claw back here either.
+		var loyaltyPointsDelta int64
+		if client.ClientType != "wholesale" {
+			loyaltyPointsDelta = -arg.GrandTotal
+		}
+
 		invoice, err := q.CreateInvoice(ctx, CreateInvoiceParams{
-			CashboxID:       arg.CashboxID,
-			ShiftID:         arg.ShiftID,
-			InvoiceCode:     invoiceCode,
-			InvoiceIndex:    invoiceIndex,
-			Year:            arg.Year,
-			ClientID:        arg.ClientID,
-			InventoryID:     arg.InventoryID,
-			Discount:        arg.Discount,
-			Subtotal:        arg.SubTotal,
-			DiscountedTotal: arg.DiscountedTotal,
-			GrandTotal:      arg.GrandTotal,
-			InvoiceTypeID:   invoiceTypeID,
+			CashboxID:          arg.CashboxID,
+			ShiftID:            arg.ShiftID,
+			InvoiceCode:        invoiceCode,
+			InvoiceIndex:       invoiceIndex,
+			Year:               arg.Year,
+			ClientID:           arg.ClientID,
+			InventoryID:        arg.InventoryID,
+			Discount:           arg.Discount,
+			Subtotal:           arg.SubTotal,
+			DiscountedTotal:    arg.DiscountedTotal,
+			GrandTotal:         arg.GrandTotal,
+			InvoiceTypeID:      invoiceTypeID,
+			SalespersonID:      arg.SalespersonID,
+			LoyaltyPointsDelta: loyaltyPointsDelta,
 		})
 		if err != nil {
 			return err
@@ -111,10 +125,15 @@ func (store *SQLStore) ReturnInvoiceTx(ctx context.Context, arg ReturnInvoiceTxP
 			unitPrice := item.UnitPrice
 			discount := item.Discount
 
+			variant, err := q.GetProductVariant(ctx, item.VariantID)
+			if err != nil {
+				return err
+			}
+
 			if arg.PriceListID.Valid {
 				listPrice, priceErr := q.GetProductPriceFromList(ctx, GetProductPriceFromListParams{
 					PriceListID: arg.PriceListID.Int64,
-					ProductID:   item.ProductID,
+					ProductID:   variant.ProductID,
 				})
 				if priceErr == nil {
 					unitPrice = listPrice.Price
@@ -128,11 +147,13 @@ func (store *SQLStore) ReturnInvoiceTx(ctx context.Context, arg ReturnInvoiceTxP
 
 			_, err = q.AddInvoiceProduct(ctx, AddInvoiceProductParams{
 				InvoiceID: invoice.ID,
-				ProductID: item.ProductID,
+				ProductID: variant.ProductID,
+				VariantID: sql.NullInt64{Int64: item.VariantID, Valid: true},
 				UnitPrice: unitPrice,
 				LineTotal: lineTotal,
 				Discount:  discount,
 				Quantity:  item.Quantity,
+				UnitCost:  variant.AvgCost,
 			})
 			if err != nil {
 				return err
@@ -160,24 +181,32 @@ func (store *SQLStore) ReturnInvoiceTx(ctx context.Context, arg ReturnInvoiceTxP
 			return err
 		}
 
+		_, err = q.CreateInvoicePayment(ctx, CreateInvoicePaymentParams{
+			InvoiceID:        invoice.ID,
+			CashboxAccountID: arg.CashboxAccountID,
+			Amount:           -arg.GrandTotal,
+		})
+		if err != nil {
+			return err
+		}
+
 		for _, i := range arg.Items {
-			addInventoryProductQuantityArg := AddInventoryProductQuantityParams{
-				InventoryID: arg.InventoryID,
-				ProductID:   i.ProductID,
-				Quantity:    i.Quantity,
-			}
-			err = q.AddInventoryProductQuantity(ctx, addInventoryProductQuantityArg)
+			_, err = q.applyStockMovement(ctx, applyStockMovementParams{
+				InventoryID:   arg.InventoryID,
+				VariantID:     i.VariantID,
+				Quantity:      i.Quantity,
+				Reason:        StockMovementReasonReturn,
+				ReferenceType: "return_invoice",
+				ReferenceID:   invoice.ID,
+			})
 			if err != nil {
 				return err
 			}
 		}
 
-		client, err := q.GetClient(ctx, invoice.ClientID)
-		if err != nil {
-			return err
-		}
 		// Wholesale clients never earned points on the original sale (see
-		// SalesInvoiceTx), so nothing to claw back here either.
+		// SalesInvoiceTx), so nothing to claw back here either (client was
+		// already fetched above to compute loyaltyPointsDelta).
 		if client.ClientType != "wholesale" {
 			addPointsArg := AddClientLoyaltyPointsParams{
 				ID:                 invoice.ClientID,

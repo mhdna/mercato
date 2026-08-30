@@ -9,7 +9,7 @@ import (
 )
 
 type salesInvoiceItemRequest struct {
-	ProductID int64 `json:"product_id" binding:"required"`
+	VariantID int64 `json:"variant_id" binding:"required"`
 	UnitPrice int64 `json:"unit_price" binding:"required"`
 	LineTotal int64 `json:"line_total" binding:"required"`
 	Discount  int16 `json:"discount"`
@@ -31,6 +31,7 @@ type createSalesInvoiceRequest struct {
 	// TODO: we should see about this
 	PriceListID   *int64 `json:"price_list_id"`
 	InvoiceTypeID *int64 `json:"invoice_type_id"`
+	SalespersonID *int64 `json:"salesperson_id"`
 }
 
 func (server *Server) createSalesInvoice(ctx *gin.Context) {
@@ -60,12 +61,17 @@ func (server *Server) createSalesInvoice(ctx *gin.Context) {
 	items := make([]db.SalesInvoiceItem, 0, len(req.Items))
 	for _, item := range req.Items {
 		items = append(items, db.SalesInvoiceItem{
-			ProductID: item.ProductID,
+			VariantID: item.VariantID,
 			UnitPrice: item.UnitPrice,
 			LineTotal: item.LineTotal,
 			Discount:  item.Discount,
 			Quantity:  item.Quantity,
 		})
+	}
+
+	var salespersonID sql.NullInt64
+	if req.SalespersonID != nil {
+		salespersonID = sql.NullInt64{Int64: *req.SalespersonID, Valid: true}
 	}
 
 	arg := db.SalesInvoiceTxParams{
@@ -82,6 +88,7 @@ func (server *Server) createSalesInvoice(ctx *gin.Context) {
 		Items:            items,
 		PriceListID:      priceListID,
 		InvoiceTypeID:    invoiceTypeID,
+		SalespersonID:    salespersonID,
 	}
 
 	salesInvoice, err := server.store.SalesInvoiceTx(ctx, arg)
@@ -118,8 +125,9 @@ func (server *Server) getSalesInvoice(ctx *gin.Context) {
 }
 
 type listSalesInvoiceRequest struct {
-	PageSize int32 `form:"page_size,default=10" binding:"min=5,max=10"`
-	PageID   int32 `form:"page_id,default=0" binding:"min=0"`
+	PageSize int32  `form:"page_size,default=14" binding:"min=5,max=100"`
+	PageID   int32  `form:"page_id,default=0" binding:"min=0"`
+	Search   string `form:"search"`
 }
 
 func (server *Server) listSalesInvoices(ctx *gin.Context) {
@@ -129,17 +137,18 @@ func (server *Server) listSalesInvoices(ctx *gin.Context) {
 		return
 	}
 
-	arg := db.ListInvoicesParams{
-		Limit:  req.PageSize,
-		Offset: req.PageID,
+	arg := db.ListInvoicesPageParams{
+		Search:     req.Search,
+		PageSize:   req.PageSize,
+		PageOffset: req.PageID,
 	}
-	invoices, err := server.store.ListInvoices(ctx, arg)
+	invoices, err := server.store.ListInvoicesPage(ctx, arg)
 	if err != nil {
 		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 
-	total, err := server.store.CountInvoices(ctx)
+	total, err := server.store.CountInvoicesFiltered(ctx, req.Search)
 	if err != nil {
 		server.writeError(ctx, http.StatusInternalServerError, err)
 		return

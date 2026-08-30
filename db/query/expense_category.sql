@@ -1,9 +1,11 @@
 -- name: CreateExpenseCategory :one
 INSERT INTO expense_categories (
   name,
-  is_active
+  is_active,
+  icon,
+  color
 ) VALUES (
-  $1, $2
+  $1, $2, $3, $4
 )
 RETURNING *;
 
@@ -18,7 +20,9 @@ ORDER BY id;
 -- name: UpdateExpenseCategory :one
 UPDATE expense_categories
 SET name = $2,
-    is_active = $3
+    is_active = $3,
+    icon = $4,
+    color = $5
 WHERE id = $1
 RETURNING *;
 

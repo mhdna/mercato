@@ -14,11 +14,22 @@ INSERT INTO branch_invoices (
   discounted_total,
   grand_total,
   loyalty_points_delta,
-  occurred_at
+  occurred_at,
+  salesperson_name
 ) VALUES (
-  $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15
+  $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16
 )
 RETURNING *;
+
+-- name: CreateBranchInvoicePayment :one
+INSERT INTO branch_invoice_payments (branch_invoice_id, account_name, amount)
+VALUES ($1, $2, $3)
+RETURNING *;
+
+-- name: ListBranchInvoicePayments :many
+SELECT * FROM branch_invoice_payments
+WHERE branch_invoice_id = $1
+ORDER BY id;
 
 -- name: GetBranchInvoiceByClientRef :one
 SELECT * FROM branch_invoices
@@ -55,6 +66,27 @@ LIMIT $1 OFFSET $2;
 -- name: CountBranchInvoices :one
 SELECT COUNT(*) FROM branch_invoices
 WHERE sqlc.narg(branch_id)::bigint IS NULL OR branch_id = sqlc.narg(branch_id);
+
+-- name: ListBranchInvoicesPage :many
+SELECT * FROM branch_invoices
+WHERE (sqlc.narg(branch_id)::bigint IS NULL OR branch_id = sqlc.narg(branch_id))
+  AND (
+    sqlc.arg(search)::text = ''
+    OR branch_invoice_code ILIKE '%' || sqlc.arg(search)::text || '%'
+    OR salesperson_name ILIKE '%' || sqlc.arg(search)::text || '%'
+  )
+ORDER BY id DESC
+LIMIT sqlc.arg(page_size)
+OFFSET sqlc.arg(page_offset);
+
+-- name: CountBranchInvoicesFiltered :one
+SELECT COUNT(*) FROM branch_invoices
+WHERE (sqlc.narg(branch_id)::bigint IS NULL OR branch_id = sqlc.narg(branch_id))
+  AND (
+    sqlc.arg(search)::text = ''
+    OR branch_invoice_code ILIKE '%' || sqlc.arg(search)::text || '%'
+    OR salesperson_name ILIKE '%' || sqlc.arg(search)::text || '%'
+  );
 
 -- name: ListDailyIncome :many
 -- Sums grand_total across both kinds ('sales' and 'return') rather than

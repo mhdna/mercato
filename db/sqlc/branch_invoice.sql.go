@@ -23,6 +23,28 @@ func (q *Queries) CountBranchInvoices(ctx context.Context, branchID sql.NullInt6
 	return count, err
 }
 
+const countBranchInvoicesFiltered = `-- name: CountBranchInvoicesFiltered :one
+SELECT COUNT(*) FROM branch_invoices
+WHERE ($1::bigint IS NULL OR branch_id = $1)
+  AND (
+    $2::text = ''
+    OR branch_invoice_code ILIKE '%' || $2::text || '%'
+    OR salesperson_name ILIKE '%' || $2::text || '%'
+  )
+`
+
+type CountBranchInvoicesFilteredParams struct {
+	BranchID sql.NullInt64 `json:"branch_id"`
+	Search   string        `json:"search"`
+}
+
+func (q *Queries) CountBranchInvoicesFiltered(ctx context.Context, arg CountBranchInvoicesFilteredParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countBranchInvoicesFiltered, arg.BranchID, arg.Search)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createBranchInvoice = `-- name: CreateBranchInvoice :one
 INSERT INTO branch_invoices (
   branch_id,
@@ -39,11 +61,12 @@ INSERT INTO branch_invoices (
   discounted_total,
   grand_total,
   loyalty_points_delta,
-  occurred_at
+  occurred_at,
+  salesperson_name
 ) VALUES (
-  $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15
+  $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16
 )
-RETURNING id, branch_id, client_ref, kind, branch_invoice_code, branch_cashbox_account_id, branch_shift_id, branch_inventory_id, branch_client_id, related_client_ref, discount, subtotal, discounted_total, grand_total, loyalty_points_delta, occurred_at, received_at
+RETURNING id, branch_id, client_ref, kind, branch_invoice_code, branch_cashbox_account_id, branch_shift_id, branch_inventory_id, branch_client_id, related_client_ref, discount, subtotal, discounted_total, grand_total, loyalty_points_delta, occurred_at, received_at, salesperson_name
 `
 
 type CreateBranchInvoiceParams struct {
@@ -62,6 +85,7 @@ type CreateBranchInvoiceParams struct {
 	GrandTotal             int64          `json:"grand_total"`
 	LoyaltyPointsDelta     int64          `json:"loyalty_points_delta"`
 	OccurredAt             time.Time      `json:"occurred_at"`
+	SalespersonName        string         `json:"salesperson_name"`
 }
 
 func (q *Queries) CreateBranchInvoice(ctx context.Context, arg CreateBranchInvoiceParams) (BranchInvoice, error) {
@@ -81,6 +105,7 @@ func (q *Queries) CreateBranchInvoice(ctx context.Context, arg CreateBranchInvoi
 		arg.GrandTotal,
 		arg.LoyaltyPointsDelta,
 		arg.OccurredAt,
+		arg.SalespersonName,
 	)
 	var i BranchInvoice
 	err := row.Scan(
@@ -101,6 +126,7 @@ func (q *Queries) CreateBranchInvoice(ctx context.Context, arg CreateBranchInvoi
 		&i.LoyaltyPointsDelta,
 		&i.OccurredAt,
 		&i.ReceivedAt,
+		&i.SalespersonName,
 	)
 	return i, err
 }
@@ -148,8 +174,32 @@ func (q *Queries) CreateBranchInvoiceItem(ctx context.Context, arg CreateBranchI
 	return i, err
 }
 
+const createBranchInvoicePayment = `-- name: CreateBranchInvoicePayment :one
+INSERT INTO branch_invoice_payments (branch_invoice_id, account_name, amount)
+VALUES ($1, $2, $3)
+RETURNING id, branch_invoice_id, account_name, amount
+`
+
+type CreateBranchInvoicePaymentParams struct {
+	BranchInvoiceID int64  `json:"branch_invoice_id"`
+	AccountName     string `json:"account_name"`
+	Amount          int64  `json:"amount"`
+}
+
+func (q *Queries) CreateBranchInvoicePayment(ctx context.Context, arg CreateBranchInvoicePaymentParams) (BranchInvoicePayment, error) {
+	row := q.db.QueryRowContext(ctx, createBranchInvoicePayment, arg.BranchInvoiceID, arg.AccountName, arg.Amount)
+	var i BranchInvoicePayment
+	err := row.Scan(
+		&i.ID,
+		&i.BranchInvoiceID,
+		&i.AccountName,
+		&i.Amount,
+	)
+	return i, err
+}
+
 const getBranchInvoice = `-- name: GetBranchInvoice :one
-SELECT id, branch_id, client_ref, kind, branch_invoice_code, branch_cashbox_account_id, branch_shift_id, branch_inventory_id, branch_client_id, related_client_ref, discount, subtotal, discounted_total, grand_total, loyalty_points_delta, occurred_at, received_at FROM branch_invoices WHERE id = $1
+SELECT id, branch_id, client_ref, kind, branch_invoice_code, branch_cashbox_account_id, branch_shift_id, branch_inventory_id, branch_client_id, related_client_ref, discount, subtotal, discounted_total, grand_total, loyalty_points_delta, occurred_at, received_at, salesperson_name FROM branch_invoices WHERE id = $1
 `
 
 func (q *Queries) GetBranchInvoice(ctx context.Context, id int64) (BranchInvoice, error) {
@@ -173,12 +223,13 @@ func (q *Queries) GetBranchInvoice(ctx context.Context, id int64) (BranchInvoice
 		&i.LoyaltyPointsDelta,
 		&i.OccurredAt,
 		&i.ReceivedAt,
+		&i.SalespersonName,
 	)
 	return i, err
 }
 
 const getBranchInvoiceByClientRef = `-- name: GetBranchInvoiceByClientRef :one
-SELECT id, branch_id, client_ref, kind, branch_invoice_code, branch_cashbox_account_id, branch_shift_id, branch_inventory_id, branch_client_id, related_client_ref, discount, subtotal, discounted_total, grand_total, loyalty_points_delta, occurred_at, received_at FROM branch_invoices
+SELECT id, branch_id, client_ref, kind, branch_invoice_code, branch_cashbox_account_id, branch_shift_id, branch_inventory_id, branch_client_id, related_client_ref, discount, subtotal, discounted_total, grand_total, loyalty_points_delta, occurred_at, received_at, salesperson_name FROM branch_invoices
 WHERE branch_id = $1 AND client_ref = $2
 LIMIT 1
 `
@@ -209,6 +260,7 @@ func (q *Queries) GetBranchInvoiceByClientRef(ctx context.Context, arg GetBranch
 		&i.LoyaltyPointsDelta,
 		&i.OccurredAt,
 		&i.ReceivedAt,
+		&i.SalespersonName,
 	)
 	return i, err
 }
@@ -249,8 +301,42 @@ func (q *Queries) ListBranchInvoiceItems(ctx context.Context, branchInvoiceID in
 	return items, nil
 }
 
+const listBranchInvoicePayments = `-- name: ListBranchInvoicePayments :many
+SELECT id, branch_invoice_id, account_name, amount FROM branch_invoice_payments
+WHERE branch_invoice_id = $1
+ORDER BY id
+`
+
+func (q *Queries) ListBranchInvoicePayments(ctx context.Context, branchInvoiceID int64) ([]BranchInvoicePayment, error) {
+	rows, err := q.db.QueryContext(ctx, listBranchInvoicePayments, branchInvoiceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []BranchInvoicePayment{}
+	for rows.Next() {
+		var i BranchInvoicePayment
+		if err := rows.Scan(
+			&i.ID,
+			&i.BranchInvoiceID,
+			&i.AccountName,
+			&i.Amount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listBranchInvoices = `-- name: ListBranchInvoices :many
-SELECT id, branch_id, client_ref, kind, branch_invoice_code, branch_cashbox_account_id, branch_shift_id, branch_inventory_id, branch_client_id, related_client_ref, discount, subtotal, discounted_total, grand_total, loyalty_points_delta, occurred_at, received_at FROM branch_invoices
+SELECT id, branch_id, client_ref, kind, branch_invoice_code, branch_cashbox_account_id, branch_shift_id, branch_inventory_id, branch_client_id, related_client_ref, discount, subtotal, discounted_total, grand_total, loyalty_points_delta, occurred_at, received_at, salesperson_name FROM branch_invoices
 WHERE $3::bigint IS NULL OR branch_id = $3
 ORDER BY id DESC
 LIMIT $1 OFFSET $2
@@ -292,6 +378,74 @@ func (q *Queries) ListBranchInvoices(ctx context.Context, arg ListBranchInvoices
 			&i.LoyaltyPointsDelta,
 			&i.OccurredAt,
 			&i.ReceivedAt,
+			&i.SalespersonName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listBranchInvoicesPage = `-- name: ListBranchInvoicesPage :many
+SELECT id, branch_id, client_ref, kind, branch_invoice_code, branch_cashbox_account_id, branch_shift_id, branch_inventory_id, branch_client_id, related_client_ref, discount, subtotal, discounted_total, grand_total, loyalty_points_delta, occurred_at, received_at, salesperson_name FROM branch_invoices
+WHERE ($1::bigint IS NULL OR branch_id = $1)
+  AND (
+    $2::text = ''
+    OR branch_invoice_code ILIKE '%' || $2::text || '%'
+    OR salesperson_name ILIKE '%' || $2::text || '%'
+  )
+ORDER BY id DESC
+LIMIT $4
+OFFSET $3
+`
+
+type ListBranchInvoicesPageParams struct {
+	BranchID   sql.NullInt64 `json:"branch_id"`
+	Search     string        `json:"search"`
+	PageOffset int32         `json:"page_offset"`
+	PageSize   int32         `json:"page_size"`
+}
+
+func (q *Queries) ListBranchInvoicesPage(ctx context.Context, arg ListBranchInvoicesPageParams) ([]BranchInvoice, error) {
+	rows, err := q.db.QueryContext(ctx, listBranchInvoicesPage,
+		arg.BranchID,
+		arg.Search,
+		arg.PageOffset,
+		arg.PageSize,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []BranchInvoice{}
+	for rows.Next() {
+		var i BranchInvoice
+		if err := rows.Scan(
+			&i.ID,
+			&i.BranchID,
+			&i.ClientRef,
+			&i.Kind,
+			&i.BranchInvoiceCode,
+			&i.BranchCashboxAccountID,
+			&i.BranchShiftID,
+			&i.BranchInventoryID,
+			&i.BranchClientID,
+			&i.RelatedClientRef,
+			&i.Discount,
+			&i.Subtotal,
+			&i.DiscountedTotal,
+			&i.GrandTotal,
+			&i.LoyaltyPointsDelta,
+			&i.OccurredAt,
+			&i.ReceivedAt,
+			&i.SalespersonName,
 		); err != nil {
 			return nil, err
 		}

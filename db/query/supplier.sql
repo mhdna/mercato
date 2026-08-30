@@ -18,9 +18,23 @@ WHERE id = $1 LIMIT 1;
 
 -- name: ListSuppliers :many
 SELECT * FROM suppliers
-ORDER BY id
-LIMIT $1
-OFFSET $2;
+WHERE (
+  BTRIM(sqlc.arg(search)::text) = ''
+  OR name ILIKE '%' || BTRIM(sqlc.arg(search)::text) || '%'
+  OR phone ILIKE '%' || BTRIM(sqlc.arg(search)::text) || '%'
+  OR country ILIKE '%' || BTRIM(sqlc.arg(search)::text) || '%'
+  OR address ILIKE '%' || BTRIM(sqlc.arg(search)::text) || '%'
+)
+ORDER BY id DESC
+LIMIT sqlc.arg(page_size)
+OFFSET sqlc.arg(page_offset);
 
--- name: CountSuppliers :one
-SELECT COUNT(*) FROM suppliers;
+-- name: CountSuppliersFiltered :one
+SELECT COUNT(*) FROM suppliers
+WHERE (
+  BTRIM(sqlc.arg(search)::text) = ''
+  OR name ILIKE '%' || BTRIM(sqlc.arg(search)::text) || '%'
+  OR phone ILIKE '%' || BTRIM(sqlc.arg(search)::text) || '%'
+  OR country ILIKE '%' || BTRIM(sqlc.arg(search)::text) || '%'
+  OR address ILIKE '%' || BTRIM(sqlc.arg(search)::text) || '%'
+);

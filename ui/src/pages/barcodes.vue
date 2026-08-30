@@ -1,376 +1,326 @@
 <template>
-  <div class="barcodes-page">
-    <div class="bc-header">
-      <h2 class="bc-title">Barcodes</h2>
-
-      <div class="bc-header-right">
-        <v-text-field
-          v-model="query"
-          density="compact"
-          hide-details
-          placeholder="Search barcodes..."
-          prepend-inner-icon="mdi-magnify"
-          style="max-width: 260px"
-          variant="solo"
-        />
-
-        <v-btn
-          color="primary"
-          size="small"
-          @click="isNewOpen = true"
-        >
-          <v-icon start>mdi-plus</v-icon>
-          New
-        </v-btn>
-      </div>
+  <div class="page-root">
+    <div class="d-flex flex-wrap align-center ga-3 mb-4">
+      <h2 class="text-h6">Barcodes</h2>
+      <v-spacer />
+      <v-text-field
+        v-model="search"
+        clearable
+        density="compact"
+        hide-details
+        label="Search product / code / barcode"
+        prepend-inner-icon="mdi-magnify"
+        style="max-width: 320px"
+        variant="outlined"
+        @update:model-value="debouncedReload"
+      />
+      <v-btn
+        :disabled="selected.length === 0 || assigning"
+        :loading="assigning"
+        prepend-icon="mdi-barcode"
+        text="Generate barcodes"
+        variant="tonal"
+        @click="generate"
+      />
+      <v-btn
+        color="primary"
+        :disabled="selected.length === 0"
+        prepend-icon="mdi-printer"
+        text="Print PDF"
+        variant="flat"
+        @click="printDialog = true"
+      />
     </div>
 
-    <div ref="scrollBody" class="bc-table-wrap">
-      <v-table class="bc-table" density="compact">
-        <thead>
-          <tr>
-            <th style="width: 36px">
-              <input v-model="allChecked" type="checkbox">
-            </th>
+    <v-alert
+      v-if="message"
+      class="mb-3"
+      closable
+      density="compact"
+      :type="messageType"
+      variant="tonal"
+      @click:close="message = ''"
+    >
+      {{ message }}
+    </v-alert>
 
-            <th style="width: 52px">Qty</th>
-            <th>Product</th>
-            <th style="min-width: 120px">Barcode</th>
-            <th style="width: 80px">Preview</th>
-            <th>Created</th>
-            <th>SKU</th>
-            <th>Status</th>
-          </tr>
-        </thead>
+    <v-card flat>
+      <v-data-table-server
+        v-model="selected"
+        density="compact"
+        :headers="headers"
+        item-value="id"
+        :items="rows"
+        :items-length="total"
+        :items-per-page="pageSize"
+        :items-per-page-options="[14, 25, 50, 100]"
+        :loading="loading"
+        :page="page + 1"
+        show-select
+        @update:options="onOptions"
+      >
+        <template #item.product="{ item }">
+          <div class="text-body-2">{{ item.product_name }}</div>
+          <div class="text-caption text-medium-emphasis">{{ item.product_code }}</div>
+        </template>
+        <template #item.variant="{ item }">
+          <span v-if="item.color_name || item.size_name">
+            {{ [item.color_name, item.size_name].filter(Boolean).join(' / ') }}
+          </span>
+          <span v-else class="text-medium-emphasis">—</span>
+        </template>
+        <template #item.barcode="{ item }">
+          <span class="bc-mono">{{ item.barcode }}</span>
+          <v-chip
+            v-if="!isEan13(item.barcode)"
+            class="ms-2"
+            color="warning"
+            size="x-small"
+            text="no barcode"
+          />
+        </template>
+        <template #item.price="{ item }">
+          {{ item.price ? formatMoney(item.price) : '—' }}
+        </template>
+        <template #item.qty="{ item }">
+          <v-text-field
+            v-model.number="qtyById[item.id]"
+            class="bc-qty"
+            density="compact"
+            hide-details
+            min="1"
+            style="width: 72px"
+            type="number"
+            variant="outlined"
+          />
+        </template>
+      </v-data-table-server>
+    </v-card>
 
-        <tbody>
-          <tr v-for="r in visibleItems" :key="r.id" :class="{ 'bc-sel': checked.has(r.id) }">
-            <td class="bc-check-cell">
-              <input :checked="checked.has(r.id)" type="checkbox" @change="toggleCheck(r.id)">
-            </td>
-
-            <td class="bc-qty-cell">
-              <input
-                v-model.number="printQty[r.id]"
-                class="bc-qty"
-                :disabled="!checked.has(r.id)"
-                max="100"
-                min="1"
-                type="number"
-              >
-            </td>
-
-            <td>{{ r.product }}</td>
-            <td class="bc-mono">{{ r.code }}</td>
-
-            <td>
-              <canvas :ref="(el) => setCanvas(el, r.code)" class="bc-canvas" />
-            </td>
-
-            <td>{{ formatDate(r.createdAt) }}</td>
-            <td>{{ r.sku }}</td>
-
-            <td>
-              <v-chip :color="r.status === 'Active' ? 'success' : 'error'" size="x-small" :text="r.status" />
-            </td>
-          </tr>
-        </tbody>
-      </v-table>
-
-      <div v-if="loading && hasMore" class="bc-load-more">
-        <v-progress-circular color="primary" indeterminate size="20" />
-      </div>
-
-      <div ref="sentinel" class="bc-sentinel" />
-    </div>
-
-    <v-dialog v-model="isNewOpen" max-width="480" scroll="keep">
+    <!-- Print options -->
+    <v-dialog v-model="printDialog" max-width="480">
       <v-card>
-        <v-card-title>New Barcode</v-card-title>
-
+        <v-card-title class="text-h6">Print {{ selected.length }} item{{ selected.length === 1 ? '' : 's' }}</v-card-title>
         <v-card-text>
-          <v-text-field
-            v-model="form.product"
-            class="mb-2"
+          <v-checkbox
+            v-model="separatorEnabled"
             density="compact"
-            label="Product"
-            prepend-inner-icon="mdi-package-variant"
-            variant="outlined"
+            hide-details
+            label="Separator page before each item (adds side borders to labels)"
           />
+          <v-expand-transition>
+            <div v-show="separatorEnabled" class="ms-8 mt-1">
+              <div class="text-caption text-medium-emphasis mb-1">Fields to show on the separator page</div>
+              <v-checkbox
+                v-for="f in separatorFieldOptions"
+                :key="f.value"
+                v-model="separatorFields"
+                density="compact"
+                hide-details
+                :label="f.title"
+                :value="f.value"
+              />
+            </div>
+          </v-expand-transition>
 
-          <v-text-field
-            v-model="form.sku"
-            class="mb-2"
-            density="compact"
-            label="SKU"
-            prepend-inner-icon="mdi-identifier"
-            variant="outlined"
-          />
+          <v-divider class="my-3" />
 
-          <v-select
-            v-model="form.status"
+          <div class="text-caption text-medium-emphasis mb-1">Label size (points, 72 = 1 inch)</div>
+          <div class="d-flex ga-3">
+            <v-text-field
+              v-model.number="labelWidth"
+              density="compact"
+              hide-details
+              label="Width"
+              type="number"
+              variant="outlined"
+            />
+            <v-text-field
+              v-model.number="labelHeight"
+              density="compact"
+              hide-details
+              label="Height"
+              type="number"
+              variant="outlined"
+            />
+          </div>
+          <div class="text-caption text-medium-emphasis mt-1">
+            Default comes from Settings ({{ settings.barcodeLabelWidth }} × {{ settings.barcodeLabelHeight }}).
+          </div>
+
+          <v-alert
+            v-if="printError"
+            class="mt-3"
             density="compact"
-            :items="['Active', 'Inactive']"
-            label="Status"
-            prepend-inner-icon="mdi-information"
-            variant="outlined"
-          />
+            type="error"
+            variant="tonal"
+          >{{ printError }}</v-alert>
         </v-card-text>
-
         <v-card-actions>
           <v-spacer />
-          <v-btn variant="text" @click="isNewOpen = false">Cancel</v-btn>
-          <v-btn color="primary" @click="addItem">Save</v-btn>
+          <v-btn text="Cancel" variant="text" @click="printDialog = false" />
+          <v-btn
+            color="primary"
+            :loading="printing"
+            text="Generate PDF"
+            variant="flat"
+            @click="doPrint"
+          />
         </v-card-actions>
       </v-card>
     </v-dialog>
   </div>
 </template>
 
-<script lang="ts" setup>
-  import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
+<script setup>
+  import { onMounted, reactive, ref } from 'vue'
+  import { useBarcodes } from '@/composables/useBarcodes'
+  import { useSettingsStore } from '@/stores/settings'
+  import { formatMoney } from '@/utils/money'
 
-  const statuses = ['Active', 'Inactive']
-  const products = ['Cotton T-Shirt', 'Denim Jeans', 'Silk Scarf', 'Wool Sweater', 'Linen Pants', 'Jersey Hoodie', 'Chinos', 'Blazer', 'Polo Shirt', 'Joggers']
-  const skuPrefixes = ['TS', 'JN', 'SC', 'SW', 'LP', 'HD', 'CH', 'BZ', 'PS', 'JG']
+  const { listVariants, assignBarcodes, printLabels } = useBarcodes()
+  const settings = useSettingsStore()
 
-  const pick = (a: string[]) => a[Math.floor(Math.random() * a.length)]
-  const pageSize = 50
+  const headers = [
+    { title: 'Product', key: 'product', sortable: false },
+    { title: 'Variant', key: 'variant', sortable: false },
+    { title: 'Barcode', key: 'barcode', sortable: false },
+    { title: 'Price', key: 'price', align: 'end', sortable: false },
+    { title: 'Qty to print', key: 'qty', align: 'center', sortable: false, width: 110 },
+  ]
 
-  const isNewOpen = ref(false)
-  const query = ref('')
+  const separatorFieldOptions = [
+    { title: 'Name', value: 'name' },
+    { title: 'Quantity', value: 'qty' },
+    { title: 'Brand', value: 'brand' },
+    { title: 'Color', value: 'color' },
+    { title: 'Size', value: 'size' },
+  ]
+
+  const rows = ref([])
+  const total = ref(0)
   const loading = ref(false)
-  const loaded = ref(pageSize)
-  const checked = ref(new Set<number>())
-  const printQty = reactive<Record<number, number>>({})
-  const form = ref({ product: '', sku: '', status: 'Active' })
-  const scrollBody = ref<HTMLElement | null>(null)
-  const sentinel = ref<HTMLElement | null>(null)
-  let observer: IntersectionObserver | null = null
+  const page = ref(0)
+  const pageSize = ref(14)
+  const search = ref('')
 
-  function formatDate (d: Date) {
-    return new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+  const selected = ref([])
+  const qtyById = reactive({})
+
+  const message = ref('')
+  const messageType = ref('success')
+  const assigning = ref(false)
+
+  const printDialog = ref(false)
+  const printing = ref(false)
+  const printError = ref('')
+  const separatorEnabled = ref(false)
+  const separatorFields = ref(['name', 'qty'])
+  const labelWidth = ref(0)
+  const labelHeight = ref(0)
+
+  function isEan13 (v) {
+    return typeof v === 'string' && /^\d{13}$/.test(v)
   }
 
-  function ean13 () {
-    const digits = Array.from({ length: 12 }, () => Math.floor(Math.random() * 10))
-    const check = (10 - (digits.reduce((s, d, i) => s + d * (i % 2 ? 3 : 1), 0) % 10)) % 10
-    return digits.join('') + check
+  let searchTimer
+  function debouncedReload () {
+    clearTimeout(searchTimer)
+    searchTimer = setTimeout(() => {
+      page.value = 0
+      reload()
+    }, 300)
   }
 
-  const allItems = Array.from({ length: 500 }, (_, i) => {
-    const item = {
-      id: 7001 + i,
-      product: pick(products),
-      code: ean13(),
-      createdAt: new Date(Date.now() - Math.random() * 180 * 86_400_000),
-      sku: `${pick(skuPrefixes)}-${String(i + 1).padStart(4, '0')}`,
-      status: pick(statuses),
-    }
-    printQty[item.id] = 1
-    return item
-  })
-
-  const filteredItems = computed(() => {
-    if (!query.value) return allItems
-    const q = query.value.toLowerCase()
-    return allItems.filter(r => [r.product, r.code, r.sku, r.status, String(r.id)].some(v => v.toLowerCase().includes(q)))
-  })
-
-  const visibleItems = computed(() => filteredItems.value.slice(0, loaded.value))
-  const hasMore = computed(() => loaded.value < filteredItems.value.length)
-  const allChecked = computed({
-    get: () => visibleItems.value.length > 0 && visibleItems.value.every(r => checked.value.has(r.id)),
-    set: v => v
-      ? (() => {
-        for (const r of visibleItems.value) checked.value.add(r.id)
-      })()
-      : checked.value.clear(),
-  })
-
-  function toggleCheck (id: number) {
-    checked.value.has(id) ? checked.value.delete(id) : checked.value.add(id)
-  }
-
-  function setCanvas (el: HTMLCanvasElement | null, code: string) {
-    if (!el) return
-    drawBarcode(el, code, 120, 30)
-  }
-
-  function drawBarcode (canvas: HTMLCanvasElement, code: string, w: number, h: number) {
-    canvas.width = w
-    canvas.height = h
-    const ctx = canvas.getContext('2d')!
-    ctx.fillStyle = '#fff'
-    ctx.fillRect(0, 0, w, h)
-    ctx.fillStyle = '#000'
-    const barW = w / 95
-    const pattern = encodeEAN13(code)
-    let x = 0
-    for (const bar of pattern) {
-      if (bar) ctx.fillRect(x, 0, barW, h)
-      x += barW
-    }
-  }
-
-  function encodeEAN13 (code: string) {
-    const bars: number[] = []
-    const digits = code.split('').map(Number)
-    const L = ['0001101', '0011001', '0010011', '0111101', '0100011', '0110001', '0101111', '0111011', '0110111', '0001011']
-    const G = ['0100111', '0110011', '0011011', '0100001', '0011101', '0111001', '0000101', '0010001', '0001001', '0010111']
-    const R = ['1110010', '1100110', '1101100', '1000010', '1011100', '1001110', '1010000', '1000100', '1001000', '1110100']
-    const enc = ['LLLLLL', 'LLGLGG', 'LLGGLG', 'LLGGGL', 'LGLLGG', 'LGGLLG', 'LGGGLL', 'LGLGLG', 'LGLGGL', 'LGGLGL']
-    bars.push(1, 0, 1)
-    const pat = enc[digits[0]]
-    for (let i = 1; i <= 6; i++) {
-      const p = pat[i - 1] === 'L' ? L[digits[i]] : G[digits[i]]
-      for (const c of p) bars.push(Number(c))
-    }
-    bars.push(0, 1, 0, 1, 0)
-    for (let i = 7; i <= 12; i++) {
-      const p = R[digits[i]]
-      for (const c of p) bars.push(Number(c))
-    }
-    bars.push(1, 0, 1)
-    return bars
-  }
-
-  async function loadMore () {
-    if (loading.value || !hasMore.value) return
+  async function reload () {
     loading.value = true
-    await new Promise(r => setTimeout(r, 300))
-    loaded.value = Math.min(loaded.value + pageSize, filteredItems.value.length)
-    loading.value = false
+    try {
+      const { variants, total: t } = await listVariants({
+        page: page.value,
+        pageSize: pageSize.value,
+        search: search.value || '',
+      })
+      rows.value = variants
+      total.value = t
+      for (const v of variants) {
+        if (qtyById[v.id] == null) {
+          qtyById[v.id] = 1
+        }
+      }
+    } catch (error) {
+      message.value = error.message
+      messageType.value = 'error'
+    } finally {
+      loading.value = false
+    }
   }
 
-  watch(query, () => {
-    loaded.value = pageSize
-  })
-
-  onMounted(() => {
-    observer = new IntersectionObserver(([e]) => {
-      if (e.isIntersecting) loadMore()
-    }, { root: scrollBody.value, rootMargin: '200px' })
-    observer.observe(sentinel.value)
-  })
-
-  onUnmounted(() => observer?.disconnect())
-
-  function addItem () {
-    if (!form.value.product || !form.value.sku) return
-    const item = { id: allItems.length + 7001, product: form.value.product, code: ean13(), createdAt: new Date(), sku: form.value.sku, status: form.value.status }
-    allItems.unshift(item)
-    printQty[item.id] = 1
-    form.value = { product: '', sku: '', status: 'Active' }
-    isNewOpen.value = false
-    loaded.value = Math.min(loaded.value + 1, filteredItems.value.length)
+  function onOptions ({ page: p, itemsPerPage }) {
+    const nextPage = (p ?? 1) - 1
+    const changed = nextPage !== page.value || itemsPerPage !== pageSize.value
+    page.value = nextPage
+    pageSize.value = itemsPerPage
+    if (changed) {
+      reload()
+    }
   }
+
+  async function generate () {
+    assigning.value = true
+    message.value = ''
+    try {
+      const res = await assignBarcodes(selected.value)
+      const n = res?.updated?.length ?? 0
+      message.value = n
+        ? `Generated ${n} barcode${n === 1 ? '' : 's'}.`
+        : 'All selected items already had a barcode.'
+      messageType.value = 'success'
+      await reload()
+    } catch (error) {
+      message.value = error.message
+      messageType.value = 'error'
+    } finally {
+      assigning.value = false
+    }
+  }
+
+  async function doPrint () {
+    printing.value = true
+    printError.value = ''
+    try {
+      const items = selected.value.map(id => ({ variant_id: id, qty: Math.max(1, Number(qtyById[id]) || 1) }))
+      const blob = await printLabels({
+        items,
+        separator: { enabled: separatorEnabled.value, fields: separatorFields.value },
+        label: { width: Number(labelWidth.value) || 0, height: Number(labelHeight.value) || 0 },
+      })
+      const url = URL.createObjectURL(blob)
+      window.open(url, '_blank')
+      setTimeout(() => URL.revokeObjectURL(url), 60_000)
+      printDialog.value = false
+    } catch (error) {
+      printError.value = error.message
+    } finally {
+      printing.value = false
+    }
+  }
+
+  onMounted(async () => {
+    await settings.init()
+    labelWidth.value = settings.barcodeLabelWidth
+    labelHeight.value = settings.barcodeLabelHeight
+    reload()
+  })
 </script>
 
 <style scoped>
-.barcodes-page {
-  display: flex;
-  flex-direction: column;
-  height: calc(100vh - 48px);
-  overflow: hidden;
+.page-root {
+  flex: 0 0 auto;
 }
-
-.bc-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 12px;
-  border-bottom: 1px solid #E8EAED;
-  flex-shrink: 0;
-}
-
-.bc-title {
-  font-size: 15px;
-  font-weight: 500;
-  margin: 0;
-}
-
-.bc-header-right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.bc-table-wrap {
-  flex: 1;
-  overflow-y: auto;
-}
-
-.bc-table {
-  font-size: 13px;
-}
-
-.bc-table td {
-  padding: 4px 8px !important;
-}
-
-.bc-check-cell {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.bc-check-cell input {
-  accent-color: #4285F4;
-  width: 14px;
-  height: 14px;
-  cursor: pointer;
-}
-
-.bc-qty-cell {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.bc-qty {
-  width: 36px;
-  height: 1.6rem;
-  text-align: center;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  font-size: 0.8rem;
-  padding: 0 2px;
-  -moz-appearance: textfield;
-  appearance: textfield;
-}
-
-.bc-qty::-webkit-inner-spin-button,
-.bc-qty::-webkit-outer-spin-button {
-  -webkit-appearance: none;
-}
-
-.bc-qty:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-
 .bc-mono {
-  font-family: 'Courier New', monospace;
-  font-size: 0.85rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
-
-.bc-canvas {
-  display: block;
-  height: 30px;
-}
-
-.bc-sel {
-  background: rgba(66, 133, 244, 0.08) !important;
-}
-
-.bc-load-more {
-  display: flex;
-  justify-content: center;
-  padding: 12px;
-}
-
-.bc-sentinel {
-  height: 1px;
+.bc-qty :deep(input) {
+  text-align: center;
 }
 </style>

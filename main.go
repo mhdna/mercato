@@ -26,6 +26,11 @@ func main() {
 	if err != nil {
 		log.Fatal("cannot load config:", err)
 	}
+	logFile, err := util.ConfigureAppLogging(config.AppLogPath)
+	if err != nil {
+		log.Fatal("cannot configure app logging:", err)
+	}
+	defer logFile.Close()
 
 	conn, err := sql.Open(config.DBDriver, config.DBSource)
 	if err != nil {

@@ -32,3 +32,8 @@ WHERE id = $1;
 UPDATE branches
 SET api_key_hash = $2
 WHERE id = $1;
+
+-- name: SetBranchInventory :exec
+UPDATE branches
+SET inventory_id = $2
+WHERE id = $1;

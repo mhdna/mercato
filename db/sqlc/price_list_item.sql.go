@@ -107,6 +107,52 @@ func (q *Queries) ListPriceListItems(ctx context.Context, priceListID int64) ([]
 	return items, nil
 }
 
+const listPriceListItemsWithProduct = `-- name: ListPriceListItemsWithProduct :many
+SELECT pli.price_list_id, pli.product_id, pli.price,
+       p.code AS product_code, p.name AS product_name
+FROM price_list_items pli
+JOIN products p ON p.id = pli.product_id
+WHERE pli.price_list_id = $1
+ORDER BY p.name
+`
+
+type ListPriceListItemsWithProductRow struct {
+	PriceListID int64  `json:"price_list_id"`
+	ProductID   int64  `json:"product_id"`
+	Price       int64  `json:"price"`
+	ProductCode string `json:"product_code"`
+	ProductName string `json:"product_name"`
+}
+
+func (q *Queries) ListPriceListItemsWithProduct(ctx context.Context, priceListID int64) ([]ListPriceListItemsWithProductRow, error) {
+	rows, err := q.db.QueryContext(ctx, listPriceListItemsWithProduct, priceListID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListPriceListItemsWithProductRow{}
+	for rows.Next() {
+		var i ListPriceListItemsWithProductRow
+		if err := rows.Scan(
+			&i.PriceListID,
+			&i.ProductID,
+			&i.Price,
+			&i.ProductCode,
+			&i.ProductName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updatePriceListItem = `-- name: UpdatePriceListItem :exec
 UPDATE price_list_items
 SET price = $3

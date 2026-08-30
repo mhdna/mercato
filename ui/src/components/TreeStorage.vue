@@ -4,8 +4,8 @@
       <v-treeview
         v-model:activated="activated"
         activatable
-        :items="items"
         item-value="id"
+        :items="items"
         open-on-click
       >
         <template #prepend="{ item }">
@@ -20,7 +20,19 @@
       <template v-if="activeNode === 'expenses'">
         <div class="d-flex align-center justify-space-between mb-4">
           <div class="text-h6">Expense receipts</div>
-          <v-progress-circular v-if="loading" indeterminate size="20" />
+          <div class="d-flex align-center ga-2">
+            <v-text-field
+              v-model="search"
+              clearable
+              density="compact"
+              hide-details
+              placeholder="Search receipts"
+              prepend-inner-icon="mdi-magnify"
+              variant="outlined"
+              width="280"
+            />
+            <v-progress-circular v-if="loading" indeterminate size="20" />
+          </div>
         </div>
 
         <v-alert v-if="loadError" class="mb-4" type="error" variant="tonal">{{ loadError }}</v-alert>
@@ -29,9 +41,13 @@
           No receipt photos uploaded yet.
         </div>
 
+        <div v-else-if="!loading && filteredImages.length === 0" class="text-medium-emphasis">
+          No receipts match your search.
+        </div>
+
         <div class="image-grid">
           <v-card
-            v-for="image in images"
+            v-for="image in filteredImages"
             :key="image.id"
             class="image-card"
             hover
@@ -99,12 +115,24 @@
   const { ensureConnected, onMessage } = useAdminSocket()
 
   const images = ref([])
+  const search = ref('')
   const total = ref(0)
   const pageId = ref(0)
   const pageSize = 24
   const loading = ref(false)
   const loadError = ref('')
   const thumbnailUrls = ref({})
+
+  const filteredImages = computed(() => {
+    const query = search.value.trim().toLowerCase()
+    if (!query) return images.value
+
+    return images.value.filter(image => [
+      image.expense_description,
+      image.branch_name,
+      formatDate(image.created_at),
+    ].some(value => String(value ?? '').toLowerCase().includes(query)))
+  })
 
   const previewDialog = ref(false)
   const previewImage = ref(null)
@@ -135,8 +163,8 @@
       total.value = data.total
       pageId.value = page + 1
       await loadThumbnails(data.images)
-    } catch (err) {
-      loadError.value = err.message
+    } catch (error) {
+      loadError.value = error.message
     } finally {
       loading.value = false
     }
@@ -172,7 +200,7 @@
 
   onUnmounted(() => {
     unsubscribe?.()
-    Object.values(thumbnailUrls.value).forEach(url => URL.revokeObjectURL(url))
+    for (const url of Object.values(thumbnailUrls.value)) URL.revokeObjectURL(url)
   })
 </script>
 

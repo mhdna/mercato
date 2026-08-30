@@ -47,7 +47,7 @@
           <v-progress-circular color="primary" indeterminate />
         </div>
         <v-alert v-else-if="pyramidError" class="ma-4" type="error" variant="tonal">
-          {{ pyramidError === 'Server is offline' ? pyramidError : `Failed to load data: ${pyramidError}` }}
+          {{ pyramidError === "Server is down, we'll be back soon." ? pyramidError : `Failed to load data: ${pyramidError}` }}
         </v-alert>
         <div v-else-if="pyramidClients.length === 0" class="text-center text-medium-emphasis pa-8">
           No spending data yet.
@@ -84,7 +84,7 @@
       </v-card-title>
       <div class="rest-scroll flex-grow-1">
         <v-alert v-if="restError" class="ma-4" type="error" variant="tonal">
-          {{ restError === 'Server is offline' ? restError : `Failed to load data: ${restError}` }}
+          {{ restError === "Server is down, we'll be back soon." ? restError : `Failed to load data: ${restError}` }}
         </v-alert>
         <v-data-table-server
           v-model:items-per-page="restItemsPerPage"
@@ -93,7 +93,7 @@
           item-value="id"
           :items="restItems"
           :items-length="restTotal"
-          :items-per-page-options="[10, 15, 25, 50, 100]"
+          :items-per-page-options="[14, 25, 50, 100]"
           :loading="restLoading"
           @update:options="loadRest"
         >
@@ -251,7 +251,7 @@
   }
 
   const search = ref('')
-  const restItemsPerPage = ref(15)
+  const restItemsPerPage = ref(14)
   const restItems = ref([])
   const restTotal = ref(0)
   const restLoading = ref(true)
@@ -268,7 +268,7 @@
     { title: 'Actions', key: 'actions', align: 'end', sortable: false },
   ]
 
-  const lastRestOptions = ref({ page: 1, itemsPerPage: 15 })
+  const lastRestOptions = ref({ page: 1, itemsPerPage: 14 })
   async function loadRest (options) {
     lastRestOptions.value = options
     restLoading.value = true

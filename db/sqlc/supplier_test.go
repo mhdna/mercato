@@ -60,8 +60,9 @@ func TestListSuppliers(t *testing.T) {
 	}
 
 	arg := ListSuppliersParams{
-		Limit:  5,
-		Offset: 5,
+		Search:     "",
+		PageSize:   5,
+		PageOffset: 5,
 	}
 
 	suppliers, err := testQueries.ListSuppliers(context.Background(), arg)

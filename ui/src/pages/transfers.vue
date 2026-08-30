@@ -28,6 +28,7 @@
               />
             </v-col>
           </v-row>
+          <v-text-field v-model="note.value.value" density="compact" label="Note (optional)" />
 
           <v-alert v-if="submitError" class="mb-4" type="error" variant="tonal">
             {{ submitError }}
@@ -43,19 +44,26 @@
     </v-card>
   </v-dialog>
 
-  <v-dialog v-model="itemsDialog" max-width="640">
+  <v-dialog v-model="itemsDialog" max-width="720">
     <v-card class="px-4">
-      <v-card-title>Items in Transfer #{{ itemsTarget?.id }}</v-card-title>
+      <v-card-title>
+        Transfer #{{ itemsTarget?.id }}
+        <v-chip class="ml-2" :color="statusColor(itemsTarget?.status)" size="small">{{ itemsTarget?.status }}</v-chip>
+      </v-card-title>
       <v-card-text>
-        <div class="d-flex align-center mb-4" style="gap: 12px;">
-          <v-select
-            v-model="itemProductId"
+        <div v-if="itemsTarget?.status === 'draft'" class="d-flex align-center mb-4" style="gap: 12px;">
+          <v-autocomplete
+            v-model="itemVariantId"
             density="compact"
             hide-details
-            :item-title="p => `${p.code} - ${p.name}`"
-            :item-value="p => p.id"
-            :items="products"
-            label="Product"
+            hide-no-data
+            :item-title="v => v.label"
+            :item-value="v => v.id"
+            :items="skuOptions"
+            :loading="skuLoading"
+            no-filter
+            placeholder="Search SKU / barcode"
+            @update:search="onSkuSearch"
           />
           <v-text-field
             v-model.number="itemQuantity"
@@ -71,19 +79,35 @@
         <v-table density="compact">
           <thead>
             <tr>
-              <th>Product ID</th>
-              <th>Quantity</th>
+              <th>SKU</th>
+              <th>Barcode</th>
+              <th class="text-end">Quantity</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="item in items" :key="item.id">
-              <td>{{ item.product_id }}</td>
-              <td>{{ item.quantity }}</td>
+              <td>{{ item.product_code }} — {{ item.product_name }}</td>
+              <td>{{ item.variant_barcode }}</td>
+              <td class="text-end">{{ item.quantity }}</td>
             </tr>
           </tbody>
         </v-table>
       </v-card-text>
       <v-card-actions>
+        <v-btn
+          v-if="itemsTarget?.status === 'draft'"
+          color="primary"
+          :loading="staging"
+          text="Dispatch"
+          @click="stage('dispatch')"
+        />
+        <v-btn
+          v-if="itemsTarget?.status === 'dispatched'"
+          color="success"
+          :loading="staging"
+          text="Receive"
+          @click="stage('receive')"
+        />
         <v-spacer />
         <v-btn text="Close" @click="itemsDialog = false" />
       </v-card-actions>
@@ -102,9 +126,18 @@
     :max-page-size="10"
     root-key="transfers"
   >
+    <template #item.status="{ item }">
+      <v-chip :color="statusColor(item.status)" size="small">{{ item.status }}</v-chip>
+    </template>
     <template #item.actions="{ item }">
       <v-icon-btn icon="mdi-format-list-bulleted" size="small" variant="text" @click="openItems(item)" />
-      <v-icon-btn icon="mdi-pencil" size="small" variant="text" @click="openEdit(item)" />
+      <v-icon-btn
+        v-if="item.status === 'draft'"
+        icon="mdi-pencil"
+        size="small"
+        variant="text"
+        @click="openEdit(item)"
+      />
     </template>
   </ServerSideTable>
 </template>
@@ -114,25 +147,39 @@
   import { ref } from 'vue'
   import ServerSideTable from '@/components/Tables/ServerSideTable.vue'
   import { useInventories } from '@/composables/useInventories'
-  import { useProducts } from '@/composables/useProducts'
   import { useTransfers } from '@/composables/useTransfers'
+  import { useVariants } from '@/composables/useVariants'
   import { API_BASE } from '@/config'
 
-  const { createTransfer, updateTransfer, fetchTransferItems, createTransferItem } = useTransfers()
+  const {
+    createTransfer, updateTransfer, fetchTransferItems, createTransferItem,
+    dispatchTransfer, receiveTransfer,
+  } = useTransfers()
   const { inventories, fetchInventories } = useInventories()
-  const { products, fetchProducts } = useProducts()
+  const { variants: skuOptions, loading: skuLoading, searchVariants } = useVariants()
   fetchInventories()
-  fetchProducts()
+  searchVariants('')
+
+  let skuSearchTimer = null
+  function onSkuSearch (q) {
+    clearTimeout(skuSearchTimer)
+    skuSearchTimer = setTimeout(() => searchVariants(q || ''), 250)
+  }
 
   const apiURL = `${API_BASE}/transfers`
   const headers = ref([
     { title: 'ID', key: 'id', align: 'start' },
-    { title: 'From Inventory', key: 'from_inventory_id', align: 'start' },
-    { title: 'To Inventory', key: 'to_inventory_id', align: 'start' },
-    { title: 'Type', key: 'type', align: 'start' },
+    { title: 'From', key: 'from_inventory_name', align: 'start' },
+    { title: 'To', key: 'to_inventory_name', align: 'start' },
+    { title: 'Items', key: 'item_count', align: 'end' },
+    { title: 'Status', key: 'status', align: 'start' },
     { title: 'Created At', key: 'created_at', align: 'end' },
     { title: 'Actions', key: 'actions', align: 'end', sortable: false },
   ])
+
+  function statusColor (s) {
+    return { draft: 'grey', dispatched: 'warning', received: 'success', cancelled: 'error' }[s] || 'grey'
+  }
 
   const tableRef = ref(null)
   const dialog = ref(false)
@@ -155,6 +202,7 @@
 
   const fromInventoryId = useField('fromInventoryId')
   const toInventoryId = useField('toInventoryId')
+  const note = useField('note')
 
   function openCreate () {
     editingId.value = null
@@ -164,7 +212,7 @@
 
   function openEdit (item) {
     editingId.value = item.id
-    setValues({ fromInventoryId: item.from_inventory_id, toInventoryId: item.to_inventory_id })
+    setValues({ fromInventoryId: item.from_inventory_id, toInventoryId: item.to_inventory_id, note: item.note })
     dialog.value = true
   }
 
@@ -185,11 +233,13 @@
           from_inventory_id: values.fromInventoryId,
           to_inventory_id: values.toInventoryId,
           type: 'products',
+          note: values.note || '',
         })
         : createTransfer({
-          from_inventory_id: values.fromInventoryId,
-          to_inventory_id: values.toInventoryId,
-          type: 'products',
+          fromInventoryId: values.fromInventoryId,
+          toInventoryId: values.toInventoryId,
+          note: values.note || '',
+          items: [],
         }))
       closeDialog()
       tableRef.value?.reload()
@@ -203,10 +253,11 @@
   const itemsDialog = ref(false)
   const itemsTarget = ref(null)
   const items = ref([])
-  const itemProductId = ref(null)
+  const itemVariantId = ref(null)
   const itemQuantity = ref(null)
   const itemSubmitting = ref(false)
   const itemError = ref('')
+  const staging = ref(false)
 
   async function openItems (item) {
     itemsTarget.value = item
@@ -220,22 +271,37 @@
   }
 
   async function addItem () {
-    if (!itemProductId.value || !itemQuantity.value) return
+    if (!itemVariantId.value || !itemQuantity.value) return
     itemSubmitting.value = true
     itemError.value = ''
     try {
       await createTransferItem({
         transferId: itemsTarget.value.id,
-        productId: itemProductId.value,
+        variantId: itemVariantId.value,
         quantity: itemQuantity.value,
       })
       items.value = await fetchTransferItems(itemsTarget.value.id)
-      itemProductId.value = null
+      itemVariantId.value = null
       itemQuantity.value = null
     } catch (error) {
       itemError.value = error.message
     } finally {
       itemSubmitting.value = false
+    }
+  }
+
+  async function stage (action) {
+    staging.value = true
+    itemError.value = ''
+    try {
+      const fn = action === 'dispatch' ? dispatchTransfer : receiveTransfer
+      const res = await fn(itemsTarget.value.id)
+      itemsTarget.value = res?.transfer ?? itemsTarget.value
+      tableRef.value?.reload()
+    } catch (error) {
+      itemError.value = error.message
+    } finally {
+      staging.value = false
     }
   }
 </script>

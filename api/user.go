@@ -2,6 +2,7 @@ package api
 
 import (
 	"database/sql"
+	"errors"
 	"net/http"
 	"time"
 
@@ -12,16 +13,35 @@ import (
 	"github.com/mhdna/kashi/util"
 )
 
+// PIN codes are the only credential in this POS -- 4 to 6 digits, no email.
+const (
+	pinMinLen = 4
+	pinMaxLen = 6
+)
+
+var errPINFormat = errors.New("pin must be 4 to 6 digits")
+
+func isPIN(s string) bool {
+	if len(s) < pinMinLen || len(s) > pinMaxLen {
+		return false
+	}
+	for _, r := range s {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return true
+}
+
 type createUserRequest struct {
 	Name      string `json:"name" binding:"required,alphanum"`
-	Email     string `json:"email" binding:"required,email"`
-	Password  string `json:"password" binding:"required,min=6"`
+	Password  string `json:"password" binding:"required"`
 	Activated bool   `json:"activated"`
 }
 
 type userResponse struct {
-	Name              string    `json:"name" binding:"required"`
-	Email             string    `json:"email" binding:"required"`
+	ID                int64     `json:"id"`
+	Name              string    `json:"name"`
 	Activated         bool      `json:"activated"`
 	PasswordChangedAt time.Time `json:"password_changed_at"`
 	CreatedAt         time.Time `json:"created_at"`
@@ -29,8 +49,8 @@ type userResponse struct {
 
 func newUserResponse(user db.User) userResponse {
 	return userResponse{
+		ID:                user.ID,
 		Name:              user.Name,
-		Email:             user.Email,
 		Activated:         user.Activated,
 		PasswordChangedAt: user.PasswordChangedAt,
 		CreatedAt:         user.CreatedAt,
@@ -44,6 +64,11 @@ func (server *Server) createUser(ctx *gin.Context) {
 		return
 	}
 
+	if !isPIN(req.Password) {
+		server.writeError(ctx, http.StatusBadRequest, errPINFormat)
+		return
+	}
+
 	hashPassword, err := util.HashPassword(req.Password)
 	if err != nil {
 		server.writeError(ctx, http.StatusInternalServerError, err)
@@ -51,8 +76,10 @@ func (server *Server) createUser(ctx *gin.Context) {
 	}
 
 	arg := db.CreateUserParams{
-		Name:         req.Name,
-		Email:        req.Email,
+		Name: req.Name,
+		// email is unused in this POS but the column is NOT NULL and unique;
+		// fill it with a throwaway value so it never has to be entered.
+		Email:        util.RandomEmail(),
 		PasswordHash: hashPassword,
 		Activated:    req.Activated,
 	}
@@ -95,7 +122,7 @@ func (server *Server) getUser(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusOK, user)
+	ctx.JSON(http.StatusOK, newUserResponse(user))
 }
 
 type listUsersRequest struct {
@@ -120,15 +147,18 @@ func (server *Server) listUsers(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusOK, users)
+	rsp := make([]userResponse, len(users))
+	for i, u := range users {
+		rsp[i] = newUserResponse(u)
+	}
+	ctx.JSON(http.StatusOK, rsp)
 }
 
 type updateUserRequest struct {
 	ID        int64  `json:"id" binding:"required,min=1"`
-	Name      string `json:"name" binding:"required"`
-	Email     string `json:"email" binding:"required"`
-	Password  string `json:"password" binding:"required"`
-	Activated bool   `json:"activate"`
+	Name      string `json:"name" binding:"required,alphanum"`
+	Password  string `json:"password"` // optional -- blank keeps the current PIN
+	Activated bool   `json:"activated"`
 }
 
 func (server *Server) updateUser(ctx *gin.Context) {
@@ -138,16 +168,34 @@ func (server *Server) updateUser(ctx *gin.Context) {
 		return
 	}
 
-	hashPassword, err := util.HashPassword(req.Password)
+	current, err := server.store.GetUser(ctx, req.ID)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			server.writeError(ctx, http.StatusNotFound, err)
+			return
+		}
 		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
+	}
+
+	// Keep the existing hash unless a new PIN was supplied.
+	hashPassword := current.PasswordHash
+	if req.Password != "" {
+		if !isPIN(req.Password) {
+			server.writeError(ctx, http.StatusBadRequest, errPINFormat)
+			return
+		}
+		hashPassword, err = util.HashPassword(req.Password)
+		if err != nil {
+			server.writeError(ctx, http.StatusInternalServerError, err)
+			return
+		}
 	}
 
 	arg := db.UpdateUserParams{
 		ID:           req.ID,
 		Name:         req.Name,
-		Email:        req.Email,
+		Email:        current.Email,
 		PasswordHash: hashPassword,
 		Activated:    req.Activated,
 	}
@@ -161,7 +209,14 @@ func (server *Server) updateUser(ctx *gin.Context) {
 		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
-	ctx.JSON(http.StatusOK, gin.H{"message": "user updated"})
+
+	ctx.JSON(http.StatusOK, userResponse{
+		ID:                req.ID,
+		Name:              req.Name,
+		Activated:         req.Activated,
+		PasswordChangedAt: current.PasswordChangedAt,
+		CreatedAt:         current.CreatedAt,
+	})
 }
 
 type deleteUserRequest struct {

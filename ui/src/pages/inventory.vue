@@ -88,6 +88,7 @@
     root-key="inventories"
   >
     <template #item.actions="{ item }">
+      <v-icon-btn icon="mdi-warehouse" size="small" variant="text" @click="openStock(item)" />
       <v-icon-btn icon="mdi-pencil" size="small" variant="text" @click="openEdit(item)" />
       <v-icon-btn
         color="error"
@@ -98,6 +99,69 @@
       />
     </template>
   </ServerSideTable>
+
+  <v-dialog v-model="stockDialog" max-width="820">
+    <v-card class="px-4">
+      <v-card-title>Stock — {{ stockTarget?.name }}</v-card-title>
+      <v-card-text>
+        <v-text-field
+          v-model="stockSearch"
+          class="mb-2"
+          clearable
+          density="compact"
+          hide-details
+          placeholder="Search SKU / barcode"
+          @update:model-value="onStockSearch"
+        />
+        <v-alert v-if="stockError" class="mb-2" type="error" variant="tonal">{{ stockError }}</v-alert>
+        <v-table density="compact">
+          <thead>
+            <tr>
+              <th>SKU</th>
+              <th>Barcode</th>
+              <th class="text-end">On hand</th>
+              <th class="text-end">Avg cost</th>
+              <th class="text-end" style="width: 220px;">Adjust</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="row in stockRows" :key="row.variant_id">
+              <td>
+                {{ row.product_code }} — {{ row.product_name }}
+                <span v-if="row.color_name || row.size_name" class="text-medium-emphasis">
+                  ({{ [row.color_name, row.size_name].filter(Boolean).join(' / ') }})
+                </span>
+              </td>
+              <td>{{ row.barcode }}</td>
+              <td class="text-end" :class="row.quantity < 0 ? 'text-error' : ''">{{ row.quantity }}</td>
+              <td class="text-end">{{ row.avg_cost }}</td>
+              <td class="text-end">
+                <v-text-field
+                  v-model.number="adjustInputs[row.variant_id]"
+                  density="compact"
+                  hide-details
+                  placeholder="set count"
+                  style="max-width: 120px; display: inline-block;"
+                  type="number"
+                />
+                <v-btn
+                  class="ml-1"
+                  :loading="adjustingId === row.variant_id"
+                  size="small"
+                  text="Set"
+                  @click="applyCount(row)"
+                />
+              </td>
+            </tr>
+          </tbody>
+        </v-table>
+      </v-card-text>
+      <v-card-actions>
+        <v-spacer />
+        <v-btn text="Close" @click="stockDialog = false" />
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
 </template>
 
 <script setup>
@@ -107,7 +171,7 @@
   import { useInventories } from '@/composables/useInventories'
   import { API_BASE } from '@/config'
 
-  const { createInventory, updateInventory, deleteInventory } = useInventories()
+  const { createInventory, updateInventory, deleteInventory, fetchStock, createAdjustment } = useInventories()
 
   const apiURL = `${API_BASE}/inventories/`
   const headers = ref([
@@ -211,6 +275,60 @@
       deleteError.value = error.message
     } finally {
       deleting.value = false
+    }
+  }
+
+  // --- Per-inventory stock view + quick "count" adjustment ---
+  const stockDialog = ref(false)
+  const stockTarget = ref(null)
+  const stockRows = ref([])
+  const stockError = ref('')
+  const stockSearch = ref('')
+  const adjustInputs = ref({})
+  const adjustingId = ref(null)
+
+  async function loadStock () {
+    stockError.value = ''
+    try {
+      const { stock } = await fetchStock(stockTarget.value.id, { search: stockSearch.value || '' })
+      stockRows.value = stock
+    } catch (error) {
+      stockError.value = error.message
+    }
+  }
+
+  function openStock (item) {
+    stockTarget.value = item
+    stockRows.value = []
+    adjustInputs.value = {}
+    stockDialog.value = true
+    loadStock()
+  }
+
+  let stockSearchTimer = null
+  function onStockSearch () {
+    clearTimeout(stockSearchTimer)
+    stockSearchTimer = setTimeout(loadStock, 250)
+  }
+
+  async function applyCount (row) {
+    const target = adjustInputs.value[row.variant_id]
+    if (target === undefined || target === null || target === '') return
+    adjustingId.value = row.variant_id
+    stockError.value = ''
+    try {
+      await createAdjustment(stockTarget.value.id, {
+        variantId: row.variant_id,
+        mode: 'count',
+        quantity: Number(target),
+        note: 'manual count',
+      })
+      adjustInputs.value[row.variant_id] = null
+      await loadStock()
+    } catch (error) {
+      stockError.value = error.message
+    } finally {
+      adjustingId.value = null
     }
   }
 </script>

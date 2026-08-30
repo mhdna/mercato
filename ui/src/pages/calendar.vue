@@ -12,6 +12,24 @@
         {{ title }}
       </v-toolbar-title>
 
+      <v-spacer />
+
+      <v-autocomplete
+        v-model="selectedEvent"
+        class="me-3"
+        clearable
+        density="compact"
+        hide-details
+        item-title="name"
+        :items="searchEvents"
+        placeholder="Search events"
+        prepend-inner-icon="mdi-magnify"
+        return-object
+        variant="outlined"
+        width="280"
+        @update:model-value="goToEvent"
+      />
+
       <v-btn prepend-icon="mdi-calendar-today" text="Today" variant="tonal" @click="goToToday" />
     </v-toolbar>
 
@@ -41,13 +59,25 @@
 
 <script setup>
   import { computed, ref } from 'vue'
-  import { getEventsForRange } from '@/data/retailCalendarEvents'
+  import { getEventsForRange, retailCalendarEvents } from '@/data/retailCalendarEvents'
 
   const type = ref('month')
   const weekday = ref([0, 1, 2, 3, 4, 5, 6])
   const value = ref('')
   const events = ref([])
   const rangeStart = ref(null)
+  const selectedEvent = ref(null)
+
+  const searchEvents = computed(() => {
+    const year = rangeStart.value?.getFullYear() ?? new Date().getFullYear()
+
+    return retailCalendarEvents.flatMap(event => event.dates(year).map(({ start, end, allDay }) => ({
+      name: event.name,
+      start,
+      end,
+      allDay,
+    })))
+  })
 
   const title = computed(() => {
     if (!rangeStart.value) return ''
@@ -68,5 +98,14 @@
     const month = String(today.getMonth() + 1).padStart(2, '0')
     const day = String(today.getDate()).padStart(2, '0')
     value.value = `${today.getFullYear()}-${month}-${day}`
+  }
+
+  function goToEvent (event) {
+    if (!event?.start) return
+
+    const date = event.start
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    value.value = `${date.getFullYear()}-${month}-${day}`
   }
 </script>

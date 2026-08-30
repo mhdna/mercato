@@ -31,7 +31,14 @@ export function useBranchInvoices () {
   // executes asynchronously and the resulting real return invoice arrives
   // later through the normal /branch/return_invoices sync path, same as
   // any other branch-originated return.
-  async function requestRemoteReturn (branchId, invoice, reason) {
+  //
+  // `items` is optional -- a list of { branch_product_id, quantity } for
+  // the specific lines/quantities to return (branch_product_id comes
+  // straight from listBranchInvoiceItems, which is the branch's own local
+  // product id -- kashi never reinterprets it). Omitted/empty returns
+  // every line on the invoice at full quantity, same as before item-level
+  // selection existed.
+  async function requestRemoteReturn (branchId, invoice, reason, items = []) {
     const data = await requestJSON(`${API_BASE}/branches/${branchId}/commands`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -41,6 +48,7 @@ export function useBranchInvoices () {
           branch_invoice_id: invoice.id,
           client_ref: invoice.client_ref,
           reason: reason || '',
+          items,
         },
       }),
     })

@@ -8,9 +8,32 @@ import (
 	db "github.com/mhdna/kashi/db/sqlc"
 )
 
+// defaultExpenseCategoryIcon / Color fill in when the client omits them, so
+// every category row always has something to render.
+const (
+	defaultExpenseCategoryIcon  = "mdi-tag-outline"
+	defaultExpenseCategoryColor = "blue-grey"
+)
+
+func expenseCategoryIcon(icon string) string {
+	if icon == "" {
+		return defaultExpenseCategoryIcon
+	}
+	return icon
+}
+
+func expenseCategoryColor(color string) string {
+	if color == "" {
+		return defaultExpenseCategoryColor
+	}
+	return color
+}
+
 type createExpenseCategoryRequest struct {
 	Name     string `json:"name" binding:"required"`
 	IsActive bool   `json:"is_active"`
+	Icon     string `json:"icon"`
+	Color    string `json:"color"`
 }
 
 func (server *Server) createExpenseCategory(ctx *gin.Context) {
@@ -23,6 +46,8 @@ func (server *Server) createExpenseCategory(ctx *gin.Context) {
 	category, err := server.store.CreateExpenseCategory(ctx, db.CreateExpenseCategoryParams{
 		Name:     req.Name,
 		IsActive: req.IsActive,
+		Icon:     expenseCategoryIcon(req.Icon),
+		Color:    expenseCategoryColor(req.Color),
 	})
 	if err != nil {
 		server.writeError(ctx, http.StatusInternalServerError, err)
@@ -67,6 +92,8 @@ type updateExpenseCategoryRequest struct {
 	ID       int64  `json:"id" binding:"required,min=1"`
 	Name     string `json:"name" binding:"required"`
 	IsActive bool   `json:"is_active"`
+	Icon     string `json:"icon"`
+	Color    string `json:"color"`
 }
 
 func (server *Server) updateExpenseCategory(ctx *gin.Context) {
@@ -80,6 +107,8 @@ func (server *Server) updateExpenseCategory(ctx *gin.Context) {
 		ID:       req.ID,
 		Name:     req.Name,
 		IsActive: req.IsActive,
+		Icon:     expenseCategoryIcon(req.Icon),
+		Color:    expenseCategoryColor(req.Color),
 	})
 	if err != nil {
 		if err == sql.ErrNoRows {

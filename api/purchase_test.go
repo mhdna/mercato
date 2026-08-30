@@ -38,14 +38,19 @@ func TestCreatePurchaseAPI(t *testing.T) {
 		{
 			name: "OK",
 			body: map[string]interface{}{
-				"supplier_id":  purchase.SupplierID,
-				"purchased_at": purchase.PurchasedAt.Format(time.RFC3339),
+				"supplier_id":   purchase.SupplierID,
+				"inventory_id":  1,
+				"currency_code": "USD",
+				"purchased_at":  purchase.PurchasedAt.Format(time.RFC3339),
+				"items": []map[string]interface{}{
+					{"variant_id": 1, "quantity": 4, "unit_price": 250},
+				},
 			},
 			buildStubs: func(store *mockdb.MockStore) {
 				store.EXPECT().
-					CreatePurchase(gomock.Any(), gomock.Any()).
+					CreatePurchaseTx(gomock.Any(), gomock.Any()).
 					Times(1).
-					Return(purchase, nil)
+					Return(db.CreatePurchaseTxResult{Purchase: purchase}, nil)
 			},
 			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
 				require.Equal(t, http.StatusOK, recorder.Code)
@@ -55,14 +60,19 @@ func TestCreatePurchaseAPI(t *testing.T) {
 		{
 			name: "InternalError",
 			body: map[string]interface{}{
-				"supplier_id":  purchase.SupplierID,
-				"purchased_at": purchase.PurchasedAt.Format(time.RFC3339),
+				"supplier_id":   purchase.SupplierID,
+				"inventory_id":  1,
+				"currency_code": "USD",
+				"purchased_at":  purchase.PurchasedAt.Format(time.RFC3339),
+				"items": []map[string]interface{}{
+					{"variant_id": 1, "quantity": 4, "unit_price": 250},
+				},
 			},
 			buildStubs: func(store *mockdb.MockStore) {
 				store.EXPECT().
-					CreatePurchase(gomock.Any(), gomock.Any()).
+					CreatePurchaseTx(gomock.Any(), gomock.Any()).
 					Times(1).
-					Return(db.Purchase{}, sql.ErrConnDone)
+					Return(db.CreatePurchaseTxResult{}, sql.ErrConnDone)
 			},
 			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
 				require.Equal(t, http.StatusInternalServerError, recorder.Code)
@@ -75,7 +85,7 @@ func TestCreatePurchaseAPI(t *testing.T) {
 			},
 			buildStubs: func(store *mockdb.MockStore) {
 				store.EXPECT().
-					CreatePurchase(gomock.Any(), gomock.Any()).
+					CreatePurchaseTx(gomock.Any(), gomock.Any()).
 					Times(0)
 			},
 			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
@@ -127,7 +137,11 @@ func TestGetPurchaseAPI(t *testing.T) {
 				store.EXPECT().
 					GetPurchase(gomock.Any(), gomock.Eq(purchase.ID)).
 					Times(1).
-					Return(purchase, nil)
+					Return(db.GetPurchaseRow{ID: purchase.ID, SupplierID: purchase.SupplierID}, nil)
+				store.EXPECT().
+					ListPurchaseItems(gomock.Any(), gomock.Any()).
+					Times(1).
+					Return([]db.ListPurchaseItemsRow{}, nil)
 			},
 			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
 				require.Equal(t, http.StatusOK, recorder.Code)
@@ -141,7 +155,7 @@ func TestGetPurchaseAPI(t *testing.T) {
 				store.EXPECT().
 					GetPurchase(gomock.Any(), gomock.Eq(purchase.ID)).
 					Times(1).
-					Return(db.Purchase{}, sql.ErrNoRows)
+					Return(db.GetPurchaseRow{}, sql.ErrNoRows)
 			},
 			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
 				require.Equal(t, http.StatusNotFound, recorder.Code)
@@ -154,7 +168,7 @@ func TestGetPurchaseAPI(t *testing.T) {
 				store.EXPECT().
 					GetPurchase(gomock.Any(), gomock.Eq(purchase.ID)).
 					Times(1).
-					Return(db.Purchase{}, sql.ErrConnDone)
+					Return(db.GetPurchaseRow{}, sql.ErrConnDone)
 			},
 			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
 				require.Equal(t, http.StatusInternalServerError, recorder.Code)
@@ -201,9 +215,10 @@ func TestGetPurchaseAPI(t *testing.T) {
 
 func TestListPurchasesAPI(t *testing.T) {
 	n := 5
-	purchases := make([]db.Purchase, n)
+	purchases := make([]db.ListPurchasesRow, n)
 	for i := 0; i < n; i++ {
-		purchases[i] = randomPurchase()
+		p := randomPurchase()
+		purchases[i] = db.ListPurchasesRow{ID: p.ID, SupplierID: p.SupplierID}
 	}
 
 	testCases := []struct {
@@ -214,14 +229,16 @@ func TestListPurchasesAPI(t *testing.T) {
 	}{
 		{
 			name:  "OK",
-			query: "/purchases?page_size=5&page_id=1",
+			query: "/purchases?page_size=5&page_id=1&search=acme",
 			buildStubs: func(store *mockdb.MockStore) {
 				store.EXPECT().
-					ListPurchases(gomock.Any(), gomock.Any()).
+					ListPurchases(gomock.Any(), gomock.Eq(db.ListPurchasesParams{
+						Search: "acme", PageSize: 5, PageOffset: 1,
+					})).
 					Times(1).
 					Return(purchases, nil)
 				store.EXPECT().
-					CountPurchases(gomock.Any()).
+					CountPurchasesFiltered(gomock.Any(), "acme").
 					Times(1).
 					Return(int64(n), nil)
 			},
@@ -285,20 +302,23 @@ func requiredBodyMatchPurchase(t *testing.T, body *bytes.Buffer, purchase db.Pur
 	data, err := io.ReadAll(body)
 	require.NoError(t, err)
 
-	var gotPurchase db.Purchase
-	err = json.Unmarshal(data, &gotPurchase)
+	// createPurchase/getPurchase respond with {"purchase": {...}, "items": [...]}.
+	var resp struct {
+		Purchase db.Purchase `json:"purchase"`
+	}
+	err = json.Unmarshal(data, &resp)
 	require.NoError(t, err)
-	require.Equal(t, purchase.ID, gotPurchase.ID)
-	require.Equal(t, purchase.SupplierID, gotPurchase.SupplierID)
+	require.Equal(t, purchase.ID, resp.Purchase.ID)
+	require.Equal(t, purchase.SupplierID, resp.Purchase.SupplierID)
 }
 
-func requireBodyMatchPurchases(t *testing.T, body *bytes.Buffer, purchases []db.Purchase) {
+func requireBodyMatchPurchases(t *testing.T, body *bytes.Buffer, purchases []db.ListPurchasesRow) {
 	data, err := io.ReadAll(body)
 	require.NoError(t, err)
 
 	// listPurchases responds with {"purchases": [...], "total": ...}, not a bare array.
 	var resp struct {
-		Purchases []db.Purchase `json:"purchases"`
+		Purchases []db.ListPurchasesRow `json:"purchases"`
 	}
 	err = json.Unmarshal(data, &resp)
 	require.NoError(t, err)

@@ -16,7 +16,13 @@ ui/.env
 # locally-stored uploads (EXPENSE_IMAGE_STORAGE_DIR default)
 /storage/
 
+# bounded local application logs (APP_LOG_PATH default)
+/logs/
+
 # accidental local artifacts
 /f
 /kashi
 hexdump_session.log
+
+# junk downloads
+*.torrent

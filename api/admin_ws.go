@@ -47,18 +47,33 @@ func (h *adminHub) remove(conn *websocket.Conn) {
 	delete(h.conns, conn)
 }
 
+// Message types the admin UI's toast queue knows how to render:
+//
+//	branch_invoice_created     Amount=signed grand total, Kind=sales|return|exchange, Label=invoice code
+//	branch_expense_created     Amount=negated expense amount, Label=description
+//	branch_loan_created        Amount=loan amount, Label=description
+//	branch_shift_closed        Amount=USD-drawer variance (signed; negative=shortfall), Label=closing person
+//	branch_settlement_changed  Amount=new grand total, Label=sale invoice code (or client_ref)
+//	branch_attendance_event    Label="<name> <IN|OUT> <time>" — one per punch, for small batches
+//	branch_attendance_events   Amount=count of new punches — one summary toast for a large backfill
+//	branch_attendance_changed  Kind=complaint|approved|rejected, Label="<name> <verb> <date>"
+//	branch_connection_changed  BranchIDs=full connected list
 type adminWSMessage struct {
 	Type     string `json:"type"`
 	BranchID int64  `json:"branch_id,omitempty"`
 	// Kind is the branch_invoices.kind ("sales"/"return"/"exchange") for a
-	// branch_invoice_created event, omitted for every other message type.
+	// branch_invoice_created event, or "complaint"/"approved"/"rejected" for
+	// a branch_attendance_changed event; omitted for every other message
+	// type.
 	// The toast queue still derives its color/trend arrow from Amount's
 	// sign (which is meaningful on its own), but needs Kind for wording --
 	// an exchange's Amount can be positive, so sign alone can't tell it
 	// apart from a sale.
 	Kind string `json:"kind,omitempty"`
 	// Amount is signed cents: positive for revenue or a value-add exchange,
-	// negative for a return, a refund-leaning exchange, or an expense.
+	// negative for a return, a refund-leaning exchange, or an expense. For
+	// branch_shift_closed it carries the drawer variance; for
+	// branch_attendance_events it's a plain count of punches, not cents.
 	Amount       int64  `json:"amount,omitempty"`
 	CurrencyCode string `json:"currency_code,omitempty"`
 	Label        string `json:"label,omitempty"`

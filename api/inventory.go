@@ -148,3 +148,140 @@ func (server *Server) deleteInventory(ctx *gin.Context) {
 	}
 	ctx.JSON(http.StatusOK, gin.H{"status": "deleted"})
 }
+
+// ---------------------------------------------------------------------------
+// Per-variant stock, adjustments, and the movement ledger
+// ---------------------------------------------------------------------------
+
+type listInventoryStockRequest struct {
+	ID       int64  `uri:"id" binding:"required,min=1"`
+	Search   string `form:"search"`
+	PageSize int32  `form:"page_size,default=50" binding:"min=1,max=500"`
+	PageID   int32  `form:"page_id,default=0" binding:"min=0"`
+}
+
+// listInventoryStock returns the on-hand quantity and moving-average cost
+// of every SKU that has ever been stocked in this inventory.
+func (server *Server) listInventoryStock(ctx *gin.Context) {
+	var req listInventoryStockRequest
+	if err := ctx.ShouldBindUri(&req); err != nil {
+		server.writeError(ctx, http.StatusBadRequest, err)
+		return
+	}
+	if err := ctx.ShouldBindQuery(&req); err != nil {
+		server.writeError(ctx, http.StatusBadRequest, err)
+		return
+	}
+
+	rows, err := server.store.ListInventoryStock(ctx, db.ListInventoryStockParams{
+		InventoryID: req.ID,
+		Search:      req.Search,
+		PageLimit:   req.PageSize,
+		PageOffset:  req.PageID,
+	})
+	if err != nil {
+		server.writeError(ctx, http.StatusInternalServerError, err)
+		return
+	}
+
+	total, err := server.store.CountInventoryStock(ctx, db.CountInventoryStockParams{
+		InventoryID: req.ID,
+		Search:      req.Search,
+	})
+	if err != nil {
+		server.writeError(ctx, http.StatusInternalServerError, err)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"stock": rows, "total": total})
+}
+
+type createStockAdjustmentRequest struct {
+	VariantID int64  `json:"variant_id" binding:"required"`
+	Mode      string `json:"mode" binding:"required,oneof=delta count"`
+	Quantity  int64  `json:"quantity"`
+	Note      string `json:"note"`
+}
+
+// createStockAdjustment applies a manual correction to one SKU's on-hand
+// in this inventory: "delta" adds a signed quantity, "count" sets on-hand
+// to an absolute counted figure. Either way one balancing movement is
+// written -- no supporting document.
+func (server *Server) createStockAdjustment(ctx *gin.Context) {
+	var uri getInventoryRequest
+	if err := ctx.ShouldBindUri(&uri); err != nil {
+		server.writeError(ctx, http.StatusBadRequest, err)
+		return
+	}
+	var req createStockAdjustmentRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		server.writeError(ctx, http.StatusBadRequest, err)
+		return
+	}
+
+	result, err := server.store.StockAdjustmentTx(ctx, db.StockAdjustmentTxParams{
+		InventoryID: uri.ID,
+		VariantID:   req.VariantID,
+		Mode:        db.StockAdjustmentMode(req.Mode),
+		Quantity:    req.Quantity,
+		Note:        req.Note,
+	})
+	if err != nil {
+		server.writeError(ctx, http.StatusInternalServerError, err)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"movement": result.Movement, "on_hand": result.OnHand})
+}
+
+type listStockMovementsRequest struct {
+	InventoryID int64  `form:"inventory_id"`
+	VariantID   int64  `form:"variant_id"`
+	Reason      string `form:"reason"`
+	PageSize    int32  `form:"page_size,default=50" binding:"min=1,max=500"`
+	PageID      int32  `form:"page_id,default=0" binding:"min=0"`
+}
+
+func (server *Server) listStockMovements(ctx *gin.Context) {
+	var req listStockMovementsRequest
+	if err := ctx.ShouldBindQuery(&req); err != nil {
+		server.writeError(ctx, http.StatusBadRequest, err)
+		return
+	}
+
+	var inventoryID, variantID sql.NullInt64
+	if req.InventoryID > 0 {
+		inventoryID = sql.NullInt64{Int64: req.InventoryID, Valid: true}
+	}
+	if req.VariantID > 0 {
+		variantID = sql.NullInt64{Int64: req.VariantID, Valid: true}
+	}
+	var reason db.NullStockMovementReason
+	if req.Reason != "" {
+		reason = db.NullStockMovementReason{StockMovementReason: db.StockMovementReason(req.Reason), Valid: true}
+	}
+
+	rows, err := server.store.ListStockMovements(ctx, db.ListStockMovementsParams{
+		InventoryID: inventoryID,
+		VariantID:   variantID,
+		Reason:      reason,
+		PageLimit:   req.PageSize,
+		PageOffset:  req.PageID,
+	})
+	if err != nil {
+		server.writeError(ctx, http.StatusInternalServerError, err)
+		return
+	}
+
+	total, err := server.store.CountStockMovements(ctx, db.CountStockMovementsParams{
+		InventoryID: inventoryID,
+		VariantID:   variantID,
+		Reason:      reason,
+	})
+	if err != nil {
+		server.writeError(ctx, http.StatusInternalServerError, err)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"movements": rows, "total": total})
+}

@@ -8,7 +8,7 @@ import (
 )
 
 type SalesInvoiceItem struct {
-	ProductID int64 `json:"product_id"`
+	VariantID int64 `json:"variant_id"`
 	UnitPrice int64 `json:"unit_price"`
 	LineTotal int64 `json:"line_total"`
 	Discount  int16 `json:"discount"`
@@ -32,6 +32,7 @@ type SalesInvoiceTxParams struct {
 	CashboxAccountID int64         `json:"cashbox_account_id"`
 	PriceListID      sql.NullInt64 `json:"price_list_id"`
 	InvoiceTypeID    int64         `json:"invoice_type_id"`
+	SalespersonID    sql.NullInt64 `json:"salesperson_id"`
 }
 
 type SalesInvoiceTxResult struct {
@@ -130,19 +131,34 @@ func (store *SQLStore) SalesInvoiceTx(ctx context.Context, arg SalesInvoiceTxPar
 			return err
 		}
 
+		client, err := q.GetClient(ctx, arg.ClientID)
+		if err != nil {
+			return err
+		}
+		// Wholesale clients are a central-office/B2B concept and don't earn
+		// the retail loyalty program's points -- computed up front so it can
+		// be stored on the invoice row itself, not just applied transiently
+		// to the client's running totals.
+		var loyaltyPointsDelta int64
+		if client.ClientType != "wholesale" {
+			loyaltyPointsDelta = arg.GrandTotal
+		}
+
 		invoice, err := q.CreateInvoice(ctx, CreateInvoiceParams{
-			CashboxID:       arg.CashboxID,
-			ShiftID:         arg.ShiftID,
-			InvoiceCode:     invoiceCode,
-			InvoiceIndex:    invoiceIndex,
-			Year:            arg.Year,
-			ClientID:        arg.ClientID,
-			InventoryID:     arg.InventoryID,
-			Discount:        arg.Discount,
-			Subtotal:        arg.SubTotal,
-			DiscountedTotal: arg.DiscountedTotal,
-			GrandTotal:      arg.GrandTotal,
-			InvoiceTypeID:   arg.InvoiceTypeID,
+			CashboxID:          arg.CashboxID,
+			ShiftID:            arg.ShiftID,
+			InvoiceCode:        invoiceCode,
+			InvoiceIndex:       invoiceIndex,
+			Year:               arg.Year,
+			ClientID:           arg.ClientID,
+			InventoryID:        arg.InventoryID,
+			Discount:           arg.Discount,
+			Subtotal:           arg.SubTotal,
+			DiscountedTotal:    arg.DiscountedTotal,
+			GrandTotal:         arg.GrandTotal,
+			InvoiceTypeID:      arg.InvoiceTypeID,
+			SalespersonID:      arg.SalespersonID,
+			LoyaltyPointsDelta: loyaltyPointsDelta,
 		})
 		if err != nil {
 			return err
@@ -157,10 +173,15 @@ func (store *SQLStore) SalesInvoiceTx(ctx context.Context, arg SalesInvoiceTxPar
 			unitPrice := item.UnitPrice
 			discount := item.Discount
 
+			variant, err := q.GetProductVariant(ctx, item.VariantID)
+			if err != nil {
+				return err
+			}
+
 			if arg.PriceListID.Valid {
 				listPrice, priceErr := q.GetProductPriceFromList(ctx, GetProductPriceFromListParams{
 					PriceListID: arg.PriceListID.Int64,
-					ProductID:   item.ProductID,
+					ProductID:   variant.ProductID,
 				})
 				if priceErr == nil {
 					unitPrice = listPrice.Price
@@ -174,11 +195,13 @@ func (store *SQLStore) SalesInvoiceTx(ctx context.Context, arg SalesInvoiceTxPar
 
 			_, err = q.AddInvoiceProduct(ctx, AddInvoiceProductParams{
 				InvoiceID: invoice.ID,
-				ProductID: item.ProductID,
+				ProductID: variant.ProductID,
+				VariantID: sql.NullInt64{Int64: item.VariantID, Valid: true},
 				UnitPrice: unitPrice,
 				LineTotal: lineTotal,
 				Discount:  discount,
 				Quantity:  item.Quantity,
+				UnitCost:  variant.AvgCost,
 			})
 			if err != nil {
 				return err
@@ -206,24 +229,35 @@ func (store *SQLStore) SalesInvoiceTx(ctx context.Context, arg SalesInvoiceTxPar
 			return err
 		}
 
+		// A single row today (one account picked in the create form), but
+		// the table supports a real multi-account split -- see
+		// invoice_payments' migration comment.
+		_, err = q.CreateInvoicePayment(ctx, CreateInvoicePaymentParams{
+			InvoiceID:        invoice.ID,
+			CashboxAccountID: arg.CashboxAccountID,
+			Amount:           arg.GrandTotal,
+		})
+		if err != nil {
+			return err
+		}
+
 		for _, i := range arg.Items {
-			addInventoryProductQuantityArg := AddInventoryProductQuantityParams{
-				InventoryID: arg.InventoryID,
-				ProductID:   i.ProductID,
-				Quantity:    -i.Quantity,
-			}
-			err = q.AddInventoryProductQuantity(ctx, addInventoryProductQuantityArg)
+			_, err = q.applyStockMovement(ctx, applyStockMovementParams{
+				InventoryID:   arg.InventoryID,
+				VariantID:     i.VariantID,
+				Quantity:      -i.Quantity,
+				Reason:        StockMovementReasonSale,
+				ReferenceType: "sales_invoice",
+				ReferenceID:   invoice.ID,
+			})
 			if err != nil {
 				return err
 			}
 		}
 
-		client, err := q.GetClient(ctx, invoice.ClientID)
-		if err != nil {
-			return err
-		}
 		// Wholesale clients are a central-office/B2B concept and don't earn
-		// the retail loyalty program's points.
+		// the retail loyalty program's points (client was already fetched
+		// above to compute loyaltyPointsDelta for the invoice row).
 		if client.ClientType != "wholesale" {
 			addPointsArg := AddClientLoyaltyPointsParams{
 				ID:                 invoice.ClientID,

@@ -8,9 +8,18 @@
         style="cursor: pointer"
         variant="tonal"
       >
-        <v-icon :color="connectedBranchIds.length > 0 ? 'success' : 'error'" icon="mdi-circle" size="16" />
+        <v-icon
+          class="status-dot"
+          :class="{ 'status-dot--outlined': serverDown }"
+          :color="statusColor"
+          icon="mdi-circle"
+          size="16"
+        />
         <span class="ms-1 text-body-2">
-          {{ connectedBranchIds.length }} {{ connectedBranchIds.length === 1 ? 'device' : 'devices' }} online
+          <template v-if="serverDown">Server is down, we'll be back soon.</template>
+          <template v-else>
+            {{ connectedBranchIds.length }} {{ connectedBranchIds.length === 1 ? 'device' : 'devices' }} online
+          </template>
         </span>
       </v-card>
     </template>
@@ -19,7 +28,10 @@
       <v-card-title class="text-subtitle-1">Connected branches</v-card-title>
       <v-divider />
 
-      <v-list v-if="connectedBranchIds.length > 0" density="compact">
+      <v-card-text v-if="serverDown" class="text-medium-emphasis">
+        Server is down, we'll be back soon.
+      </v-card-text>
+      <v-list v-else-if="connectedBranchIds.length > 0" density="compact">
         <v-list-item v-for="id in connectedBranchIds" :key="id" :title="branchName(id)">
           <template #prepend>
             <v-icon color="success" icon="mdi-circle" size="10" />
@@ -34,16 +46,24 @@
 </template>
 
 <script setup>
-  import { onMounted, onUnmounted, ref } from 'vue'
+  import { computed, onMounted, onUnmounted, ref } from 'vue'
   import { useAdminSocket } from '@/composables/useAdminSocket'
   import { useBranches } from '@/composables/useBranches'
 
   const { branches, fetchBranches, fetchConnectedBranches } = useBranches()
-  const { ensureConnected, onMessage } = useAdminSocket()
+  const { status, ensureConnected, onMessage } = useAdminSocket()
 
   const menu = ref(false)
   const connectedBranchIds = ref([])
   let unsubscribe = null
+
+  // Without a live socket we have no idea which branches are actually online,
+  // so the count would be stale -- surface the outage message instead of a number.
+  const serverDown = computed(() => status.value !== 'open')
+  const statusColor = computed(() => {
+    if (serverDown.value) return 'white'
+    return connectedBranchIds.value.length > 0 ? 'success' : 'error'
+  })
 
   function branchName (branchId) {
     return branches.value.find(b => b.id === branchId)?.name ?? `Branch #${branchId}`
@@ -69,3 +89,12 @@
     unsubscribe?.()
   })
 </script>
+
+<style scoped>
+  /* A plain white fill vanishes on light backgrounds, so ring the dot when the
+     server is unreachable to keep it legible in both themes. */
+  .status-dot--outlined {
+    border: 1px solid rgba(var(--v-border-color), 0.4);
+    border-radius: 50%;
+  }
+</style>

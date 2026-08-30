@@ -1,269 +1,148 @@
 <template>
-  <v-chart
-    autoresize
-    class="chart"
-    :option="option"
-    :theme="currentTheme"
-  />
-  <!-- :loading="loading" -->
+  <v-chart autoresize class="chart" :option="option" />
 </template>
 
 <script setup>
-  import { computed, onMounted, ref } from 'vue'
+  import { ref, watch } from 'vue'
   import VChart from 'vue-echarts'
-  import { useTheme } from 'vuetify'
+  import { buildTreemapData } from '@/data/warehouseCosts'
 
-  const theme = useTheme()
-  const currentTheme = computed(() => theme.global.current.value?.dark ? 'dark' : 'light')
+  const props = defineProps({
+    // warehouse id, or 'all' for every warehouse
+    warehouse: {
+      type: String,
+      default: 'all',
+    },
+  })
 
-  // const loading = ref(true)
   const option = ref({})
 
-  function generateInventoryData () {
-    return [
-      {
-        name: 'Turkish CFS -40',
-        code: 'T12830',
-        color: '#9B59B6',
-        children: [
-          { name: 'Lady Sweatshirt', value: 40, code: 'T12830-LS' },
-          { name: 'Lady Sweater', value: 30, code: 'T12830-LSW' },
-          { name: 'Kids Sweatshirt', value: 25, code: 'T12830-KS' },
-          { name: 'Lady Pants', value: 18, code: 'T12830-LP' },
-          { name: 'Men Pants', value: 12, code: 'T12830-MP' },
-          { name: 'Men Sweater', value: 10, code: 'T12830-MS' },
-        ],
-      },
-      {
-        name: 'European Collection',
-        code: 'EU8920',
-        color: '#E67E22',
-        children: [
-          { name: 'Premium Jacket', value: 22, code: 'EU8920-PJ' },
-          { name: 'Wool Coat', value: 18, code: 'EU8920-WC' },
-          { name: 'Designer Dress', value: 15, code: 'EU8920-DD' },
-          { name: 'Leather Jacket', value: 14, code: 'EU8920-LJ' },
-          { name: 'Cashmere Scarf', value: 12, code: 'EU8920-CS' },
-          { name: 'Silk Blouse', value: 10, code: 'EU8920-SB' },
-          { name: 'Tailored Blazer', value: 7, code: 'EU8920-TB' },
-        ],
-      },
-      {
-        name: 'Lebanese VIP',
-        code: 'LV5640',
-        color: '#ECF0F1',
-        children: [
-          { name: 'Evening Gown', value: 18, code: 'LV5640-EG' },
-          { name: 'Luxury Handbag', value: 15, code: 'LV5640-LH' },
-          { name: 'Designer Shoes', value: 13, code: 'LV5640-DS' },
-          { name: 'Premium Suit', value: 12, code: 'LV5640-PS' },
-          { name: 'Gold Accessories', value: 10, code: 'LV5640-GA' },
-          { name: 'Silk Kimono', value: 8, code: 'LV5640-SK' },
-        ],
-      },
-      {
-        name: 'Lebanese Regular',
-        code: 'LR3450',
-        color: '#1A237E',
-        children: [
-          { name: 'Casual Jeans', value: 35, code: 'LR3450-CJ' },
-          { name: 'T-Shirts', value: 32, code: 'LR3450-TS' },
-          { name: 'Summer Dress', value: 28, code: 'LR3450-SD' },
-          { name: 'Shorts', value: 22, code: 'LR3450-SH' },
-          { name: 'Polo Shirts', value: 20, code: 'LR3450-PS' },
-          { name: 'Casual Shoes', value: 19, code: 'LR3450-CS' },
-        ],
-      },
-      {
-        name: 'Asian Import',
-        code: 'AI7830',
-        color: '#C62828',
-        children: [
-          { name: 'Silk Scarves', value: 28, code: 'AI7830-SS' },
-          { name: 'Cotton Shirts', value: 25, code: 'AI7830-CS' },
-          { name: 'Bamboo Socks', value: 20, code: 'AI7830-BS' },
-          { name: 'Linen Pants', value: 18, code: 'AI7830-LP' },
-          { name: 'Traditional Wear', value: 12, code: 'AI7830-TW' },
-          { name: 'Accessories', value: 9, code: 'AI7830-AC' },
-        ],
-      },
-      {
-        name: 'American Casual',
-        code: 'AC9210',
-        color: '#2E7D32',
-        children: [
-          { name: 'Denim Jacket', value: 20, code: 'AC9210-DJ' },
-          { name: 'Hoodies', value: 18, code: 'AC9210-HD' },
-          { name: 'Cargo Pants', value: 16, code: 'AC9210-CP' },
-          { name: 'Baseball Caps', value: 14, code: 'AC9210-BC' },
-          { name: 'Sneakers', value: 12, code: 'AC9210-SN' },
-          { name: 'Backpacks', value: 9, code: 'AC9210-BP' },
-        ],
-      },
-      {
-        name: 'Winter Collection',
-        code: 'WC4560',
-        color: '#00838F',
-        children: [
-          { name: 'Puffer Jackets', value: 22, code: 'WC4560-PJ' },
-          { name: 'Thermal Wear', value: 20, code: 'WC4560-TW' },
-          { name: 'Wool Sweaters', value: 18, code: 'WC4560-WS' },
-          { name: 'Winter Boots', value: 15, code: 'WC4560-WB' },
-          { name: 'Gloves & Hats', value: 12, code: 'WC4560-GH' },
-          { name: 'Fleece Blankets', value: 7, code: 'WC4560-FB' },
-        ],
-      },
-      {
-        name: 'Sports & Active',
-        code: 'SA6780',
-        color: '#F57F17',
-        children: [
-          { name: 'Yoga Pants', value: 30, code: 'SA6780-YP' },
-          { name: 'Running Shoes', value: 26, code: 'SA6780-RS' },
-          { name: 'Sports Bras', value: 22, code: 'SA6780-SB' },
-          { name: 'Gym Shorts', value: 20, code: 'SA6780-GS' },
-          { name: 'Track Jackets', value: 18, code: 'SA6780-TJ' },
-          { name: 'Water Bottles', value: 12, code: 'SA6780-WB' },
-        ],
-      },
-      {
-        name: 'Kids Collection',
-        code: 'KC2340',
-        color: '#FF6F00',
-        children: [
-          { name: 'School Uniforms', value: 25, code: 'KC2340-SU' },
-          { name: 'Play Clothes', value: 20, code: 'KC2340-PC' },
-          { name: 'Kids Shoes', value: 16, code: 'KC2340-KS' },
-          { name: 'Pajamas', value: 14, code: 'KC2340-PJ' },
-          { name: 'Backpacks', value: 12, code: 'KC2340-BP' },
-        ],
-      },
-      {
-        name: 'Premium Luxury',
-        code: 'PL9870',
-        color: '#4A148C',
-        children: [
-          { name: 'Designer Bags', value: 15, code: 'PL9870-DB' },
-          { name: 'Luxury Watches', value: 12, code: 'PL9870-LW' },
-          { name: 'Diamond Jewelry', value: 11, code: 'PL9870-DJ' },
-          { name: 'Fur Coats', value: 10, code: 'PL9870-FC' },
-          { name: 'Limited Edition', value: 9, code: 'PL9870-LE' },
-          { name: 'Collectibles', value: 7, code: 'PL9870-CL' },
-        ],
-      },
+  const formatMoney = n => '$ ' + Number(n || 0).toLocaleString('en-US')
+  const formatWeight = n => Number(n || 0).toLocaleString('en-US') + ' KG'
+
+  function tooltipFormatter (info) {
+    const value = info.value || []
+    const d = info.data || {}
+    const rows = [
+      `<div style="font-weight:600;margin-bottom:4px">${info.name}</div>`,
+      `Cost of Goods:&nbsp;&nbsp;${formatMoney(value[0])}`,
+      `Weight:&nbsp;&nbsp;${formatWeight(value[1])}`,
     ]
+    if (d.code) rows.push(`Code:&nbsp;&nbsp;${d.code}`)
+    if (d.warehouse) rows.push(`Warehouse:&nbsp;&nbsp;${d.warehouse}`)
+    return rows.join('<br>')
   }
 
-  function createChartOption (data) {
-    return {
-      tooltip: {
-        appendTo: 'body',
-        formatter: info => {
-          const { name, value, data } = info
-          let content = `<strong>${name}</strong>`
-          if (data.code) {
-            content += `<br/>Code: ${data.code}`
-          }
-          if (value) {
-            content += `<br/>Quantity: ${value}`
-          }
-          return content
-        },
-      },
+  function buildOption () {
+    const data = buildTreemapData(props.warehouse)
+    option.value = {
+      backgroundColor: 'transparent',
+      tooltip: { appendTo: 'body' },
       series: [
         {
-          name: 'Inventory',
           type: 'treemap',
-          visibleMin: 300,
-          data: data,
-          leafDepth: null,
-          width: '100%',
-          height: '100%',
+          // shorten the zoom transition -- the default easing feels laggy on a
+          // full-viewport treemap
+          animationDurationUpdate: 180,
+          animationEasing: 'cubicOut',
+          // fill the whole component, no margins
           top: 0,
           left: 0,
           right: 0,
           bottom: 0,
+          width: '100%',
+          height: '100%',
           roam: false,
-          nodeClick: 'link',
-          label: {
+          nodeClick: 'zoomToNode',
+          data,
+          // keep the whole tree reachable so zooming back out always works
+          leafDepth: null,
+          tooltip: { formatter: tooltipFormatter },
+          breadcrumb: {
             show: true,
-            formatter: params => {
-              if (params.value) {
-                return `${params.name}\n${params.value}`
-              }
-              return params.name
-            },
-            fontSize: 14,
-            fontWeight: 'bold',
+            top: 4,
+            left: 4,
+            height: 24,
+            emptyItemStyle: { color: 'rgba(0,0,0,0.25)' },
+            itemStyle: { color: 'rgba(0,0,0,0.55)', textStyle: { color: '#fff' } },
           },
+          // Leaf labels sit on the saturated group color; a thin stroke keeps
+          // white text readable without the cost of a blurred text shadow
+          // (blur repaints on every zoom frame and is the main lag source).
+          label: {
+            position: 'insideTopLeft',
+            color: '#fff',
+            fontSize: 12,
+            lineHeight: 16,
+            textBorderColor: 'rgba(0,0,0,0.5)',
+            textBorderWidth: 2,
+            formatter (params) {
+              const v = params.value || []
+              const arr = [`{name|${params.name}}`, `{cost|${formatMoney(v[0])}}`]
+              if (params.data && params.data.code) arr.push(`{code|${params.data.code}}`)
+              return arr.join('\n')
+            },
+            rich: {
+              name: { fontSize: 12, color: '#fff', lineHeight: 16 },
+              cost: {
+                fontSize: 20,
+                fontWeight: 'bold',
+                color: '#FFEB3B',
+                lineHeight: 26,
+                textBorderColor: 'rgba(0,0,0,0.55)',
+                textBorderWidth: 2,
+              },
+              code: { fontSize: 11, color: 'rgba(255,255,255,0.8)', lineHeight: 15 },
+            },
+          },
+          // Group header bar: dark strip so the white title stays readable
+          // whatever the page theme is. Needs its own formatter, otherwise it
+          // inherits label.formatter.
           upperLabel: {
-            backgroundColor: '#000',
             show: true,
-            height: 18,
+            height: 24,
             color: '#fff',
             fontSize: 13,
             fontWeight: 'bold',
+            backgroundColor: 'rgba(0,0,0,0.55)',
+            formatter (params) {
+              // the invisible root node has no name/value -- skip its header
+              if (!params.name) return ''
+              return `  ${params.name}  ${formatMoney((params.value || [])[0])}`
+            },
           },
-          itemStyle: {
-            borderColor: '#fff',
-            borderWidth: 0,
-            gapWidth: 2,
-          },
+          itemStyle: { borderColor: 'rgba(0,0,0,0.4)', borderWidth: 1, gapWidth: 2 },
+          levels: [
+            {
+              colorMappingBy: 'id',
+              itemStyle: { borderWidth: 3, gapWidth: 3, borderColor: 'rgba(0,0,0,0.4)' },
+              upperLabel: { show: false },
+            },
+            {
+              colorSaturation: [0.35, 0.5],
+              itemStyle: { gapWidth: 1, borderColorSaturation: 0.6 },
+            },
+          ],
           emphasis: {
+            // no shadowBlur here -- blurred shadows on large rects are a major
+            // repaint cost during the zoom animation
             itemStyle: {
-              shadowBlur: 10,
-              shadowColor: 'rgba(0, 0, 0, 0.5)',
               borderColor: '#FFD700',
               borderWidth: 3,
             },
-            label: {
-              fontSize: 16,
-              fontWeight: 'bold',
-            },
           },
-          levels: [
-            {
-              itemStyle: {
-                borderColor: '#000',
-                borderWidth: 0,
-                gapWidth: 2,
-              },
-              upperLabel: {
-                show: true,
-              },
-            },
-            {
-              itemStyle: {
-                borderColor: '#000',
-                borderWidth: 0,
-                gapWidth: 2,
-              },
-              label: {
-                fontSize: 12,
-              },
-            },
-          ],
         },
       ],
     }
   }
 
-  function loadData () {
-    setTimeout(() => {
-      const inventoryData = generateInventoryData()
-      option.value = createChartOption(inventoryData)
-      // loading.value = false
-    }, 500)
-  }
-
-  onMounted(() => {
-    loadData()
-  })
+  watch(() => props.warehouse, buildOption, { immediate: true })
 </script>
 
 <style scoped>
 .chart {
   height: 100%;
+  width: 100%;
   cursor: pointer;
 }
 </style>

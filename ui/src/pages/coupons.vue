@@ -89,7 +89,7 @@
   </ServerSideTable>
 </template>
 
-<script setup>
+<script setup lang="ts">
   import { useField, useForm } from 'vee-validate'
   import { ref } from 'vue'
   import ServerSideTable from '@/components/Tables/ServerSideTable.vue'

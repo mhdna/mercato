@@ -42,12 +42,15 @@ func TestCreateTransferAPI(t *testing.T) {
 				"from_inventory_id": transfer.FromInventoryID,
 				"to_inventory_id":   transfer.ToInventoryID,
 				"type":              string(transfer.Type),
+				"items": []map[string]interface{}{
+					{"variant_id": 1, "quantity": 3},
+				},
 			},
 			buildStubs: func(store *mockdb.MockStore) {
 				store.EXPECT().
-					CreateTransfer(gomock.Any(), gomock.Any()).
+					CreateTransferTx(gomock.Any(), gomock.Any()).
 					Times(1).
-					Return(transfer, nil)
+					Return(db.CreateTransferTxResult{Transfer: transfer}, nil)
 			},
 			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
 				require.Equal(t, http.StatusOK, recorder.Code)
@@ -60,12 +63,15 @@ func TestCreateTransferAPI(t *testing.T) {
 				"from_inventory_id": transfer.FromInventoryID,
 				"to_inventory_id":   transfer.ToInventoryID,
 				"type":              string(transfer.Type),
+				"items": []map[string]interface{}{
+					{"variant_id": 1, "quantity": 3},
+				},
 			},
 			buildStubs: func(store *mockdb.MockStore) {
 				store.EXPECT().
-					CreateTransfer(gomock.Any(), gomock.Any()).
+					CreateTransferTx(gomock.Any(), gomock.Any()).
 					Times(1).
-					Return(db.Transfer{}, sql.ErrConnDone)
+					Return(db.CreateTransferTxResult{}, sql.ErrConnDone)
 			},
 			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
 				require.Equal(t, http.StatusInternalServerError, recorder.Code)
@@ -78,7 +84,7 @@ func TestCreateTransferAPI(t *testing.T) {
 			},
 			buildStubs: func(store *mockdb.MockStore) {
 				store.EXPECT().
-					CreateTransfer(gomock.Any(), gomock.Any()).
+					CreateTransferTx(gomock.Any(), gomock.Any()).
 					Times(0)
 			},
 			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
@@ -131,6 +137,10 @@ func TestGetTransferAPI(t *testing.T) {
 					GetTransfer(gomock.Any(), gomock.Eq(transfer.ID)).
 					Times(1).
 					Return(transfer, nil)
+				store.EXPECT().
+					ListTransferItems(gomock.Any(), gomock.Eq(transfer.ID)).
+					Times(1).
+					Return([]db.ListTransferItemsRow{}, nil)
 			},
 			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
 				require.Equal(t, http.StatusOK, recorder.Code)
@@ -204,9 +214,15 @@ func TestGetTransferAPI(t *testing.T) {
 
 func TestListTransfersAPI(t *testing.T) {
 	n := 5
-	transfers := make([]db.Transfer, n)
+	transfers := make([]db.ListTransfersRow, n)
 	for i := 0; i < n; i++ {
-		transfers[i] = randomTransfer()
+		tr := randomTransfer()
+		transfers[i] = db.ListTransfersRow{
+			ID:              tr.ID,
+			FromInventoryID: tr.FromInventoryID,
+			ToInventoryID:   tr.ToInventoryID,
+			Type:            tr.Type,
+		}
 	}
 
 	testCases := []struct {
@@ -376,22 +392,26 @@ func requiredBodyMatchTransfer(t *testing.T, body *bytes.Buffer, transfer db.Tra
 	data, err := io.ReadAll(body)
 	require.NoError(t, err)
 
-	var gotTransfer db.Transfer
-	err = json.Unmarshal(data, &gotTransfer)
+	// createTransfer/getTransfer respond with {"transfer": {...}, "items": [...]}.
+	var resp struct {
+		Transfer db.Transfer `json:"transfer"`
+	}
+	err = json.Unmarshal(data, &resp)
 	require.NoError(t, err)
+	gotTransfer := resp.Transfer
 	require.Equal(t, transfer.ID, gotTransfer.ID)
 	require.Equal(t, transfer.FromInventoryID, gotTransfer.FromInventoryID)
 	require.Equal(t, transfer.ToInventoryID, gotTransfer.ToInventoryID)
 	require.Equal(t, transfer.Type, gotTransfer.Type)
 }
 
-func requireBodyMatchTransfers(t *testing.T, body *bytes.Buffer, transfers []db.Transfer) {
+func requireBodyMatchTransfers(t *testing.T, body *bytes.Buffer, transfers []db.ListTransfersRow) {
 	data, err := io.ReadAll(body)
 	require.NoError(t, err)
 
 	// listTransfers responds with {"transfers": [...], "total": ...}, not a bare array.
 	var resp struct {
-		Transfers []db.Transfer `json:"transfers"`
+		Transfers []db.ListTransfersRow `json:"transfers"`
 	}
 	err = json.Unmarshal(data, &resp)
 	require.NoError(t, err)

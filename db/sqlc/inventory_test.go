@@ -94,93 +94,98 @@ func TestUpdateInventory(t *testing.T) {
 	require.Equal(t, inventory2.Name, arg.Name)
 }
 
-func TestAddInventoryProduct(t *testing.T) {
-	inventory := createRandomInventory(t)
+func createRandomVariant(t *testing.T) ProductVariant {
 	product := createRandomProduct(t)
-	quantity := util.RandomQuantity()
-
-	arg := AddInventoryProductParams{
-		InventoryID: inventory.ID,
-		ProductID:   product.ID,
-		Quantity:    quantity,
-	}
-
-	invProduct, err := testQueries.AddInventoryProduct(context.Background(), arg)
+	variant, err := testQueries.CreateProductVariant(context.Background(), CreateProductVariantParams{
+		ProductID: product.ID,
+		Barcode:   util.RandomString(16),
+		Price:     sql.NullInt64{Int64: util.RandomInt(100, 9999), Valid: true},
+	})
 	require.NoError(t, err)
-	require.NotEmpty(t, invProduct)
-	require.Equal(t, arg.InventoryID, invProduct.InventoryID)
-	require.Equal(t, arg.ProductID, invProduct.ProductID)
-	require.Equal(t, arg.Quantity, invProduct.Quantity)
+	return variant
 }
 
-func TestAddInventoryProductQuantity(t *testing.T) {
+func TestAddInventoryStockQuantity(t *testing.T) {
 	inventory := createRandomInventory(t)
-	product := createRandomProduct(t)
-	initialQuantity := util.RandomQuantity()
+	variant := createRandomVariant(t)
 
-	_, err := testQueries.AddInventoryProduct(context.Background(), AddInventoryProductParams{
+	first := util.RandomQuantity()
+	row, err := testQueries.AddInventoryStockQuantity(context.Background(), AddInventoryStockQuantityParams{
 		InventoryID: inventory.ID,
-		ProductID:   product.ID,
-		Quantity:    initialQuantity,
+		VariantID:   variant.ID,
+		Quantity:    first,
 	})
 	require.NoError(t, err)
+	require.Equal(t, first, row.Quantity)
 
-	additionalQuantity := util.RandomQuantity()
-	err = testQueries.AddInventoryProductQuantity(context.Background(), AddInventoryProductQuantityParams{
+	extra := util.RandomQuantity()
+	row, err = testQueries.AddInventoryStockQuantity(context.Background(), AddInventoryStockQuantityParams{
 		InventoryID: inventory.ID,
-		ProductID:   product.ID,
-		Quantity:    additionalQuantity,
+		VariantID:   variant.ID,
+		Quantity:    extra,
 	})
 	require.NoError(t, err)
-
-	products, err := testQueries.ListInventoryProducts(context.Background(), inventory.ID)
-	require.NoError(t, err)
-	require.Len(t, products, 1)
-	require.Equal(t, initialQuantity+additionalQuantity, products[0].Quantity)
+	require.Equal(t, first+extra, row.Quantity)
 }
 
-func TestDeleteInventoryProduct(t *testing.T) {
+func TestReceiveInventoryStockMovingAverage(t *testing.T) {
 	inventory := createRandomInventory(t)
-	product := createRandomProduct(t)
+	variant := createRandomVariant(t)
 
-	_, err := testQueries.AddInventoryProduct(context.Background(), AddInventoryProductParams{
+	row, err := testQueries.ReceiveInventoryStock(context.Background(), ReceiveInventoryStockParams{
 		InventoryID: inventory.ID,
-		ProductID:   product.ID,
-		Quantity:    util.RandomQuantity(),
+		VariantID:   variant.ID,
+		Quantity:    10,
+		UnitCost:    100,
 	})
 	require.NoError(t, err)
+	require.EqualValues(t, 10, row.Quantity)
+	require.EqualValues(t, 100, row.AvgCost)
 
-	err = testQueries.DeleteInventoryProduct(context.Background(), DeleteInventoryProductParams{
+	// 10 @ 100 + 10 @ 200 => 20 @ 150
+	row, err = testQueries.ReceiveInventoryStock(context.Background(), ReceiveInventoryStockParams{
 		InventoryID: inventory.ID,
-		ProductID:   product.ID,
+		VariantID:   variant.ID,
+		Quantity:    10,
+		UnitCost:    200,
 	})
 	require.NoError(t, err)
-
-	products, err := testQueries.ListInventoryProducts(context.Background(), inventory.ID)
-	require.NoError(t, err)
-	require.Len(t, products, 0)
+	require.EqualValues(t, 20, row.Quantity)
+	require.EqualValues(t, 150, row.AvgCost)
 }
 
-func TestListInventoryProducts(t *testing.T) {
+func TestStockAdjustmentTx(t *testing.T) {
 	inventory := createRandomInventory(t)
+	variant := createRandomVariant(t)
 
-	n := 5
-	for range n {
-		product := createRandomProduct(t)
-		_, err := testQueries.AddInventoryProduct(context.Background(), AddInventoryProductParams{
-			InventoryID: inventory.ID,
-			ProductID:   product.ID,
-			Quantity:    util.RandomQuantity(),
-		})
-		require.NoError(t, err)
-	}
-
-	products, err := testQueries.ListInventoryProducts(context.Background(), inventory.ID)
+	delta, err := testStore.StockAdjustmentTx(context.Background(), StockAdjustmentTxParams{
+		InventoryID: inventory.ID,
+		VariantID:   variant.ID,
+		Mode:        StockAdjustmentModeDelta,
+		Quantity:    7,
+		Note:        "found a box",
+	})
 	require.NoError(t, err)
-	require.Len(t, products, n)
-	for _, p := range products {
-		require.NotEmpty(t, p.ProductID)
-		require.NotEmpty(t, p.Name)
-		require.Greater(t, p.Quantity, int64(0))
-	}
+	require.EqualValues(t, 7, delta.OnHand)
+	require.Equal(t, StockMovementReasonAdjustment, delta.Movement.Reason)
+
+	count, err := testStore.StockAdjustmentTx(context.Background(), StockAdjustmentTxParams{
+		InventoryID: inventory.ID,
+		VariantID:   variant.ID,
+		Mode:        StockAdjustmentModeCount,
+		Quantity:    3,
+		Note:        "cycle count",
+	})
+	require.NoError(t, err)
+	require.EqualValues(t, 3, count.OnHand)
+	require.EqualValues(t, -4, count.Movement.Quantity)
+	require.Equal(t, StockMovementReasonCount, count.Movement.Reason)
+
+	moves, err := testQueries.ListStockMovements(context.Background(), ListStockMovementsParams{
+		InventoryID: sql.NullInt64{Int64: inventory.ID, Valid: true},
+		VariantID:   sql.NullInt64{Int64: variant.ID, Valid: true},
+		PageLimit:   50,
+	})
+	require.NoError(t, err)
+	require.Len(t, moves, 2)
 }

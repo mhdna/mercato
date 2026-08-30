@@ -10,12 +10,19 @@ import (
 	"database/sql"
 )
 
-const countSuppliers = `-- name: CountSuppliers :one
+const countSuppliersFiltered = `-- name: CountSuppliersFiltered :one
 SELECT COUNT(*) FROM suppliers
+WHERE (
+  BTRIM($1::text) = ''
+  OR name ILIKE '%' || BTRIM($1::text) || '%'
+  OR phone ILIKE '%' || BTRIM($1::text) || '%'
+  OR country ILIKE '%' || BTRIM($1::text) || '%'
+  OR address ILIKE '%' || BTRIM($1::text) || '%'
+)
 `
 
-func (q *Queries) CountSuppliers(ctx context.Context) (int64, error) {
-	row := q.db.QueryRowContext(ctx, countSuppliers)
+func (q *Queries) CountSuppliersFiltered(ctx context.Context, search string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countSuppliersFiltered, search)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -90,19 +97,27 @@ func (q *Queries) GetSupplier(ctx context.Context, id int64) (Supplier, error) {
 const listSuppliers = `-- name: ListSuppliers :many
 
 SELECT id, name, phone, country, address, address_latitude, address_longitude, created_at FROM suppliers
-ORDER BY id
-LIMIT $1
+WHERE (
+  BTRIM($1::text) = ''
+  OR name ILIKE '%' || BTRIM($1::text) || '%'
+  OR phone ILIKE '%' || BTRIM($1::text) || '%'
+  OR country ILIKE '%' || BTRIM($1::text) || '%'
+  OR address ILIKE '%' || BTRIM($1::text) || '%'
+)
+ORDER BY id DESC
+LIMIT $3
 OFFSET $2
 `
 
 type ListSuppliersParams struct {
-	Limit  int32 `json:"limit"`
-	Offset int32 `json:"offset"`
+	Search     string `json:"search"`
+	PageOffset int32  `json:"page_offset"`
+	PageSize   int32  `json:"page_size"`
 }
 
 // TOOD: add UpdateSupplier
 func (q *Queries) ListSuppliers(ctx context.Context, arg ListSuppliersParams) ([]Supplier, error) {
-	rows, err := q.db.QueryContext(ctx, listSuppliers, arg.Limit, arg.Offset)
+	rows, err := q.db.QueryContext(ctx, listSuppliers, arg.Search, arg.PageOffset, arg.PageSize)
 	if err != nil {
 		return nil, err
 	}

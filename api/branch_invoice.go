@@ -10,9 +10,10 @@ import (
 )
 
 type listBranchInvoicesRequest struct {
-	PageSize int32 `form:"page_size,default=10" binding:"min=5,max=100"`
-	PageID   int32 `form:"page_id,default=0" binding:"min=0"`
-	BranchID int64 `form:"branch_id"`
+	PageSize int32  `form:"page_size,default=10" binding:"min=5,max=100"`
+	PageID   int32  `form:"page_id,default=0" binding:"min=0"`
+	BranchID int64  `form:"branch_id"`
+	Search   string `form:"search"`
 }
 
 // listBranchInvoices is the admin-facing counterpart to branch_sync.go's
@@ -32,17 +33,21 @@ func (server *Server) listBranchInvoices(ctx *gin.Context) {
 		branchID = sql.NullInt64{Int64: req.BranchID, Valid: true}
 	}
 
-	invoices, err := server.store.ListBranchInvoices(ctx, db.ListBranchInvoicesParams{
-		Limit:    req.PageSize,
-		Offset:   req.PageID,
-		BranchID: branchID,
+	invoices, err := server.store.ListBranchInvoicesPage(ctx, db.ListBranchInvoicesPageParams{
+		BranchID:   branchID,
+		Search:     req.Search,
+		PageSize:   req.PageSize,
+		PageOffset: req.PageID,
 	})
 	if err != nil {
 		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 
-	total, err := server.store.CountBranchInvoices(ctx, branchID)
+	total, err := server.store.CountBranchInvoicesFiltered(ctx, db.CountBranchInvoicesFilteredParams{
+		BranchID: branchID,
+		Search:   req.Search,
+	})
 	if err != nil {
 		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
@@ -78,6 +83,49 @@ func (server *Server) listBranchInvoiceItems(ctx *gin.Context) {
 	}
 
 	server.writeJSON(ctx, http.StatusOK, envelope{"items": items})
+}
+
+// getBranchInvoiceDetails is the "everything about this invoice" view for a
+// branch invoice -- line items, the settlement breakdown per account (as
+// reported by kashi-pos), the salesperson name and loyalty points delta
+// already carried on the invoice row itself. client/salesperson identity
+// stays whatever opaque/best-effort data the branch reported (see the
+// comments on branchInvoiceRequest in branch_sync.go) -- there is no
+// synced client or salesperson entity to resolve a real name/id against.
+func (server *Server) getBranchInvoiceDetails(ctx *gin.Context) {
+	var req branchInvoiceIDRequest
+	if err := ctx.ShouldBindUri(&req); err != nil {
+		server.writeError(ctx, http.StatusBadRequest, err)
+		return
+	}
+
+	invoice, err := server.store.GetBranchInvoice(ctx, req.ID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			server.writeError(ctx, http.StatusNotFound, err)
+			return
+		}
+		server.writeError(ctx, http.StatusInternalServerError, err)
+		return
+	}
+
+	items, err := server.store.ListBranchInvoiceItems(ctx, req.ID)
+	if err != nil {
+		server.writeError(ctx, http.StatusInternalServerError, err)
+		return
+	}
+
+	payments, err := server.store.ListBranchInvoicePayments(ctx, req.ID)
+	if err != nil {
+		server.writeError(ctx, http.StatusInternalServerError, err)
+		return
+	}
+
+	server.writeJSON(ctx, http.StatusOK, envelope{
+		"invoice":  invoice,
+		"items":    items,
+		"payments": payments,
+	})
 }
 
 type dailyIncomeRequest struct {

@@ -1,5 +1,9 @@
 <template>
   <div class="d-flex flex-column flex-grow-1 pa-4" style="min-height: 0; overflow-y: auto">
+    <div class="target-row mb-6">
+      <TargetCard :pct="78" time-left="2 weeks left" title="Productivity target" />
+      <TargetCard :pct="63" time-left="5 days left" title="Sales target" />
+    </div>
     <v-alert v-if="error" class="mb-4" type="error" variant="tonal">{{ error }}</v-alert>
     <div v-if="loading" class="d-flex justify-center pa-8">
       <v-progress-circular color="primary" indeterminate />
@@ -23,6 +27,7 @@
   import { onMounted, reactive, ref } from 'vue'
   import { useBranches } from '@/composables/useBranches'
   import { useBranchTargets } from '@/composables/useBranchTargets'
+  import TargetCard from '../TargetCard.vue'
 
   const { branches, fetchBranches } = useBranches()
   const { listBranchTargets } = useBranchTargets()
@@ -52,5 +57,17 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: 16px;
+}
+
+.target-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+@media (max-width: 720px) {
+  .target-row {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

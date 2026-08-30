@@ -54,6 +54,10 @@ func main() {
 	fmt.Println("🛍️ Seeding products...")
 	productIDs := seedProducts(ctx, store)
 
+	// Seed one sellable variant (SKU) per product
+	fmt.Println("🏷️ Seeding product variants...")
+	variantIDs := seedProductVariants(ctx, store, productIDs)
+
 	// Seed currencies
 	fmt.Println("💱 Seeding currencies...")
 	currencyCodes := seedCurrencies(ctx, store)
@@ -72,7 +76,7 @@ func main() {
 	fmt.Println("🏬 Seeding inventories...")
 	inventoryIDs := seedInventories(ctx, store)
 	fmt.Println("📊 Seeding inventory stock...")
-	inventoryStock := seedInventoryStock(ctx, store, inventoryIDs, productIDs)
+	inventoryStock := seedInventoryStock(ctx, store, inventoryIDs, variantIDs)
 
 	// Seed shifts
 	fmt.Println("🕒 Seeding shifts...")
@@ -88,11 +92,11 @@ func main() {
 
 	// Seed transfers
 	fmt.Println("🚚 Seeding transfers...")
-	seedTransfers(ctx, store, inventoryIDs, productIDs)
+	seedTransfers(ctx, store, inventoryIDs, variantIDs)
 
 	// Seed purchases
 	fmt.Println("🧾 Seeding purchases...")
-	seedPurchases(ctx, store, supplierIDs, productIDs, currencyCodes)
+	seedPurchases(ctx, store, supplierIDs, variantIDs, currencyCodes)
 
 	// Seed sales invoices
 	fmt.Println("🧮 Seeding sales invoices...")
@@ -315,7 +319,7 @@ func fetchExistingProductIDs(ctx context.Context, store db.Store, limit int) []i
 	ids := make([]int64, 0, limit)
 	const pageSize = 100
 	for offset := int32(0); len(ids) < limit; offset += pageSize {
-		products, err := store.ListProducts(ctx, db.ListProductsParams{Limit: pageSize, Offset: offset})
+		products, err := store.ListProducts(ctx, db.ListProductsParams{PageLimit: pageSize, PageOffset: offset})
 		if err != nil || len(products) == 0 {
 			break
 		}
@@ -505,36 +509,57 @@ func fetchExistingInventoryIDs(ctx context.Context, store db.Store, limit int) [
 	return ids
 }
 
-// seedInventoryStock stocks a random sample of products in each inventory and
-// returns, per inventory, the product IDs that now have stock there - useful
+// seedProductVariants creates one sellable variant (SKU) per product, so
+// stock, transfers, purchases and sales invoices -- all variant-keyed now
+// -- have something to reference.
+func seedProductVariants(ctx context.Context, store db.Store, productIDs []int64) []int64 {
+	variantIDs := make([]int64, 0, len(productIDs))
+	for _, productID := range productIDs {
+		variant, err := store.CreateProductVariant(ctx, db.CreateProductVariantParams{
+			ProductID: productID,
+			Barcode:   fmt.Sprintf("VAR%010d", productID),
+			Price:     nullInt64(int64(rand.Intn(9000) + 1000)),
+		})
+		if err != nil {
+			log.Printf("warning: failed to create variant for product %d: %v", productID, err)
+			continue
+		}
+		variantIDs = append(variantIDs, variant.ID)
+	}
+	fmt.Printf("  ✓ Completed: %d variants created\n", len(variantIDs))
+	return variantIDs
+}
+
+// seedInventoryStock stocks a random sample of variants in each inventory and
+// returns, per inventory, the variant IDs that now have stock there - useful
 // for seeding sales invoices/transfers without going negative on quantity.
-func seedInventoryStock(ctx context.Context, store db.Store, inventoryIDs, productIDs []int64) map[int64][]int64 {
+func seedInventoryStock(ctx context.Context, store db.Store, inventoryIDs, variantIDs []int64) map[int64][]int64 {
 	stock := make(map[int64][]int64, len(inventoryIDs))
 	sampleSize := 300
-	if sampleSize > len(productIDs) {
-		sampleSize = len(productIDs)
+	if sampleSize > len(variantIDs) {
+		sampleSize = len(variantIDs)
 	}
 
 	for _, invID := range inventoryIDs {
-		perm := rand.Perm(len(productIDs))[:sampleSize]
+		perm := rand.Perm(len(variantIDs))[:sampleSize]
 		stocked := make([]int64, 0, sampleSize)
 		for _, idx := range perm {
-			productID := productIDs[idx]
+			variantID := variantIDs[idx]
 			qty := int64(rand.Intn(900) + 100)
-			_, err := store.AddInventoryProduct(ctx, db.AddInventoryProductParams{
+			_, err := store.AddInventoryStockQuantity(ctx, db.AddInventoryStockQuantityParams{
 				InventoryID: invID,
-				ProductID:   productID,
+				VariantID:   variantID,
 				Quantity:    qty,
 			})
 			if err != nil {
-				log.Printf("warning: failed to stock product %d in inventory %d: %v", productID, invID, err)
+				log.Printf("warning: failed to stock variant %d in inventory %d: %v", variantID, invID, err)
 				continue
 			}
-			stocked = append(stocked, productID)
+			stocked = append(stocked, variantID)
 		}
 		stock[invID] = stocked
 	}
-	fmt.Printf("  ✓ Completed: stocked %d inventories with up to %d products each\n", len(inventoryIDs), sampleSize)
+	fmt.Printf("  ✓ Completed: stocked %d inventories with up to %d variants each\n", len(inventoryIDs), sampleSize)
 	return stock
 }
 
@@ -637,8 +662,8 @@ func seedDiscountLists(ctx context.Context, store db.Store, productIDs []int64) 
 	fmt.Printf("  ✓ Completed: %d discount lists with %d items created\n", listCount, itemCount)
 }
 
-func seedTransfers(ctx context.Context, store db.Store, inventoryIDs, productIDs []int64) {
-	if len(inventoryIDs) < 2 || len(productIDs) == 0 {
+func seedTransfers(ctx context.Context, store db.Store, inventoryIDs, variantIDs []int64) {
+	if len(inventoryIDs) < 2 || len(variantIDs) == 0 {
 		return
 	}
 
@@ -650,69 +675,58 @@ func seedTransfers(ctx context.Context, store db.Store, inventoryIDs, productIDs
 			continue
 		}
 
-		transfer, err := store.CreateTransfer(ctx, db.CreateTransferParams{
+		items := make([]db.TransferItemParams, 0, 4)
+		for j := 0; j < rand.Intn(4)+1; j++ {
+			items = append(items, db.TransferItemParams{
+				VariantID: nullInt64(variantIDs[rand.Intn(len(variantIDs))]),
+				Quantity:  int64(rand.Intn(20) + 1),
+			})
+		}
+
+		result, err := store.CreateTransferTx(ctx, db.CreateTransferTxParams{
 			FromInventoryID: from,
 			ToInventoryID:   to,
 			Type:            db.TransferTypeProducts,
+			Items:           items,
 		})
 		if err != nil {
 			log.Printf("warning: failed to create transfer: %v", err)
 			continue
 		}
 		transferCount++
-
-		itemsForTransfer := rand.Intn(4) + 1
-		for j := 0; j < itemsForTransfer; j++ {
-			productID := productIDs[rand.Intn(len(productIDs))]
-			_, err := store.CreateTransferItem(ctx, db.CreateTransferItemParams{
-				TransferID: transfer.ID,
-				ProductID:  nullInt64(productID),
-				Quantity:   int64(rand.Intn(20) + 1),
-			})
-			if err != nil {
-				log.Printf("warning: failed to add item to transfer %d: %v", transfer.ID, err)
-				continue
-			}
-			itemCount++
-		}
+		itemCount += len(result.Items)
 	}
 	fmt.Printf("  ✓ Completed: %d transfers with %d items created\n", transferCount, itemCount)
 }
 
-func seedPurchases(ctx context.Context, store db.Store, supplierIDs, productIDs []int64, currencyCodes []string) {
-	if len(supplierIDs) == 0 || len(productIDs) == 0 || len(currencyCodes) == 0 {
+func seedPurchases(ctx context.Context, store db.Store, supplierIDs, variantIDs []int64, currencyCodes []string) {
+	if len(supplierIDs) == 0 || len(variantIDs) == 0 || len(currencyCodes) == 0 {
 		return
 	}
 
 	purchaseCount, itemCount := 0, 0
 	for i := 0; i < 60; i++ {
-		supplierID := supplierIDs[rand.Intn(len(supplierIDs))]
-		purchase, err := store.CreatePurchase(ctx, db.CreatePurchaseParams{
-			SupplierID:  supplierID,
-			PurchasedAt: time.Now().AddDate(0, 0, -rand.Intn(365)),
+		items := make([]db.PurchaseItemParams, 0, 5)
+		for j := 0; j < rand.Intn(5)+1; j++ {
+			items = append(items, db.PurchaseItemParams{
+				VariantID: nullInt64(variantIDs[rand.Intn(len(variantIDs))]),
+				Quantity:  int64(rand.Intn(100) + 10),
+				UnitPrice: int64(rand.Intn(5000) + 100),
+			})
+		}
+
+		result, err := store.CreatePurchaseTx(ctx, db.CreatePurchaseTxParams{
+			SupplierID:   supplierIDs[rand.Intn(len(supplierIDs))],
+			CurrencyCode: currencyCodes[rand.Intn(len(currencyCodes))],
+			PurchasedAt:  sql.NullTime{Time: time.Now().AddDate(0, 0, -rand.Intn(365)), Valid: true},
+			Items:        items,
 		})
 		if err != nil {
 			log.Printf("warning: failed to create purchase: %v", err)
 			continue
 		}
 		purchaseCount++
-
-		itemsForPurchase := rand.Intn(5) + 1
-		for j := 0; j < itemsForPurchase; j++ {
-			productID := productIDs[rand.Intn(len(productIDs))]
-			_, err := store.AddPurchaseItem(ctx, db.AddPurchaseItemParams{
-				PurchaseID:   nullInt64(purchase.ID),
-				ProductID:    nullInt64(productID),
-				Quantity:     int64(rand.Intn(100) + 10),
-				UnitPrice:    int64(rand.Intn(5000) + 100),
-				CurrencyCode: currencyCodes[rand.Intn(len(currencyCodes))],
-			})
-			if err != nil {
-				log.Printf("warning: failed to add item to purchase %d: %v", purchase.ID, err)
-				continue
-			}
-			itemCount++
-		}
+		itemCount += len(result.Items)
 	}
 	fmt.Printf("  ✓ Completed: %d purchases with %d items created\n", purchaseCount, itemCount)
 }
@@ -770,7 +784,7 @@ func seedSalesInvoices(
 		items := make([]db.SalesInvoiceItem, 0, itemsForInvoice)
 		var itemsTotal, netTotal int64
 		for j := 0; j < itemsForInvoice; j++ {
-			productID := stockedProducts[rand.Intn(len(stockedProducts))]
+			variantID := stockedProducts[rand.Intn(len(stockedProducts))]
 			quantity := int64(rand.Intn(3) + 1)
 			unitPrice := int64(rand.Intn(4000) + 500)
 			discount := int16(0)
@@ -787,7 +801,7 @@ func seedSalesInvoices(
 			netTotal += itemDiscounted
 
 			items = append(items, db.SalesInvoiceItem{
-				ProductID: productID,
+				VariantID: variantID,
 				UnitPrice: unitPrice,
 				LineTotal: itemDiscounted,
 				Discount:  discount,

@@ -1,5 +1,33 @@
 export const navItems = [
-  { title: 'Dashboard', icon: 'mdi-view-dashboard', to: '/' },
+  { title: 'Home', icon: 'mdi-home', to: '/' },
+  {
+    title: 'Analysis',
+    icon: 'mdi-chart-bar',
+    children: [
+      { title: 'Dashboard', icon: 'mdi-view-dashboard', to: '/dashboard' },
+      { title: 'Daily Income', icon: 'mdi-chart-bar', to: '/daily-income' },
+      { title: 'Financials', icon: 'mdi-currency-usd', to: '/financials' },
+      { title: 'Targets', icon: 'mdi-target', to: '/targets' },
+      {
+        title: 'Stock Health',
+        icon: 'mdi-heart-pulse',
+        to: '/stock-health',
+        append: 'status',
+      },
+      { title: 'Sales Analytics', icon: 'mdi-chart-line', to: '/sales-analytics' },
+      { title: 'Sales Analysis', icon: 'mdi-chart-box-outline', to: '/sales-analysis' },
+      { title: 'Sales Dashboard', icon: 'mdi-view-dashboard', to: '/sales-dashboard' },
+      { title: 'Salesperson Performance', icon: 'mdi-account-cash', to: '/salesperson-performance' },
+    ],
+  },
+  { title: 'Warehouses', icon: 'mdi-warehouse', to: '/warehouses' },
+  {
+    title: 'Alerts',
+    icon: 'mdi-alert-circle-outline',
+    to: '/alerts',
+    append: 'alert-count',
+    appendCount: 118,
+  },
   {
     title: 'Wholesale',
     icon: 'mdi-cart',
@@ -7,9 +35,9 @@ export const navItems = [
       { title: 'Clients', icon: 'mdi-account', to: '/clients' },
       { title: 'Suppliers', icon: 'mdi-truck-delivery', to: '/suppliers' },
       {
-        title: 'Sales Invoices',
+        title: 'Invoices',
         icon: 'mdi-format-list-bulleted-square',
-        to: '/sales-invoices',
+        to: '/invoices',
       },
       {
         title: 'Purchase Invoices',
@@ -23,19 +51,15 @@ export const navItems = [
     icon: 'mdi-store-outline',
     children: [
       { title: 'Branches', icon: 'mdi-store-outline', to: '/branches' },
-      {
-        title: 'Branch Invoices',
-        icon: 'mdi-invoice',
-        to: '/branch-invoices',
-      },
     ],
   },
   {
-    title: 'Coupons & Discounts',
+    title: 'Pricing',
     icon: 'mdi-sale',
     children: [
-      { title: 'Discounts', icon: 'mdi-sale', to: '/discounts' },
-      { title: 'Coupons', icon: 'mdi-ticket-percent', to: '/coupons' },
+      { title: 'Price Lists', icon: 'mdi-format-list-bulleted', to: '/price-lists' },
+      { title: 'Discount Lists', icon: 'mdi-sale', to: '/discount-lists' },
+      { title: 'Coupons', icon: 'mdi-ticket-percent', to: '/pricing' },
     ],
   },
   {
@@ -44,11 +68,7 @@ export const navItems = [
     children: [
       { title: 'Products', icon: 'mdi-package-variant', to: '/products' },
       { title: 'Colors & Sizes', icon: 'mdi-palette', to: '/colors-sizes' },
-      {
-        title: 'Invoice Types',
-        icon: 'mdi-tag-multiple',
-        to: '/invoice-types',
-      },
+      { title: 'Attributes', icon: 'mdi-tag-multiple', to: '/attributes' },
     ],
   },
   {
@@ -80,7 +100,7 @@ export const navItems = [
     icon: 'mdi-warehouse',
     children: [
       { title: 'Inventory', icon: 'mdi-warehouse', to: '/inventory' },
-      { title: 'Warehouses', icon: 'mdi-warehouse', to: '/warehouses' },
+      { title: 'Stock Movements', icon: 'mdi-swap-vertical', to: '/stock-movements' },
       { title: 'Barcodes', icon: 'mdi-barcode', to: '/barcodes' },
       { title: 'Transfers', icon: 'mdi-transfer', to: '/transfers' },
     ],
@@ -102,5 +122,6 @@ export const navItems = [
 export const appendItems = [
   { title: 'Calendar', icon: 'mdi-calendar', to: '/calendar' },
   { title: 'Storage', icon: 'mdi-google-drive', to: '/storage' },
+  { title: 'Logs', icon: 'mdi-text', to: '/logs' },
   { title: 'Settings', icon: 'mdi-cog-outline', to: '/settings' },
 ]

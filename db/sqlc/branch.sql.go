@@ -7,6 +7,7 @@ package db
 
 import (
 	"context"
+	"database/sql"
 )
 
 const createBranch = `-- name: CreateBranch :one
@@ -15,7 +16,7 @@ INSERT INTO branches (
   code,
   api_key_hash
 ) VALUES ( $1, $2, $3 )
-RETURNING id, name, code, api_key_hash, is_active, last_seen_at, created_at
+RETURNING id, name, code, api_key_hash, is_active, last_seen_at, created_at, inventory_id
 `
 
 type CreateBranchParams struct {
@@ -35,12 +36,13 @@ func (q *Queries) CreateBranch(ctx context.Context, arg CreateBranchParams) (Bra
 		&i.IsActive,
 		&i.LastSeenAt,
 		&i.CreatedAt,
+		&i.InventoryID,
 	)
 	return i, err
 }
 
 const getBranch = `-- name: GetBranch :one
-SELECT id, name, code, api_key_hash, is_active, last_seen_at, created_at FROM branches
+SELECT id, name, code, api_key_hash, is_active, last_seen_at, created_at, inventory_id FROM branches
 WHERE id = $1 LIMIT 1
 `
 
@@ -55,12 +57,13 @@ func (q *Queries) GetBranch(ctx context.Context, id int64) (Branch, error) {
 		&i.IsActive,
 		&i.LastSeenAt,
 		&i.CreatedAt,
+		&i.InventoryID,
 	)
 	return i, err
 }
 
 const getBranchByCode = `-- name: GetBranchByCode :one
-SELECT id, name, code, api_key_hash, is_active, last_seen_at, created_at FROM branches
+SELECT id, name, code, api_key_hash, is_active, last_seen_at, created_at, inventory_id FROM branches
 WHERE code = $1 LIMIT 1
 `
 
@@ -75,12 +78,13 @@ func (q *Queries) GetBranchByCode(ctx context.Context, code string) (Branch, err
 		&i.IsActive,
 		&i.LastSeenAt,
 		&i.CreatedAt,
+		&i.InventoryID,
 	)
 	return i, err
 }
 
 const listBranches = `-- name: ListBranches :many
-SELECT id, name, code, api_key_hash, is_active, last_seen_at, created_at FROM branches
+SELECT id, name, code, api_key_hash, is_active, last_seen_at, created_at, inventory_id FROM branches
 ORDER BY name
 `
 
@@ -101,6 +105,7 @@ func (q *Queries) ListBranches(ctx context.Context) ([]Branch, error) {
 			&i.IsActive,
 			&i.LastSeenAt,
 			&i.CreatedAt,
+			&i.InventoryID,
 		); err != nil {
 			return nil, err
 		}
@@ -128,6 +133,22 @@ type SetBranchActiveParams struct {
 
 func (q *Queries) SetBranchActive(ctx context.Context, arg SetBranchActiveParams) error {
 	_, err := q.db.ExecContext(ctx, setBranchActive, arg.ID, arg.IsActive)
+	return err
+}
+
+const setBranchInventory = `-- name: SetBranchInventory :exec
+UPDATE branches
+SET inventory_id = $2
+WHERE id = $1
+`
+
+type SetBranchInventoryParams struct {
+	ID          int64         `json:"id"`
+	InventoryID sql.NullInt64 `json:"inventory_id"`
+}
+
+func (q *Queries) SetBranchInventory(ctx context.Context, arg SetBranchInventoryParams) error {
+	_, err := q.db.ExecContext(ctx, setBranchInventory, arg.ID, arg.InventoryID)
 	return err
 }
 

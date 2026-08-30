@@ -20,8 +20,10 @@ declare module 'vue-router/auto-routes' {
   export interface RouteNamedMap {
     '/': RouteRecordInfo<'/', '/', Record<never, never>, Record<never, never>>,
     '/About': RouteRecordInfo<'/About', '/About', Record<never, never>, Record<never, never>>,
+    '/alerts': RouteRecordInfo<'/alerts', '/alerts', Record<never, never>, Record<never, never>>,
     '/assets': RouteRecordInfo<'/assets', '/assets', Record<never, never>, Record<never, never>>,
     '/Attendance': RouteRecordInfo<'/Attendance', '/Attendance', Record<never, never>, Record<never, never>>,
+    '/attributes': RouteRecordInfo<'/attributes', '/attributes', Record<never, never>, Record<never, never>>,
     '/barcode-printing': RouteRecordInfo<'/barcode-printing', '/barcode-printing', Record<never, never>, Record<never, never>>,
     '/barcodes': RouteRecordInfo<'/barcodes', '/barcodes', Record<never, never>, Record<never, never>>,
     '/branch-invoices': RouteRecordInfo<'/branch-invoices', '/branch-invoices', Record<never, never>, Record<never, never>>,
@@ -32,38 +34,62 @@ declare module 'vue-router/auto-routes' {
     '/Colors_Sizes': RouteRecordInfo<'/Colors_Sizes', '/Colors_Sizes', Record<never, never>, Record<never, never>>,
     '/coupons': RouteRecordInfo<'/coupons', '/coupons', Record<never, never>, Record<never, never>>,
     '/currencies': RouteRecordInfo<'/currencies', '/currencies', Record<never, never>, Record<never, never>>,
-    '/dashboard': RouteRecordInfo<'/dashboard', '/dashboard', Record<never, never>, Record<never, never>, '/dashboard/ChartCard' | '/dashboard/ChartsRow' | '/dashboard/TablesRow' | '/dashboard/dashboard' | '/dashboard/tabs/AlertsTab' | '/dashboard/tabs/DemandTab' | '/dashboard/tabs/HealthTab' | '/dashboard/tabs/IncomeTab' | '/dashboard/tabs/OverviewTab' | '/dashboard/tabs/SalesAnalyticsTab' | '/dashboard/tabs/TargetsTab'>,
+    '/daily-income': RouteRecordInfo<'/daily-income', '/daily-income', Record<never, never>, Record<never, never>>,
+    '/dashboard': RouteRecordInfo<'/dashboard', '/dashboard', Record<never, never>, Record<never, never>, '/dashboard/ChartCard' | '/dashboard/ChartsRow' | '/dashboard/DashboardList' | '/dashboard/DetailList' | '/dashboard/ExpenseReceiptThumb' | '/dashboard/FinancialPositionCard' | '/dashboard/InitialsAvatar' | '/dashboard/TablesRow' | '/dashboard/TargetCard' | '/dashboard/TargetsLoansRow' | '/dashboard/dashboard' | '/dashboard/dashboard.backup' | '/dashboard/tabs/AlertsTab' | '/dashboard/tabs/DemandTab' | '/dashboard/tabs/FinancialChartCard' | '/dashboard/tabs/FinancialsTab' | '/dashboard/tabs/HealthTab' | '/dashboard/tabs/IncomeTab' | '/dashboard/tabs/OverviewTab' | '/dashboard/tabs/RecentActivitiesTab' | '/dashboard/tabs/SalesAnalyticsTab' | '/dashboard/tabs/SalesTab' | '/dashboard/tabs/TargetsTab'>,
     '/dashboard/ChartCard': RouteRecordInfo<'/dashboard/ChartCard', '/dashboard/ChartCard', Record<never, never>, Record<never, never>>,
     '/dashboard/ChartsRow': RouteRecordInfo<'/dashboard/ChartsRow', '/dashboard/ChartsRow', Record<never, never>, Record<never, never>>,
     '/dashboard/dashboard': RouteRecordInfo<'/dashboard/dashboard', '/dashboard/dashboard', Record<never, never>, Record<never, never>>,
+    '/dashboard/dashboard.backup': RouteRecordInfo<'/dashboard/dashboard.backup', '/dashboard/dashboard/backup', Record<never, never>, Record<never, never>>,
+    '/dashboard/DashboardList': RouteRecordInfo<'/dashboard/DashboardList', '/dashboard/DashboardList', Record<never, never>, Record<never, never>>,
+    '/dashboard/DetailList': RouteRecordInfo<'/dashboard/DetailList', '/dashboard/DetailList', Record<never, never>, Record<never, never>>,
+    '/dashboard/ExpenseReceiptThumb': RouteRecordInfo<'/dashboard/ExpenseReceiptThumb', '/dashboard/ExpenseReceiptThumb', Record<never, never>, Record<never, never>>,
+    '/dashboard/FinancialPositionCard': RouteRecordInfo<'/dashboard/FinancialPositionCard', '/dashboard/FinancialPositionCard', Record<never, never>, Record<never, never>>,
+    '/dashboard/InitialsAvatar': RouteRecordInfo<'/dashboard/InitialsAvatar', '/dashboard/InitialsAvatar', Record<never, never>, Record<never, never>>,
     '/dashboard/TablesRow': RouteRecordInfo<'/dashboard/TablesRow', '/dashboard/TablesRow', Record<never, never>, Record<never, never>>,
     '/dashboard/tabs/AlertsTab': RouteRecordInfo<'/dashboard/tabs/AlertsTab', '/dashboard/tabs/AlertsTab', Record<never, never>, Record<never, never>>,
     '/dashboard/tabs/DemandTab': RouteRecordInfo<'/dashboard/tabs/DemandTab', '/dashboard/tabs/DemandTab', Record<never, never>, Record<never, never>>,
+    '/dashboard/tabs/FinancialChartCard': RouteRecordInfo<'/dashboard/tabs/FinancialChartCard', '/dashboard/tabs/FinancialChartCard', Record<never, never>, Record<never, never>>,
+    '/dashboard/tabs/FinancialsTab': RouteRecordInfo<'/dashboard/tabs/FinancialsTab', '/dashboard/tabs/FinancialsTab', Record<never, never>, Record<never, never>>,
     '/dashboard/tabs/HealthTab': RouteRecordInfo<'/dashboard/tabs/HealthTab', '/dashboard/tabs/HealthTab', Record<never, never>, Record<never, never>>,
     '/dashboard/tabs/IncomeTab': RouteRecordInfo<'/dashboard/tabs/IncomeTab', '/dashboard/tabs/IncomeTab', Record<never, never>, Record<never, never>>,
     '/dashboard/tabs/OverviewTab': RouteRecordInfo<'/dashboard/tabs/OverviewTab', '/dashboard/tabs/OverviewTab', Record<never, never>, Record<never, never>>,
+    '/dashboard/tabs/RecentActivitiesTab': RouteRecordInfo<'/dashboard/tabs/RecentActivitiesTab', '/dashboard/tabs/RecentActivitiesTab', Record<never, never>, Record<never, never>>,
     '/dashboard/tabs/SalesAnalyticsTab': RouteRecordInfo<'/dashboard/tabs/SalesAnalyticsTab', '/dashboard/tabs/SalesAnalyticsTab', Record<never, never>, Record<never, never>>,
+    '/dashboard/tabs/SalesTab': RouteRecordInfo<'/dashboard/tabs/SalesTab', '/dashboard/tabs/SalesTab', Record<never, never>, Record<never, never>>,
     '/dashboard/tabs/TargetsTab': RouteRecordInfo<'/dashboard/tabs/TargetsTab', '/dashboard/tabs/TargetsTab', Record<never, never>, Record<never, never>>,
-    '/discounts': RouteRecordInfo<'/discounts', '/discounts', Record<never, never>, Record<never, never>>,
+    '/dashboard/TargetCard': RouteRecordInfo<'/dashboard/TargetCard', '/dashboard/TargetCard', Record<never, never>, Record<never, never>>,
+    '/dashboard/TargetsLoansRow': RouteRecordInfo<'/dashboard/TargetsLoansRow', '/dashboard/TargetsLoansRow', Record<never, never>, Record<never, never>>,
+    '/discount-lists': RouteRecordInfo<'/discount-lists', '/discount-lists', Record<never, never>, Record<never, never>>,
     '/employee_page': RouteRecordInfo<'/employee_page', '/employee_page', Record<never, never>, Record<never, never>>,
     '/employees': RouteRecordInfo<'/employees', '/employees', Record<never, never>, Record<never, never>>,
     '/expenses': RouteRecordInfo<'/expenses', '/expenses', Record<never, never>, Record<never, never>>,
     '/FilterBar': RouteRecordInfo<'/FilterBar', '/FilterBar', Record<never, never>, Record<never, never>>,
     '/FilterBtn': RouteRecordInfo<'/FilterBtn', '/FilterBtn', Record<never, never>, Record<never, never>>,
+    '/financials': RouteRecordInfo<'/financials', '/financials', Record<never, never>, Record<never, never>>,
+    '/home': RouteRecordInfo<'/home', '/home', Record<never, never>, Record<never, never>>,
     '/inventory': RouteRecordInfo<'/inventory', '/inventory', Record<never, never>, Record<never, never>>,
     '/inventory-analysis': RouteRecordInfo<'/inventory-analysis', '/inventory-analysis', Record<never, never>, Record<never, never>>,
-    '/invoice-types': RouteRecordInfo<'/invoice-types', '/invoice-types', Record<never, never>, Record<never, never>>,
     '/loan-payments': RouteRecordInfo<'/loan-payments', '/loan-payments', Record<never, never>, Record<never, never>>,
     '/loans': RouteRecordInfo<'/loans', '/loans', Record<never, never>, Record<never, never>>,
     '/Login': RouteRecordInfo<'/Login', '/Login', Record<never, never>, Record<never, never>>,
+    '/logs': RouteRecordInfo<'/logs', '/logs', Record<never, never>, Record<never, never>>,
+    '/price-lists': RouteRecordInfo<'/price-lists', '/price-lists', Record<never, never>, Record<never, never>>,
+    '/pricing': RouteRecordInfo<'/pricing', '/pricing', Record<never, never>, Record<never, never>>,
     '/products': RouteRecordInfo<'/products', '/products', Record<never, never>, Record<never, never>>,
     '/purchase-invoice': RouteRecordInfo<'/purchase-invoice', '/purchase-invoice', Record<never, never>, Record<never, never>>,
+    '/sales-analysis': RouteRecordInfo<'/sales-analysis', '/sales-analysis', Record<never, never>, Record<never, never>>,
+    '/sales-analytics': RouteRecordInfo<'/sales-analytics', '/sales-analytics', Record<never, never>, Record<never, never>>,
+    '/sales-dashboard': RouteRecordInfo<'/sales-dashboard', '/sales-dashboard', Record<never, never>, Record<never, never>>,
     '/sales-invoices': RouteRecordInfo<'/sales-invoices', '/sales-invoices', Record<never, never>, Record<never, never>>,
+    '/salesperson-performance': RouteRecordInfo<'/salesperson-performance', '/salesperson-performance', Record<never, never>, Record<never, never>>,
     '/settings': RouteRecordInfo<'/settings', '/settings', Record<never, never>, Record<never, never>>,
     '/shifts': RouteRecordInfo<'/shifts', '/shifts', Record<never, never>, Record<never, never>>,
     '/stats': RouteRecordInfo<'/stats', '/stats', Record<never, never>, Record<never, never>>,
+    '/stock-health': RouteRecordInfo<'/stock-health', '/stock-health', Record<never, never>, Record<never, never>>,
+    '/stock-movements': RouteRecordInfo<'/stock-movements', '/stock-movements', Record<never, never>, Record<never, never>>,
     '/storage': RouteRecordInfo<'/storage', '/storage', Record<never, never>, Record<never, never>>,
     '/suppliers': RouteRecordInfo<'/suppliers', '/suppliers', Record<never, never>, Record<never, never>>,
+    '/targets': RouteRecordInfo<'/targets', '/targets', Record<never, never>, Record<never, never>>,
     '/transfers': RouteRecordInfo<'/transfers', '/transfers', Record<never, never>, Record<never, never>>,
     '/users': RouteRecordInfo<'/users', '/users', Record<never, never>, Record<never, never>>,
     '/users copy': RouteRecordInfo<'/users copy', '/users copy', Record<never, never>, Record<never, never>>,
@@ -89,12 +115,20 @@ declare module 'vue-router/auto-routes' {
       routes: '/About'
       views: never
     }
+    'src/pages/alerts.vue': {
+      routes: '/alerts'
+      views: never
+    }
     'src/pages/assets.vue': {
       routes: '/assets'
       views: never
     }
     'src/pages/Attendance.vue': {
       routes: '/Attendance'
+      views: never
+    }
+    'src/pages/attributes.vue': {
+      routes: '/attributes'
       views: never
     }
     'src/pages/barcode-printing.vue': {
@@ -137,8 +171,12 @@ declare module 'vue-router/auto-routes' {
       routes: '/currencies'
       views: never
     }
+    'src/pages/daily-income.vue': {
+      routes: '/daily-income'
+      views: never
+    }
     'src/pages/dashboard.vue': {
-      routes: '/dashboard' | '/dashboard/tabs/AlertsTab' | '/dashboard/ChartCard' | '/dashboard/ChartsRow' | '/dashboard/dashboard' | '/dashboard/tabs/DemandTab' | '/dashboard/tabs/HealthTab' | '/dashboard/tabs/IncomeTab' | '/dashboard/tabs/OverviewTab' | '/dashboard/tabs/SalesAnalyticsTab' | '/dashboard/TablesRow' | '/dashboard/tabs' | '/dashboard/tabs/TargetsTab'
+      routes: '/dashboard' | '/dashboard/tabs/AlertsTab' | '/dashboard/ChartCard' | '/dashboard/ChartsRow' | '/dashboard/dashboard' | '/dashboard/dashboard.backup' | '/dashboard/DashboardList' | '/dashboard/tabs/DemandTab' | '/dashboard/DetailList' | '/dashboard/ExpenseReceiptThumb' | '/dashboard/tabs/FinancialChartCard' | '/dashboard/FinancialPositionCard' | '/dashboard/tabs/FinancialsTab' | '/dashboard/tabs/HealthTab' | '/dashboard/tabs/IncomeTab' | '/dashboard/InitialsAvatar' | '/dashboard/tabs/OverviewTab' | '/dashboard/tabs/RecentActivitiesTab' | '/dashboard/tabs/SalesAnalyticsTab' | '/dashboard/tabs/SalesTab' | '/dashboard/TablesRow' | '/dashboard/tabs' | '/dashboard/TargetCard' | '/dashboard/TargetsLoansRow' | '/dashboard/tabs/TargetsTab'
       views: 'default'
     }
     'src/pages/dashboard/ChartCard.vue': {
@@ -153,6 +191,30 @@ declare module 'vue-router/auto-routes' {
       routes: '/dashboard/dashboard'
       views: never
     }
+    'src/pages/dashboard/dashboard.backup.vue': {
+      routes: '/dashboard/dashboard.backup'
+      views: never
+    }
+    'src/pages/dashboard/DashboardList.vue': {
+      routes: '/dashboard/DashboardList'
+      views: never
+    }
+    'src/pages/dashboard/DetailList.vue': {
+      routes: '/dashboard/DetailList'
+      views: never
+    }
+    'src/pages/dashboard/ExpenseReceiptThumb.vue': {
+      routes: '/dashboard/ExpenseReceiptThumb'
+      views: never
+    }
+    'src/pages/dashboard/FinancialPositionCard.vue': {
+      routes: '/dashboard/FinancialPositionCard'
+      views: never
+    }
+    'src/pages/dashboard/InitialsAvatar.vue': {
+      routes: '/dashboard/InitialsAvatar'
+      views: never
+    }
     'src/pages/dashboard/TablesRow.vue': {
       routes: '/dashboard/TablesRow'
       views: never
@@ -163,6 +225,14 @@ declare module 'vue-router/auto-routes' {
     }
     'src/pages/dashboard/tabs/DemandTab.vue': {
       routes: '/dashboard/tabs/DemandTab'
+      views: never
+    }
+    'src/pages/dashboard/tabs/FinancialChartCard.vue': {
+      routes: '/dashboard/tabs/FinancialChartCard'
+      views: never
+    }
+    'src/pages/dashboard/tabs/FinancialsTab.vue': {
+      routes: '/dashboard/tabs/FinancialsTab'
       views: never
     }
     'src/pages/dashboard/tabs/HealthTab.vue': {
@@ -177,16 +247,32 @@ declare module 'vue-router/auto-routes' {
       routes: '/dashboard/tabs/OverviewTab'
       views: never
     }
+    'src/pages/dashboard/tabs/RecentActivitiesTab.vue': {
+      routes: '/dashboard/tabs/RecentActivitiesTab'
+      views: never
+    }
     'src/pages/dashboard/tabs/SalesAnalyticsTab.vue': {
       routes: '/dashboard/tabs/SalesAnalyticsTab'
+      views: never
+    }
+    'src/pages/dashboard/tabs/SalesTab.vue': {
+      routes: '/dashboard/tabs/SalesTab'
       views: never
     }
     'src/pages/dashboard/tabs/TargetsTab.vue': {
       routes: '/dashboard/tabs/TargetsTab'
       views: never
     }
-    'src/pages/discounts.vue': {
-      routes: '/discounts'
+    'src/pages/dashboard/TargetCard.vue': {
+      routes: '/dashboard/TargetCard'
+      views: never
+    }
+    'src/pages/dashboard/TargetsLoansRow.vue': {
+      routes: '/dashboard/TargetsLoansRow'
+      views: never
+    }
+    'src/pages/discount-lists.vue': {
+      routes: '/discount-lists'
       views: never
     }
     'src/pages/employee_page.vue': {
@@ -209,16 +295,20 @@ declare module 'vue-router/auto-routes' {
       routes: '/FilterBtn'
       views: never
     }
+    'src/pages/financials.vue': {
+      routes: '/financials'
+      views: never
+    }
+    'src/pages/home.vue': {
+      routes: '/home'
+      views: never
+    }
     'src/pages/inventory.vue': {
       routes: '/inventory'
       views: never
     }
     'src/pages/inventory-analysis.vue': {
       routes: '/inventory-analysis'
-      views: never
-    }
-    'src/pages/invoice-types.vue': {
-      routes: '/invoice-types'
       views: never
     }
     'src/pages/loan-payments.vue': {
@@ -233,6 +323,18 @@ declare module 'vue-router/auto-routes' {
       routes: '/Login'
       views: never
     }
+    'src/pages/logs.vue': {
+      routes: '/logs'
+      views: never
+    }
+    'src/pages/price-lists.vue': {
+      routes: '/price-lists'
+      views: never
+    }
+    'src/pages/pricing.vue': {
+      routes: '/pricing'
+      views: never
+    }
     'src/pages/products.vue': {
       routes: '/products'
       views: never
@@ -241,8 +343,24 @@ declare module 'vue-router/auto-routes' {
       routes: '/purchase-invoice'
       views: never
     }
+    'src/pages/sales-analysis.vue': {
+      routes: '/sales-analysis'
+      views: never
+    }
+    'src/pages/sales-analytics.vue': {
+      routes: '/sales-analytics'
+      views: never
+    }
+    'src/pages/sales-dashboard.vue': {
+      routes: '/sales-dashboard'
+      views: never
+    }
     'src/pages/sales-invoices.vue': {
       routes: '/sales-invoices'
+      views: never
+    }
+    'src/pages/salesperson-performance.vue': {
+      routes: '/salesperson-performance'
       views: never
     }
     'src/pages/settings.vue': {
@@ -257,12 +375,24 @@ declare module 'vue-router/auto-routes' {
       routes: '/stats'
       views: never
     }
+    'src/pages/stock-health.vue': {
+      routes: '/stock-health'
+      views: never
+    }
+    'src/pages/stock-movements.vue': {
+      routes: '/stock-movements'
+      views: never
+    }
     'src/pages/storage.vue': {
       routes: '/storage'
       views: never
     }
     'src/pages/suppliers.vue': {
       routes: '/suppliers'
+      views: never
+    }
+    'src/pages/targets.vue': {
+      routes: '/targets'
       views: never
     }
     'src/pages/transfers.vue': {

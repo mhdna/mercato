@@ -1,33 +1,76 @@
 // Utilities
 import { defineStore } from 'pinia'
+import { useAppSettings } from '@/composables/useAppSettings'
 
 const DEFAULT_ACTIVITY_MESSAGE_SECONDS = 8
 const DEFAULT_ACTIVITY_DISPLAY_MODE = 'notification'
+const DEFAULT_FINANCIALS_HIGH_SEASON_MONTHS = [2, 5, 6, 9, 11, 12]
+const DEFAULT_BARCODE_LABEL_WIDTH = 288
+const DEFAULT_BARCODE_LABEL_HEIGHT = 144
 
+// All app settings live in the single global app_settings DB row (see
+// db/migrations/000050_create_app_settings + 000051_add_activity_settings)
+// -- nothing here is localStorage-backed. State starts at sane defaults so
+// the appbar (BranchActivityToast/SyncCard) has something to render before
+// `init()` resolves; `init()` is called once from the authenticated layout
+// (layouts/default.vue) and every setter below persists immediately.
 export const useSettingsStore = defineStore('settings', {
   state: () => ({
-    // How long a branch-activity message (sale/return/expense) is shown
-    // before moving on to the next one queued behind it -- applies to both
-    // display modes below. Per-viewer display preference, same
-    // localStorage-backed pattern as theme in stores/app.js -- no backend
-    // involved.
-    activityMessageSeconds: Number(localStorage.getItem('activityMessageSeconds')) || DEFAULT_ACTIVITY_MESSAGE_SECONDS,
-    // Where branch-activity messages are shown: 'notification' (queued
-    // snackbar, bottom-right) or 'appbar' (cycles in place on SyncCard's
-    // own line, no popups). Both SyncCard and BranchActivityToast read this
-    // and only react to WS pushes when it's their mode.
-    activityDisplayMode: localStorage.getItem('activityDisplayMode') || DEFAULT_ACTIVITY_DISPLAY_MODE,
+    activityMessageSeconds: DEFAULT_ACTIVITY_MESSAGE_SECONDS,
+    activityDisplayMode: DEFAULT_ACTIVITY_DISPLAY_MODE,
+    financialsHighSeasonMonths: DEFAULT_FINANCIALS_HIGH_SEASON_MONTHS,
+    barcodeLabelWidth: DEFAULT_BARCODE_LABEL_WIDTH,
+    barcodeLabelHeight: DEFAULT_BARCODE_LABEL_HEIGHT,
+    loaded: false,
   }),
 
   actions: {
-    setActivityMessageSeconds (seconds) {
-      this.activityMessageSeconds = seconds
-      localStorage.setItem('activityMessageSeconds', String(seconds))
+    async init () {
+      if (this.loaded) {
+        return
+      }
+      const { getAppSettings } = useAppSettings()
+      const settings = await getAppSettings().catch(() => null)
+      if (settings) {
+        this.activityMessageSeconds = settings.activity_message_seconds
+        this.activityDisplayMode = settings.activity_display_mode
+        this.financialsHighSeasonMonths = settings.financials_high_season_months
+        this.barcodeLabelWidth = settings.barcode_label_width ?? DEFAULT_BARCODE_LABEL_WIDTH
+        this.barcodeLabelHeight = settings.barcode_label_height ?? DEFAULT_BARCODE_LABEL_HEIGHT
+      }
+      this.loaded = true
     },
 
-    setActivityDisplayMode (mode) {
+    async persist () {
+      const { updateAppSettings } = useAppSettings()
+      await updateAppSettings({
+        financials_high_season_months: this.financialsHighSeasonMonths,
+        activity_message_seconds: this.activityMessageSeconds,
+        activity_display_mode: this.activityDisplayMode,
+        barcode_label_width: this.barcodeLabelWidth,
+        barcode_label_height: this.barcodeLabelHeight,
+      })
+    },
+
+    async setBarcodeLabelSize (width, height) {
+      this.barcodeLabelWidth = width
+      this.barcodeLabelHeight = height
+      await this.persist()
+    },
+
+    async setActivityMessageSeconds (seconds) {
+      this.activityMessageSeconds = seconds
+      await this.persist()
+    },
+
+    async setActivityDisplayMode (mode) {
       this.activityDisplayMode = mode
-      localStorage.setItem('activityDisplayMode', mode)
+      await this.persist()
+    },
+
+    async setFinancialsHighSeasonMonths (months) {
+      this.financialsHighSeasonMonths = months
+      await this.persist()
     },
   },
 })

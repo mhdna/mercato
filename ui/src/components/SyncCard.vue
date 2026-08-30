@@ -17,7 +17,7 @@
           <Transition mode="out-in" name="ticker">
             <span :key="displayKey">
               <v-icon
-                v-if="currentActivity"
+                v-if="currentActivity && currentActivity.trendIcon"
                 class="me-1"
                 :color="currentActivity.color"
                 :icon="currentActivity.trendIcon"
@@ -34,7 +34,10 @@
       <v-card-title class="text-subtitle-1">Branch sync</v-card-title>
       <v-divider />
 
-      <v-list v-if="recentInvoices.length > 0" density="compact" lines="two">
+      <v-card-text v-if="serverDown" class="text-medium-emphasis">
+        Can't reach the server, we'll be back soon.
+      </v-card-text>
+      <v-list v-else-if="recentInvoices.length > 0" density="compact" lines="two">
         <v-list-item
           v-for="invoice in recentInvoices"
           :key="invoice.id"
@@ -56,10 +59,10 @@
 <script setup>
   import { computed, onMounted, onUnmounted, ref } from 'vue'
   import { useAdminSocket } from '@/composables/useAdminSocket'
+  import { describeBranchActivity, isBranchActivityMessage } from '@/composables/useBranchActivityMessage'
   import { useBranches } from '@/composables/useBranches'
   import { useBranchInvoices } from '@/composables/useBranchInvoices'
   import { useSettingsStore } from '@/stores/settings'
-  import { formatMoney } from '@/utils/money'
 
   const { branches, fetchBranches } = useBranches()
   const { listRecentBranchInvoices } = useBranchInvoices()
@@ -81,7 +84,10 @@
   let refreshTimer = null
   let clockTimer = null
 
-  const wsIconColor = computed(() => (wsStatus.value === 'open' ? 'success' : undefined))
+  // No live socket means we can't confirm branch data is flowing, so the
+  // card reports "not syncing" rather than a stale "synced ... ago".
+  const serverDown = computed(() => wsStatus.value !== 'open')
+  const wsIconColor = computed(() => (serverDown.value ? undefined : 'success'))
 
   // 'appbar' mode: branch activity (sales/returns/expenses) takes over the
   // card's single line for a few seconds at a time, one message at a time
@@ -103,26 +109,6 @@
   const displayText = computed(() => (currentActivity.value ? currentActivity.value.text : statusText.value))
   const displayKey = computed(() => (currentActivity.value ? `activity-${activitySeq.value}` : 'status'))
 
-  function activityKindWord (message) {
-    if (message.type === 'branch_expense_created') return 'expense'
-    if (message.kind === 'exchange') return 'exchange'
-    if (message.kind === 'return') return 'return'
-    if (message.kind) return 'revenue'
-    // Legacy fallback for messages without a kind (shouldn't happen once
-    // the backend always sends one for branch_invoice_created).
-    return message.amount < 0 ? 'return' : 'revenue'
-  }
-
-  function activityColor (amount) {
-    if (amount > 0) return 'success'
-    if (amount < 0) return 'error'
-    return 'warning'
-  }
-
-  function activityTrendIcon (amount) {
-    return amount < 0 ? 'mdi-triangle-down' : 'mdi-triangle'
-  }
-
   function advanceActivity () {
     activitySeq.value++
     if (activityQueue.value.length === 0) {
@@ -135,11 +121,12 @@
   }
 
   function pushActivity (message) {
-    const text = `${branchName(message.branch_id)}: ${formatMoney(message.amount)} ${message.currency_code} ${activityKindWord(message)}`
+    const described = describeBranchActivity(message, branchName)
+    if (!described) return
     activityQueue.value.push({
-      text,
-      color: activityColor(message.amount),
-      trendIcon: activityTrendIcon(message.amount),
+      text: described.text,
+      color: described.color,
+      trendIcon: described.trendIcon,
     })
     if (!activityTimer) {
       advanceActivity()
@@ -196,6 +183,7 @@
   }
 
   const statusText = computed(() => {
+    if (serverDown.value) return 'not syncing'
     if (!loaded.value) return 'syncing...'
     const latest = recentInvoices.value[0]
     if (!latest) return 'no sync yet'
@@ -213,10 +201,7 @@
       if (message.type === 'branch_invoice_created') {
         refresh()
       }
-      if (
-        settingsStore.activityDisplayMode === 'appbar'
-        && (message.type === 'branch_invoice_created' || message.type === 'branch_expense_created')
-      ) {
+      if (settingsStore.activityDisplayMode === 'appbar' && isBranchActivityMessage(message)) {
         pushActivity(message)
       }
     })

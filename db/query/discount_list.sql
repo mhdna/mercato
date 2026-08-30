@@ -56,5 +56,17 @@ SELECT * FROM discount_list_items
 WHERE discount_list_id = $1
 ORDER BY product_id;
 
+-- name: ListDiscountListItemsWithProduct :many
+SELECT dli.discount_list_id, dli.product_id, dli.discount,
+       p.code AS product_code, p.name AS product_name
+FROM discount_list_items dli
+JOIN products p ON p.id = dli.product_id
+WHERE dli.discount_list_id = $1
+ORDER BY p.name;
+
 -- name: CountDiscountLists :one
 SELECT COUNT(*) FROM discount_lists;
+
+-- name: DeleteDiscountList :exec
+DELETE FROM discount_lists
+WHERE id = $1;

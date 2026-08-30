@@ -29,7 +29,7 @@ export async function authFetch (url, options = {}) {
     // fetch() rejects (rather than resolving with a bad status) when the
     // server can't be reached at all -- e.g. it's powered off. Surface a
     // clear, distinct message instead of the browser's raw "Failed to fetch".
-    throw new Error('Server is offline')
+    throw new Error('Server is down, we\'ll be back soon.')
   }
 
   if (res.status === 401 && authStore.refreshToken) {

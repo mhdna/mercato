@@ -31,17 +31,45 @@
             :title="child.title"
             :to="child.to"
             :value="child.to"
-          />
+          >
+            <template v-if="child.append === 'status'" #append>
+              <span
+                aria-label="Stock health status is healthy"
+                class="nav-status d-flex align-center ga-2"
+                role="img"
+              >
+                <span class="nav-status-dot" />
+              </span>
+            </template>
+          </v-list-item>
         </v-list-group>
 
         <!-- Single item -->
         <v-list-item
           v-else
+          :color="item.color"
           :prepend-icon="item.icon"
           :title="item.title"
           :to="item.to"
           :value="item.title"
-        />
+        >
+          <template v-if="item.append === 'status'" #append>
+            <span
+              aria-label="Stock health status is healthy"
+              class="nav-status d-flex align-center ga-2"
+              role="img"
+            >
+              <span class="nav-status-dot" />
+            </span>
+          </template>
+          <template v-else-if="item.append === 'alert-count'" #append>
+            <v-badge
+              color="error"
+              :content="item.appendCount"
+              inline
+            />
+          </template>
+        </v-list-item>
       </template>
     </v-list>
 
@@ -81,5 +109,19 @@
 
 .nav-drawer :deep(.v-list-group__items .v-list-item) {
   padding-inline-start: 16px !important;
+}
+
+.nav-status-dot {
+  width: 18px;
+  height: 18px;
+  display: block;
+  border-radius: 50%;
+  background-color: rgb(var(--v-theme-success));
+}
+
+.nav-status {
+  min-width: 24px;
+  justify-content: center;
+  margin-inline-end: 8px;
 }
 </style>

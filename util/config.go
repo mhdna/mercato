@@ -18,6 +18,9 @@ type Config struct {
 	// ExpenseImageStorageDir is where receipt photos uploaded through the
 	// one-time QR flow (api/expense_upload.go) are saved on local disk.
 	ExpenseImageStorageDir string `mapstructure:"EXPENSE_IMAGE_STORAGE_DIR"`
+	// AppLogPath is the bounded, rotating backend log file. It defaults to
+	// logs/kashi.log when APP_LOG_PATH is not set.
+	AppLogPath string `mapstructure:"APP_LOG_PATH"`
 }
 
 func LoadConfig(path string) (config Config, err error) {

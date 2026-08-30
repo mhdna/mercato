@@ -8,9 +8,26 @@
 </template>
 
 <script setup>
+  import { computed } from 'vue'
   import ChartCard from './ChartCard.vue'
-  import { buildChartOptions, generateMockData } from './chartOptions'
+  import { buildChartOptions } from './chartOptions'
 
-  const { dates, revenue, expenses } = generateMockData()
-  const charts = buildChartOptions(dates, revenue, expenses)
+  const props = defineProps({
+    // [{ day: 'YYYY-MM-DD', revenue: cents, expenses: cents }] from
+    // /dashboard/summary.
+    series: {
+      type: Array,
+      default: () => [],
+    },
+  })
+
+  const charts = computed(() => {
+    const dates = props.series.map(point =>
+      new Date(`${point.day}T00:00:00`).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }),
+    )
+    // Charts show currency amounts, not cents.
+    const revenue = props.series.map(point => Math.round((point.revenue ?? 0) / 100))
+    const expenses = props.series.map(point => Math.round((point.expenses ?? 0) / 100))
+    return buildChartOptions(dates, revenue, expenses)
+  })
 </script>

@@ -1,7 +1,7 @@
 <template>
   <v-snackbar-queue
     v-model="toasts"
-    color="surface-variant"
+    color="surface-light"
     location="bottom end"
     max-width="380"
     vertical
@@ -9,7 +9,7 @@
     <template #text="{ item }">
       <div class="d-flex align-center ga-2 text-body-large">
         <v-icon :icon="item.icon" size="20" />
-        <div>
+        <div v-if="item.money">
           {{ item.branchName }}:
           <v-icon
             :class="textColorClass(item)"
@@ -19,6 +19,7 @@
           />
           <span :class="textColorClass(item)">{{ item.amountText }}</span> {{ item.currencyCode }} {{ item.kindWord }}
         </div>
+        <div v-else>{{ item.text }}</div>
       </div>
     </template>
     <template #actions="{ props }">
@@ -32,6 +33,7 @@
 <script setup>
   import { onMounted, onUnmounted, ref } from 'vue'
   import { useAdminSocket } from '@/composables/useAdminSocket'
+  import { describeBranchActivity, isBranchActivityMessage } from '@/composables/useBranchActivityMessage'
   import { useBranches } from '@/composables/useBranches'
   import { useSettingsStore } from '@/stores/settings'
   import { formatMoney } from '@/utils/money'
@@ -53,36 +55,19 @@
     return 'text-yellow'
   }
 
-  function kindWord (message) {
-    if (message.type === 'branch_expense_created') return 'expense'
-    if (message.kind === 'exchange') return 'exchange'
-    if (message.kind === 'return') return 'return'
-    if (message.kind) return 'revenue'
-    // Legacy fallback for messages without a kind (shouldn't happen once
-    // the backend always sends one for branch_invoice_created).
-    return message.amount < 0 ? 'return' : 'revenue'
-  }
-
-  function iconFor (message) {
-    if (message.type === 'branch_expense_created') return 'mdi-cash-minus'
-    if (message.kind === 'exchange') return 'mdi-swap-horizontal'
-    if (message.kind === 'return') return 'mdi-transfer'
-    if (message.kind) return 'mdi-sale'
-    return message.amount < 0 ? 'mdi-transfer' : 'mdi-sale'
-  }
-
-  function trendIconFor (message) {
-    return message.amount < 0 ? 'mdi-triangle-down' : 'mdi-triangle'
-  }
-
   function pushToast (message) {
+    const described = describeBranchActivity(message, branchName)
+    if (!described) return
     toasts.value.push({
-      icon: iconFor(message),
-      trendIcon: trendIconFor(message),
+      icon: described.icon,
+      money: described.money,
+      text: described.text,
+      // Money-layout fields (only read when described.money is true).
+      trendIcon: described.trendIcon,
       branchName: branchName(message.branch_id),
       amountText: formatMoney(message.amount),
       currencyCode: message.currency_code,
-      kindWord: kindWord(message),
+      kindWord: described.kindWord,
       amount: message.amount,
       timeout: settingsStore.activityMessageSeconds * 1000,
     })
@@ -92,10 +77,7 @@
     fetchBranches()
     ensureConnected()
     unsubscribe = onMessage(message => {
-      if (
-        settingsStore.activityDisplayMode === 'notification'
-        && (message.type === 'branch_invoice_created' || message.type === 'branch_expense_created')
-      ) {
+      if (settingsStore.activityDisplayMode === 'notification' && isBranchActivityMessage(message)) {
         pushToast(message)
       }
     })

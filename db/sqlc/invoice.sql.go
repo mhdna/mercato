@@ -7,38 +7,45 @@ package db
 
 import (
 	"context"
+	"database/sql"
 )
 
 const addInvoiceProduct = `-- name: AddInvoiceProduct :one
 INSERT INTO invoice_products (
   invoice_id,
   product_id,
+  variant_id,
   unit_price,
   line_total,
   discount,
-  quantity
+  quantity,
+  unit_cost
 )
-VALUES ( $1, $2, $3, $4, $5, $6 )
-RETURNING invoice_id, product_id, unit_price, line_total, discount, quantity
+VALUES ( $1, $2, $3, $4, $5, $6, $7, $8 )
+RETURNING invoice_id, product_id, unit_price, line_total, discount, quantity, variant_id, unit_cost
 `
 
 type AddInvoiceProductParams struct {
-	InvoiceID int64 `json:"invoice_id"`
-	ProductID int64 `json:"product_id"`
-	UnitPrice int64 `json:"unit_price"`
-	LineTotal int64 `json:"line_total"`
-	Discount  int16 `json:"discount"`
-	Quantity  int64 `json:"quantity"`
+	InvoiceID int64         `json:"invoice_id"`
+	ProductID int64         `json:"product_id"`
+	VariantID sql.NullInt64 `json:"variant_id"`
+	UnitPrice int64         `json:"unit_price"`
+	LineTotal int64         `json:"line_total"`
+	Discount  int16         `json:"discount"`
+	Quantity  int64         `json:"quantity"`
+	UnitCost  int64         `json:"unit_cost"`
 }
 
 func (q *Queries) AddInvoiceProduct(ctx context.Context, arg AddInvoiceProductParams) (InvoiceProduct, error) {
 	row := q.db.QueryRowContext(ctx, addInvoiceProduct,
 		arg.InvoiceID,
 		arg.ProductID,
+		arg.VariantID,
 		arg.UnitPrice,
 		arg.LineTotal,
 		arg.Discount,
 		arg.Quantity,
+		arg.UnitCost,
 	)
 	var i InvoiceProduct
 	err := row.Scan(
@@ -48,6 +55,8 @@ func (q *Queries) AddInvoiceProduct(ctx context.Context, arg AddInvoiceProductPa
 		&i.LineTotal,
 		&i.Discount,
 		&i.Quantity,
+		&i.VariantID,
+		&i.UnitCost,
 	)
 	return i, err
 }
@@ -58,6 +67,22 @@ SELECT COUNT(*) FROM invoices
 
 func (q *Queries) CountInvoices(ctx context.Context) (int64, error) {
 	row := q.db.QueryRowContext(ctx, countInvoices)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countInvoicesFiltered = `-- name: CountInvoicesFiltered :one
+SELECT COUNT(*)
+FROM invoices
+WHERE (
+  $1::text = ''
+  OR invoice_code ILIKE '%' || $1::text || '%'
+)
+`
+
+func (q *Queries) CountInvoicesFiltered(ctx context.Context, search string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countInvoicesFiltered, search)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -76,25 +101,29 @@ INSERT INTO invoices (
   subtotal,
   discounted_total,
   grand_total,
-  invoice_type_id
+  invoice_type_id,
+  salesperson_id,
+  loyalty_points_delta
 )
-VALUES ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-RETURNING id, cashbox_id, shift_id, invoice_code, invoice_index, year, client_id, inventory_id, discount, subtotal, discounted_total, grand_total, created_at, invoice_type_id
+VALUES ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+RETURNING id, cashbox_id, shift_id, invoice_code, invoice_index, year, client_id, inventory_id, discount, subtotal, discounted_total, grand_total, created_at, invoice_type_id, salesperson_id, loyalty_points_delta
 `
 
 type CreateInvoiceParams struct {
-	CashboxID       int64  `json:"cashbox_id"`
-	ShiftID         int64  `json:"shift_id"`
-	InvoiceCode     string `json:"invoice_code"`
-	InvoiceIndex    int64  `json:"invoice_index"`
-	Year            int32  `json:"year"`
-	ClientID        int64  `json:"client_id"`
-	InventoryID     int64  `json:"inventory_id"`
-	Discount        int16  `json:"discount"`
-	Subtotal        int64  `json:"subtotal"`
-	DiscountedTotal int64  `json:"discounted_total"`
-	GrandTotal      int64  `json:"grand_total"`
-	InvoiceTypeID   int64  `json:"invoice_type_id"`
+	CashboxID          int64         `json:"cashbox_id"`
+	ShiftID            int64         `json:"shift_id"`
+	InvoiceCode        string        `json:"invoice_code"`
+	InvoiceIndex       int64         `json:"invoice_index"`
+	Year               int32         `json:"year"`
+	ClientID           int64         `json:"client_id"`
+	InventoryID        int64         `json:"inventory_id"`
+	Discount           int16         `json:"discount"`
+	Subtotal           int64         `json:"subtotal"`
+	DiscountedTotal    int64         `json:"discounted_total"`
+	GrandTotal         int64         `json:"grand_total"`
+	InvoiceTypeID      int64         `json:"invoice_type_id"`
+	SalespersonID      sql.NullInt64 `json:"salesperson_id"`
+	LoyaltyPointsDelta int64         `json:"loyalty_points_delta"`
 }
 
 func (q *Queries) CreateInvoice(ctx context.Context, arg CreateInvoiceParams) (Invoice, error) {
@@ -111,6 +140,8 @@ func (q *Queries) CreateInvoice(ctx context.Context, arg CreateInvoiceParams) (I
 		arg.DiscountedTotal,
 		arg.GrandTotal,
 		arg.InvoiceTypeID,
+		arg.SalespersonID,
+		arg.LoyaltyPointsDelta,
 	)
 	var i Invoice
 	err := row.Scan(
@@ -128,6 +159,8 @@ func (q *Queries) CreateInvoice(ctx context.Context, arg CreateInvoiceParams) (I
 		&i.GrandTotal,
 		&i.CreatedAt,
 		&i.InvoiceTypeID,
+		&i.SalespersonID,
+		&i.LoyaltyPointsDelta,
 	)
 	return i, err
 }
@@ -191,7 +224,7 @@ func (q *Queries) DecrementInvoicesIndex(ctx context.Context, arg DecrementInvoi
 }
 
 const getInvoice = `-- name: GetInvoice :one
-SELECT id, cashbox_id, shift_id, invoice_code, invoice_index, year, client_id, inventory_id, discount, subtotal, discounted_total, grand_total, created_at, invoice_type_id FROM invoices
+SELECT id, cashbox_id, shift_id, invoice_code, invoice_index, year, client_id, inventory_id, discount, subtotal, discounted_total, grand_total, created_at, invoice_type_id, salesperson_id, loyalty_points_delta FROM invoices
 WHERE id = $1 LIMIT 1
 `
 
@@ -213,6 +246,8 @@ func (q *Queries) GetInvoice(ctx context.Context, id int64) (Invoice, error) {
 		&i.GrandTotal,
 		&i.CreatedAt,
 		&i.InvoiceTypeID,
+		&i.SalespersonID,
+		&i.LoyaltyPointsDelta,
 	)
 	return i, err
 }
@@ -268,8 +303,78 @@ func (q *Queries) IncrementInvoicesIndex(ctx context.Context, arg IncrementInvoi
 	return last_index, err
 }
 
+const listInvoiceProductsByInvoice = `-- name: ListInvoiceProductsByInvoice :many
+SELECT
+  invoice_products.invoice_id, invoice_products.product_id, invoice_products.unit_price, invoice_products.line_total, invoice_products.discount, invoice_products.quantity, invoice_products.variant_id, invoice_products.unit_cost,
+  products.name AS product_name,
+  products.code AS product_code,
+  COALESCE(pv.barcode, '') AS variant_barcode,
+  COALESCE(c.name, '') AS color_name,
+  COALESCE(s.name, '') AS size_name
+FROM invoice_products
+JOIN products ON products.id = invoice_products.product_id
+LEFT JOIN product_variants pv ON pv.id = invoice_products.variant_id
+LEFT JOIN colors c ON c.id = pv.color_id
+LEFT JOIN sizes  s ON s.id = pv.size_id
+WHERE invoice_products.invoice_id = $1
+ORDER BY invoice_products.product_id
+`
+
+type ListInvoiceProductsByInvoiceRow struct {
+	InvoiceID      int64         `json:"invoice_id"`
+	ProductID      int64         `json:"product_id"`
+	UnitPrice      int64         `json:"unit_price"`
+	LineTotal      int64         `json:"line_total"`
+	Discount       int16         `json:"discount"`
+	Quantity       int64         `json:"quantity"`
+	VariantID      sql.NullInt64 `json:"variant_id"`
+	UnitCost       int64         `json:"unit_cost"`
+	ProductName    string        `json:"product_name"`
+	ProductCode    string        `json:"product_code"`
+	VariantBarcode string        `json:"variant_barcode"`
+	ColorName      string        `json:"color_name"`
+	SizeName       string        `json:"size_name"`
+}
+
+func (q *Queries) ListInvoiceProductsByInvoice(ctx context.Context, invoiceID int64) ([]ListInvoiceProductsByInvoiceRow, error) {
+	rows, err := q.db.QueryContext(ctx, listInvoiceProductsByInvoice, invoiceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListInvoiceProductsByInvoiceRow{}
+	for rows.Next() {
+		var i ListInvoiceProductsByInvoiceRow
+		if err := rows.Scan(
+			&i.InvoiceID,
+			&i.ProductID,
+			&i.UnitPrice,
+			&i.LineTotal,
+			&i.Discount,
+			&i.Quantity,
+			&i.VariantID,
+			&i.UnitCost,
+			&i.ProductName,
+			&i.ProductCode,
+			&i.VariantBarcode,
+			&i.ColorName,
+			&i.SizeName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listInvoices = `-- name: ListInvoices :many
-SELECT id, cashbox_id, shift_id, invoice_code, invoice_index, year, client_id, inventory_id, discount, subtotal, discounted_total, grand_total, created_at, invoice_type_id
+SELECT id, cashbox_id, shift_id, invoice_code, invoice_index, year, client_id, inventory_id, discount, subtotal, discounted_total, grand_total, created_at, invoice_type_id, salesperson_id, loyalty_points_delta
 FROM invoices
 ORDER BY created_at
 DESC
@@ -306,6 +411,66 @@ func (q *Queries) ListInvoices(ctx context.Context, arg ListInvoicesParams) ([]I
 			&i.GrandTotal,
 			&i.CreatedAt,
 			&i.InvoiceTypeID,
+			&i.SalespersonID,
+			&i.LoyaltyPointsDelta,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listInvoicesPage = `-- name: ListInvoicesPage :many
+SELECT id, cashbox_id, shift_id, invoice_code, invoice_index, year, client_id, inventory_id, discount, subtotal, discounted_total, grand_total, created_at, invoice_type_id, salesperson_id, loyalty_points_delta
+FROM invoices
+WHERE (
+  $1::text = ''
+  OR invoice_code ILIKE '%' || $1::text || '%'
+)
+ORDER BY created_at DESC, id DESC
+LIMIT $3
+OFFSET $2
+`
+
+type ListInvoicesPageParams struct {
+	Search     string `json:"search"`
+	PageOffset int32  `json:"page_offset"`
+	PageSize   int32  `json:"page_size"`
+}
+
+func (q *Queries) ListInvoicesPage(ctx context.Context, arg ListInvoicesPageParams) ([]Invoice, error) {
+	rows, err := q.db.QueryContext(ctx, listInvoicesPage, arg.Search, arg.PageOffset, arg.PageSize)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Invoice{}
+	for rows.Next() {
+		var i Invoice
+		if err := rows.Scan(
+			&i.ID,
+			&i.CashboxID,
+			&i.ShiftID,
+			&i.InvoiceCode,
+			&i.InvoiceIndex,
+			&i.Year,
+			&i.ClientID,
+			&i.InventoryID,
+			&i.Discount,
+			&i.Subtotal,
+			&i.DiscountedTotal,
+			&i.GrandTotal,
+			&i.CreatedAt,
+			&i.InvoiceTypeID,
+			&i.SalespersonID,
+			&i.LoyaltyPointsDelta,
 		); err != nil {
 			return nil, err
 		}

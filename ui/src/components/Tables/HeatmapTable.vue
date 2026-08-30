@@ -1,10 +1,34 @@
 <template>
   <div ref="wrapRef" class="heatmap-wrap">
-    <table class="heatmap-table">
+    <table class="heatmap-table" @mouseleave="hoveredColumn = null">
       <thead>
         <tr>
-          <th class="sticky-col day-col" />
-          <th v-for="month in months" :key="month">
+          <th class="sticky-col day-col year-nav">
+            <v-btn
+              aria-label="Previous year"
+              density="compact"
+              icon="mdi-chevron-left"
+              size="x-small"
+              variant="text"
+              @click="selectedYear--"
+            />
+            <span>{{ selectedYear }}</span>
+            <v-btn
+              aria-label="Next year"
+              density="compact"
+              :disabled="selectedYear >= currentYear"
+              icon="mdi-chevron-right"
+              size="x-small"
+              variant="text"
+              @click="selectedYear++"
+            />
+          </th>
+          <th
+            v-for="(month, mi) in months"
+            :key="month"
+            :class="{ 'column-hover': hoveredColumn === mi }"
+            @mouseenter="hoveredColumn = mi"
+          >
             {{ month }}
           </th>
         </tr>
@@ -16,8 +40,13 @@
             v-for="(month, mi) in months"
             :key="month"
             :ref="el => setCellRef(mi, d, el)"
-            :class="{ 'cell-flash': isHighlighted(mi, d), 'cell-today': isToday(mi, d) }"
+            :class="{
+              'cell-flash': isHighlighted(mi, d),
+              'cell-today': isToday(mi, d),
+              'column-hover': hoveredColumn === mi,
+            }"
             :style="d <= daysInMonth[mi] ? cellStyle(get(mi, d)) : {}"
+            @mouseenter="hoveredColumn = mi"
           >
             {{ d <= daysInMonth[mi] ? format(get(mi, d)) : "" }}
           </td>
@@ -29,7 +58,8 @@
           <td
             v-for="(month, mi) in months"
             :key="month"
-            class="sticky-foot"
+            :class="['sticky-foot', { 'column-hover': hoveredColumn === mi }]"
+            @mouseenter="hoveredColumn = mi"
           >
             {{ format(monthTotals[mi]) }}
           </td>
@@ -60,8 +90,12 @@
     'Dec',
   ]
   const currentYear = new Date().getFullYear()
-  const isLeapYear = currentYear % 4 === 0 && (currentYear % 100 !== 0 || currentYear % 400 === 0)
-  const daysInMonth = [31, isLeapYear ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+  const selectedYear = ref(currentYear)
+  const daysInMonth = computed(() => {
+    const year = selectedYear.value
+    const isLeapYear = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0)
+    return [31, isLeapYear ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+  })
 
   const { getDailyIncome } = useDailyIncome()
   const { selectedBranchId } = useIncomeFilters()
@@ -69,12 +103,13 @@
 
   // data[monthIndex][day] = number, cents from the API converted to whole
   // currency units for display, same shape the heatmap always rendered.
-  const data = ref(months.map((_, mi) => Array.from({ length: daysInMonth[mi] }, () => 0)))
+  const data = ref(months.map((_, mi) => Array.from({ length: daysInMonth.value[mi] }, () => 0)))
 
   // Cells whose value changed on the most recent load, pulsed for 2s so a
   // synced sale is visible without staring at the grid.
   const highlighted = ref(new Set())
   const highlightTimers = new Map()
+  const hoveredColumn = ref(null)
 
   function flashCell (mi, day) {
     const key = `${mi}-${day}`
@@ -104,7 +139,7 @@
     if (mi === todayMonthIndex && day === todayDay) todayCellEl = el
   }
 
-  const isToday = (mi, day) => mi === todayMonthIndex && day === todayDay
+  const isToday = (mi, day) => selectedYear.value === currentYear && mi === todayMonthIndex && day === todayDay
 
   async function scrollToToday () {
     if (scrolledToToday) return
@@ -121,8 +156,10 @@
   // highlightChanges is false for a branch-filter switch (a whole new grid,
   // nothing to flash) and true for a live socket-triggered refresh.
   async function load (highlightChanges = false) {
-    const days = await getDailyIncome(currentYear, selectedBranchId.value).catch(() => [])
-    const next = months.map((_, mi) => Array.from({ length: daysInMonth[mi] }, () => 0))
+    const year = selectedYear.value
+    const days = await getDailyIncome(year, selectedBranchId.value).catch(() => [])
+    if (year !== selectedYear.value) return
+    const next = months.map((_, mi) => Array.from({ length: daysInMonth.value[mi] }, () => 0))
     for (const entry of days) {
       const d = new Date(entry.day)
       next[d.getUTCMonth()][d.getUTCDate() - 1] = entry.total / 100
@@ -139,7 +176,7 @@
     scrollToToday()
   }
 
-  watch(selectedBranchId, () => load(false), { immediate: true })
+  watch([selectedBranchId, selectedYear], () => load(false), { immediate: true })
 
   // Branch sync pushes new invoices over the admin socket -- without this,
   // today's cell only updates on the next full page load. SyncCard listens
@@ -202,6 +239,13 @@
   border-bottom: 1px solid rgba(0, 0, 0, 0.08);
 }
 
+.heatmap-table .column-hover {
+  background-image: linear-gradient(
+    rgba(var(--v-theme-primary), 0.18),
+    rgba(var(--v-theme-primary), 0.18)
+  );
+}
+
 .heatmap-table thead th {
   position: sticky;
   top: 0;
@@ -224,8 +268,21 @@
 }
 
 .day-col {
-  min-width: 60px;
+  width: 126px;
+  min-width: 126px;
+  max-width: 126px;
   font-weight: 500;
+}
+
+.year-nav {
+  padding: 2px 4px !important;
+  text-align: center !important;
+}
+
+.year-nav span {
+  display: inline-block;
+  min-width: 38px;
+  font-variant-numeric: tabular-nums;
 }
 
 .heatmap-table tfoot td {

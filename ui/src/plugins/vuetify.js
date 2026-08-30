@@ -6,14 +6,14 @@
 
 // Composables
 import { createVuetify } from 'vuetify'
-import { VCommandPalette } from 'vuetify/labs/VCommandPalette'
 import {
   VFileUpload,
   VFileUploadDropzone,
   VFileUploadItem,
   VFileUploadList,
-} from 'vuetify/labs/VFileUpload'
-import { VIconBtn } from 'vuetify/labs/VIconBtn'
+  VIconBtn,
+} from 'vuetify/components'
+import { VCommandPalette } from 'vuetify/labs/VCommandPalette'
 
 import { aliases, mdi } from './icons'
 // Styles
@@ -47,15 +47,30 @@ export default createVuetify({
       dark: {
         dark: true,
         colors: {
-          background: '#000000',
+          error: '#B71C1C',
           primary: '#5C6BC0', // Indigo 400
-          surface: '#000000',
         },
       },
     },
   },
   typography: {
     fontFamily: '\'Roboto\', sans-serif',
+  },
+  // Kill native browser autofill/autocomplete app-wide. Vuetify's "suppress"
+  // emits autocomplete="off" *and* randomises the input name on focus, which
+  // is what actually stops Chrome/Brave from re-filling fields.
+  defaults: {
+    VDataTable: { disableSort: true, itemsPerPage: 14 },
+    VDataTableServer: { disableSort: true, itemsPerPage: 14 },
+    VDataTableVirtual: { disableSort: true },
+    VTextField: { autocomplete: 'suppress' },
+    VTextarea: { autocomplete: 'suppress' },
+    VAutocomplete: { autocomplete: 'suppress' },
+    VCombobox: { autocomplete: 'suppress' },
+    VSelect: { autocomplete: 'suppress' },
+    VNumberInput: { autocomplete: 'suppress' },
+    VOtpInput: { autocomplete: 'suppress' },
+    VFileInput: { autocomplete: 'suppress' },
   },
   icons: {
     defaultSet: 'mdi',

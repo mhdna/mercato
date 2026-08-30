@@ -8,47 +8,38 @@ package db
 import (
 	"context"
 	"database/sql"
+	"time"
 )
 
-const addInventoryProduct = `-- name: AddInventoryProduct :one
-INSERT INTO inventories_products (
-  inventory_id,
-  product_id,
-  quantity
-)
-VALUES ( $1, $2, $3)
-RETURNING product_id, inventory_id, quantity
+const addInventoryStockQuantity = `-- name: AddInventoryStockQuantity :one
+INSERT INTO inventory_stock (inventory_id, variant_id, quantity)
+VALUES ($1, $2, $3)
+ON CONFLICT (inventory_id, variant_id)
+DO UPDATE SET quantity = inventory_stock.quantity + $3,
+             updated_at = now()
+RETURNING inventory_id, variant_id, quantity, avg_cost, updated_at
 `
 
-type AddInventoryProductParams struct {
+type AddInventoryStockQuantityParams struct {
 	InventoryID int64 `json:"inventory_id"`
-	ProductID   int64 `json:"product_id"`
+	VariantID   int64 `json:"variant_id"`
 	Quantity    int64 `json:"quantity"`
 }
 
-func (q *Queries) AddInventoryProduct(ctx context.Context, arg AddInventoryProductParams) (InventoriesProduct, error) {
-	row := q.db.QueryRowContext(ctx, addInventoryProduct, arg.InventoryID, arg.ProductID, arg.Quantity)
-	var i InventoriesProduct
-	err := row.Scan(&i.ProductID, &i.InventoryID, &i.Quantity)
+// Apply a signed quantity delta to one SKU's on-hand in one inventory,
+// creating the row if this SKU has never been stocked there. Cost is left
+// untouched (used for sales, returns, transfers, adjustments).
+func (q *Queries) AddInventoryStockQuantity(ctx context.Context, arg AddInventoryStockQuantityParams) (InventoryStock, error) {
+	row := q.db.QueryRowContext(ctx, addInventoryStockQuantity, arg.InventoryID, arg.VariantID, arg.Quantity)
+	var i InventoryStock
+	err := row.Scan(
+		&i.InventoryID,
+		&i.VariantID,
+		&i.Quantity,
+		&i.AvgCost,
+		&i.UpdatedAt,
+	)
 	return i, err
-}
-
-const addInventoryProductQuantity = `-- name: AddInventoryProductQuantity :exec
-UPDATE inventories_products
-SET quantity = quantity + $3
-WHERE inventory_id = $1
-AND product_id = $2
-`
-
-type AddInventoryProductQuantityParams struct {
-	InventoryID int64 `json:"inventory_id"`
-	ProductID   int64 `json:"product_id"`
-	Quantity    int64 `json:"quantity"`
-}
-
-func (q *Queries) AddInventoryProductQuantity(ctx context.Context, arg AddInventoryProductQuantityParams) error {
-	_, err := q.db.ExecContext(ctx, addInventoryProductQuantity, arg.InventoryID, arg.ProductID, arg.Quantity)
-	return err
 }
 
 const countInventories = `-- name: CountInventories :one
@@ -57,6 +48,51 @@ SELECT COUNT(*) FROM inventories
 
 func (q *Queries) CountInventories(ctx context.Context) (int64, error) {
 	row := q.db.QueryRowContext(ctx, countInventories)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countInventoryStock = `-- name: CountInventoryStock :one
+SELECT COUNT(*)
+FROM inventory_stock ist
+JOIN product_variants pv ON pv.id = ist.variant_id
+JOIN products p ON p.id = pv.product_id
+WHERE ist.inventory_id = $1
+  AND ($2::text = ''
+       OR p.name ILIKE '%' || $2 || '%'
+       OR p.code ILIKE '%' || $2 || '%'
+       OR pv.barcode ILIKE '%' || $2 || '%')
+`
+
+type CountInventoryStockParams struct {
+	InventoryID int64  `json:"inventory_id"`
+	Search      string `json:"search"`
+}
+
+func (q *Queries) CountInventoryStock(ctx context.Context, arg CountInventoryStockParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countInventoryStock, arg.InventoryID, arg.Search)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countStockMovements = `-- name: CountStockMovements :one
+SELECT COUNT(*)
+FROM stock_movements sm
+WHERE ($1::bigint IS NULL OR sm.inventory_id = $1)
+  AND ($2::bigint IS NULL OR sm.variant_id = $2)
+  AND ($3::stock_movement_reason IS NULL OR sm.reason = $3)
+`
+
+type CountStockMovementsParams struct {
+	InventoryID sql.NullInt64           `json:"inventory_id"`
+	VariantID   sql.NullInt64           `json:"variant_id"`
+	Reason      NullStockMovementReason `json:"reason"`
+}
+
+func (q *Queries) CountStockMovements(ctx context.Context, arg CountStockMovementsParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countStockMovements, arg.InventoryID, arg.VariantID, arg.Reason)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -102,6 +138,66 @@ func (q *Queries) CreateInventory(ctx context.Context, arg CreateInventoryParams
 	return i, err
 }
 
+const createStockMovement = `-- name: CreateStockMovement :one
+
+INSERT INTO stock_movements (
+  inventory_id,
+  variant_id,
+  quantity,
+  reason,
+  reference_type,
+  reference_id,
+  unit_cost,
+  note,
+  created_by
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+RETURNING id, inventory_id, variant_id, quantity, reason, reference_type, reference_id, unit_cost, note, created_by, created_at
+`
+
+type CreateStockMovementParams struct {
+	InventoryID   int64               `json:"inventory_id"`
+	VariantID     int64               `json:"variant_id"`
+	Quantity      int64               `json:"quantity"`
+	Reason        StockMovementReason `json:"reason"`
+	ReferenceType sql.NullString      `json:"reference_type"`
+	ReferenceID   sql.NullInt64       `json:"reference_id"`
+	UnitCost      sql.NullInt64       `json:"unit_cost"`
+	Note          string              `json:"note"`
+	CreatedBy     sql.NullInt64       `json:"created_by"`
+}
+
+// ---------------------------------------------------------------------------
+// Stock movement ledger (append-only).
+// ---------------------------------------------------------------------------
+func (q *Queries) CreateStockMovement(ctx context.Context, arg CreateStockMovementParams) (StockMovement, error) {
+	row := q.db.QueryRowContext(ctx, createStockMovement,
+		arg.InventoryID,
+		arg.VariantID,
+		arg.Quantity,
+		arg.Reason,
+		arg.ReferenceType,
+		arg.ReferenceID,
+		arg.UnitCost,
+		arg.Note,
+		arg.CreatedBy,
+	)
+	var i StockMovement
+	err := row.Scan(
+		&i.ID,
+		&i.InventoryID,
+		&i.VariantID,
+		&i.Quantity,
+		&i.Reason,
+		&i.ReferenceType,
+		&i.ReferenceID,
+		&i.UnitCost,
+		&i.Note,
+		&i.CreatedBy,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const deleteInventory = `-- name: DeleteInventory :exec
 DELETE FROM inventories
 WHERE id = $1
@@ -109,22 +205,6 @@ WHERE id = $1
 
 func (q *Queries) DeleteInventory(ctx context.Context, id int64) error {
 	_, err := q.db.ExecContext(ctx, deleteInventory, id)
-	return err
-}
-
-const deleteInventoryProduct = `-- name: DeleteInventoryProduct :exec
-DELETE FROM inventories_products
-WHERE inventory_id = $1
-AND product_id = $2
-`
-
-type DeleteInventoryProductParams struct {
-	InventoryID int64 `json:"inventory_id"`
-	ProductID   int64 `json:"product_id"`
-}
-
-func (q *Queries) DeleteInventoryProduct(ctx context.Context, arg DeleteInventoryProductParams) error {
-	_, err := q.db.ExecContext(ctx, deleteInventoryProduct, arg.InventoryID, arg.ProductID)
 	return err
 }
 
@@ -144,6 +224,34 @@ func (q *Queries) GetInventory(ctx context.Context, id int64) (Inventory, error)
 		&i.Longitude,
 		&i.Latitude,
 		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getInventoryStock = `-- name: GetInventoryStock :one
+
+SELECT inventory_id, variant_id, quantity, avg_cost, updated_at FROM inventory_stock
+WHERE inventory_id = $1 AND variant_id = $2
+LIMIT 1
+`
+
+type GetInventoryStockParams struct {
+	InventoryID int64 `json:"inventory_id"`
+	VariantID   int64 `json:"variant_id"`
+}
+
+// ---------------------------------------------------------------------------
+// Per-variant stock: cached on-hand quantity + moving-average cost.
+// ---------------------------------------------------------------------------
+func (q *Queries) GetInventoryStock(ctx context.Context, arg GetInventoryStockParams) (InventoryStock, error) {
+	row := q.db.QueryRowContext(ctx, getInventoryStock, arg.InventoryID, arg.VariantID)
+	var i InventoryStock
+	err := row.Scan(
+		&i.InventoryID,
+		&i.VariantID,
+		&i.Quantity,
+		&i.AvgCost,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
@@ -191,42 +299,84 @@ func (q *Queries) ListInventories(ctx context.Context, arg ListInventoriesParams
 	return items, nil
 }
 
-const listInventoryProducts = `-- name: ListInventoryProducts :many
+const listInventoryStock = `-- name: ListInventoryStock :many
 SELECT
-  ip.inventory_id,
-  ip.product_id,
-  ip.quantity,
-  p.name, 
-  p.code
-FROM inventories_products ip
-JOIN products p ON p.id = ip.product_id
-WHERE ip.inventory_id = $1
-ORDER BY p.name
+  ist.inventory_id,
+  ist.variant_id,
+  ist.quantity,
+  ist.avg_cost,
+  ist.updated_at,
+  pv.barcode,
+  pv.price,
+  p.id   AS product_id,
+  p.code AS product_code,
+  p.name AS product_name,
+  COALESCE(c.name, '') AS color_name,
+  COALESCE(s.name, '') AS size_name
+FROM inventory_stock ist
+JOIN product_variants pv ON pv.id = ist.variant_id
+JOIN products p ON p.id = pv.product_id
+LEFT JOIN colors c ON c.id = pv.color_id
+LEFT JOIN sizes  s ON s.id = pv.size_id
+WHERE ist.inventory_id = $1
+  AND ($2::text = ''
+       OR p.name ILIKE '%' || $2 || '%'
+       OR p.code ILIKE '%' || $2 || '%'
+       OR pv.barcode ILIKE '%' || $2 || '%')
+ORDER BY p.name, s.name
+LIMIT $4
+OFFSET $3
 `
 
-type ListInventoryProductsRow struct {
+type ListInventoryStockParams struct {
 	InventoryID int64  `json:"inventory_id"`
-	ProductID   int64  `json:"product_id"`
-	Quantity    int64  `json:"quantity"`
-	Name        string `json:"name"`
-	Code        string `json:"code"`
+	Search      string `json:"search"`
+	PageOffset  int32  `json:"page_offset"`
+	PageLimit   int32  `json:"page_limit"`
 }
 
-func (q *Queries) ListInventoryProducts(ctx context.Context, inventoryID int64) ([]ListInventoryProductsRow, error) {
-	rows, err := q.db.QueryContext(ctx, listInventoryProducts, inventoryID)
+type ListInventoryStockRow struct {
+	InventoryID int64         `json:"inventory_id"`
+	VariantID   int64         `json:"variant_id"`
+	Quantity    int64         `json:"quantity"`
+	AvgCost     int64         `json:"avg_cost"`
+	UpdatedAt   time.Time     `json:"updated_at"`
+	Barcode     string        `json:"barcode"`
+	Price       sql.NullInt64 `json:"price"`
+	ProductID   int64         `json:"product_id"`
+	ProductCode string        `json:"product_code"`
+	ProductName string        `json:"product_name"`
+	ColorName   string        `json:"color_name"`
+	SizeName    string        `json:"size_name"`
+}
+
+func (q *Queries) ListInventoryStock(ctx context.Context, arg ListInventoryStockParams) ([]ListInventoryStockRow, error) {
+	rows, err := q.db.QueryContext(ctx, listInventoryStock,
+		arg.InventoryID,
+		arg.Search,
+		arg.PageOffset,
+		arg.PageLimit,
+	)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []ListInventoryProductsRow{}
+	items := []ListInventoryStockRow{}
 	for rows.Next() {
-		var i ListInventoryProductsRow
+		var i ListInventoryStockRow
 		if err := rows.Scan(
 			&i.InventoryID,
-			&i.ProductID,
+			&i.VariantID,
 			&i.Quantity,
-			&i.Name,
-			&i.Code,
+			&i.AvgCost,
+			&i.UpdatedAt,
+			&i.Barcode,
+			&i.Price,
+			&i.ProductID,
+			&i.ProductCode,
+			&i.ProductName,
+			&i.ColorName,
+			&i.SizeName,
 		); err != nil {
 			return nil, err
 		}
@@ -241,8 +391,160 @@ func (q *Queries) ListInventoryProducts(ctx context.Context, inventoryID int64) 
 	return items, nil
 }
 
+const listStockMovements = `-- name: ListStockMovements :many
+SELECT
+  sm.id,
+  sm.inventory_id,
+  sm.variant_id,
+  sm.quantity,
+  sm.reason,
+  sm.reference_type,
+  sm.reference_id,
+  sm.unit_cost,
+  sm.note,
+  sm.created_by,
+  sm.created_at,
+  i.name AS inventory_name,
+  pv.barcode,
+  p.code AS product_code,
+  p.name AS product_name,
+  COALESCE(c.name, '') AS color_name,
+  COALESCE(s.name, '') AS size_name
+FROM stock_movements sm
+JOIN inventories i ON i.id = sm.inventory_id
+JOIN product_variants pv ON pv.id = sm.variant_id
+JOIN products p ON p.id = pv.product_id
+LEFT JOIN colors c ON c.id = pv.color_id
+LEFT JOIN sizes  s ON s.id = pv.size_id
+WHERE ($1::bigint IS NULL OR sm.inventory_id = $1)
+  AND ($2::bigint IS NULL OR sm.variant_id = $2)
+  AND ($3::stock_movement_reason IS NULL OR sm.reason = $3)
+ORDER BY sm.created_at DESC, sm.id DESC
+LIMIT $5
+OFFSET $4
+`
+
+type ListStockMovementsParams struct {
+	InventoryID sql.NullInt64           `json:"inventory_id"`
+	VariantID   sql.NullInt64           `json:"variant_id"`
+	Reason      NullStockMovementReason `json:"reason"`
+	PageOffset  int32                   `json:"page_offset"`
+	PageLimit   int32                   `json:"page_limit"`
+}
+
+type ListStockMovementsRow struct {
+	ID            int64               `json:"id"`
+	InventoryID   int64               `json:"inventory_id"`
+	VariantID     int64               `json:"variant_id"`
+	Quantity      int64               `json:"quantity"`
+	Reason        StockMovementReason `json:"reason"`
+	ReferenceType sql.NullString      `json:"reference_type"`
+	ReferenceID   sql.NullInt64       `json:"reference_id"`
+	UnitCost      sql.NullInt64       `json:"unit_cost"`
+	Note          string              `json:"note"`
+	CreatedBy     sql.NullInt64       `json:"created_by"`
+	CreatedAt     time.Time           `json:"created_at"`
+	InventoryName string              `json:"inventory_name"`
+	Barcode       string              `json:"barcode"`
+	ProductCode   string              `json:"product_code"`
+	ProductName   string              `json:"product_name"`
+	ColorName     string              `json:"color_name"`
+	SizeName      string              `json:"size_name"`
+}
+
+func (q *Queries) ListStockMovements(ctx context.Context, arg ListStockMovementsParams) ([]ListStockMovementsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listStockMovements,
+		arg.InventoryID,
+		arg.VariantID,
+		arg.Reason,
+		arg.PageOffset,
+		arg.PageLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListStockMovementsRow{}
+	for rows.Next() {
+		var i ListStockMovementsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.InventoryID,
+			&i.VariantID,
+			&i.Quantity,
+			&i.Reason,
+			&i.ReferenceType,
+			&i.ReferenceID,
+			&i.UnitCost,
+			&i.Note,
+			&i.CreatedBy,
+			&i.CreatedAt,
+			&i.InventoryName,
+			&i.Barcode,
+			&i.ProductCode,
+			&i.ProductName,
+			&i.ColorName,
+			&i.SizeName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const receiveInventoryStock = `-- name: ReceiveInventoryStock :one
+INSERT INTO inventory_stock (inventory_id, variant_id, quantity, avg_cost)
+VALUES ($1, $2, $3, $4)
+ON CONFLICT (inventory_id, variant_id)
+DO UPDATE SET
+  avg_cost = CASE
+    WHEN inventory_stock.quantity <= 0 THEN $4
+    ELSE (inventory_stock.quantity * inventory_stock.avg_cost
+          + $3 * $4)
+         / NULLIF(inventory_stock.quantity + $3, 0)
+  END,
+  quantity = inventory_stock.quantity + $3,
+  updated_at = now()
+RETURNING inventory_id, variant_id, quantity, avg_cost, updated_at
+`
+
+type ReceiveInventoryStockParams struct {
+	InventoryID int64 `json:"inventory_id"`
+	VariantID   int64 `json:"variant_id"`
+	Quantity    int64 `json:"quantity"`
+	UnitCost    int64 `json:"unit_cost"`
+}
+
+// Apply an inbound quantity delta and roll the per-location moving-average
+// cost forward. When existing on-hand is <= 0 the average is just reset to
+// the incoming cost (no meaningful prior average to blend).
+func (q *Queries) ReceiveInventoryStock(ctx context.Context, arg ReceiveInventoryStockParams) (InventoryStock, error) {
+	row := q.db.QueryRowContext(ctx, receiveInventoryStock,
+		arg.InventoryID,
+		arg.VariantID,
+		arg.Quantity,
+		arg.UnitCost,
+	)
+	var i InventoryStock
+	err := row.Scan(
+		&i.InventoryID,
+		&i.VariantID,
+		&i.Quantity,
+		&i.AvgCost,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const updateInventory = `-- name: UpdateInventory :exec
-UPDATE inventories 
+UPDATE inventories
 SET name = $2
 WHERE id = $1
 `

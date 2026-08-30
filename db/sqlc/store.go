@@ -8,11 +8,20 @@ import (
 
 type Store interface {
 	Querier
-	// TransferTx(ctx context.Context, arg TransferTxParams) (TransferTxResult, error)
 	SalesInvoiceTx(ctx context.Context, arg SalesInvoiceTxParams) (SalesInvoiceTxResult, error)
 	CreateProductTx(ctx context.Context, arg CreateProductTxParams) (CreateProductTxResult, error)
+	UpdateProductTx(ctx context.Context, arg UpdateProductTxParams) (UpdateProductTxResult, error)
+	AddVariantTx(ctx context.Context, arg AddVariantTxParams) (ProductVariant, error)
 	ReturnInvoiceTx(ctx context.Context, arg ReturnInvoiceTxParams) (ReturnInvoiceTxResult, error)
+	CreateBranchTx(ctx context.Context, arg CreateBranchTxParams) (CreateBranchTxResult, error)
+	CreatePurchaseTx(ctx context.Context, arg CreatePurchaseTxParams) (CreatePurchaseTxResult, error)
+	PurchaseReceiveTx(ctx context.Context, arg PurchaseReceiveTxParams) (PurchaseReceiveTxResult, error)
+	CreateTransferTx(ctx context.Context, arg CreateTransferTxParams) (CreateTransferTxResult, error)
+	TransferDispatchTx(ctx context.Context, arg TransferStageTxParams) (TransferStageTxResult, error)
+	TransferReceiveTx(ctx context.Context, arg TransferStageTxParams) (TransferStageTxResult, error)
+	StockAdjustmentTx(ctx context.Context, arg StockAdjustmentTxParams) (StockAdjustmentTxResult, error)
 	CreateBranchInvoiceTx(ctx context.Context, arg CreateBranchInvoiceTxParams) (CreateBranchInvoiceTxResult, error)
+	ApplyBranchSettlementTx(ctx context.Context, arg ApplyBranchSettlementTxParams) (ApplyBranchSettlementTxResult, error)
 	FireRecurringExpenseTx(ctx context.Context, recurring RecurringExpense) (Expense, error)
 	DeleteBranchTargetSeriesTx(ctx context.Context, seriesID int64) (BranchTargetSeries, error)
 }

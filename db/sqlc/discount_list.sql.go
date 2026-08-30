@@ -77,6 +77,16 @@ func (q *Queries) CreateDiscountListItem(ctx context.Context, arg CreateDiscount
 	return i, err
 }
 
+const deleteDiscountList = `-- name: DeleteDiscountList :exec
+DELETE FROM discount_lists
+WHERE id = $1
+`
+
+func (q *Queries) DeleteDiscountList(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, deleteDiscountList, id)
+	return err
+}
+
 const deleteDiscountListItem = `-- name: DeleteDiscountListItem :exec
 DELETE FROM discount_list_items
 WHERE discount_list_id = $1 AND product_id = $2
@@ -161,6 +171,52 @@ func (q *Queries) ListDiscountListItems(ctx context.Context, discountListID int6
 	for rows.Next() {
 		var i DiscountListItem
 		if err := rows.Scan(&i.DiscountListID, &i.ProductID, &i.Discount); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listDiscountListItemsWithProduct = `-- name: ListDiscountListItemsWithProduct :many
+SELECT dli.discount_list_id, dli.product_id, dli.discount,
+       p.code AS product_code, p.name AS product_name
+FROM discount_list_items dli
+JOIN products p ON p.id = dli.product_id
+WHERE dli.discount_list_id = $1
+ORDER BY p.name
+`
+
+type ListDiscountListItemsWithProductRow struct {
+	DiscountListID int64  `json:"discount_list_id"`
+	ProductID      int64  `json:"product_id"`
+	Discount       int16  `json:"discount"`
+	ProductCode    string `json:"product_code"`
+	ProductName    string `json:"product_name"`
+}
+
+func (q *Queries) ListDiscountListItemsWithProduct(ctx context.Context, discountListID int64) ([]ListDiscountListItemsWithProductRow, error) {
+	rows, err := q.db.QueryContext(ctx, listDiscountListItemsWithProduct, discountListID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListDiscountListItemsWithProductRow{}
+	for rows.Next() {
+		var i ListDiscountListItemsWithProductRow
+		if err := rows.Scan(
+			&i.DiscountListID,
+			&i.ProductID,
+			&i.Discount,
+			&i.ProductCode,
+			&i.ProductName,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

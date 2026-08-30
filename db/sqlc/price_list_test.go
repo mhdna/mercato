@@ -38,7 +38,7 @@ func TestListPriceLists(t *testing.T) {
 	for range 5 {
 		createRandomPriceList(t)
 	}
-	arg := ListPriceListsParams{Limit: 5, Offset: 0}
+	arg := ListPriceListsParams{Search: "", PageSize: 5, PageOffset: 0}
 	list, err := testQueries.ListPriceLists(context.Background(), arg)
 	require.NoError(t, err)
 	require.Len(t, list, 5)

@@ -224,7 +224,14 @@
       <v-divider />
 
       <v-card-text class="targets-dialog-body">
-        <v-alert v-if="targetsError" class="mb-4" type="error" variant="tonal" closable @click:close="targetsError = ''">
+        <v-alert
+          v-if="targetsError"
+          class="mb-4"
+          closable
+          type="error"
+          variant="tonal"
+          @click:close="targetsError = ''"
+        >
           {{ targetsError }}
         </v-alert>
         <div v-if="targetsLoading" class="d-flex justify-center pa-8">
@@ -233,9 +240,9 @@
 
         <v-window v-else v-model="targetsTab">
           <v-window-item value="targets">
-            <TargetProgressBars v-if="targetsList.length" class="mb-4" :targets="targetsList" />
+            <TargetProgressBars v-if="targetsList.length > 0" class="mb-4" :targets="targetsList" />
             <div v-if="targetsList.length === 0" class="targets-empty">
-              <v-icon icon="mdi-flag-outline" size="32" class="mb-2" />
+              <v-icon class="mb-2" icon="mdi-flag-outline" size="32" />
               <div>No targets set for this branch yet.</div>
             </div>
             <v-list v-else class="target-list" lines="two">
@@ -264,8 +271,8 @@
           </v-window-item>
 
           <v-window-item value="recurring">
-            <div v-if="!seriesList.length" class="targets-empty">
-              <v-icon icon="mdi-repeat" size="32" class="mb-2" />
+            <div v-if="seriesList.length === 0" class="targets-empty">
+              <v-icon class="mb-2" icon="mdi-repeat" size="32" />
               <div>No recurring targets set up yet.</div>
               <div class="text-caption text-medium-emphasis mt-1">
                 Each period (e.g. every month) creates its own target automatically, starting fresh at $0.
@@ -342,6 +349,7 @@
           />
           <v-text-field
             v-model.number="targetForm.targetAmount"
+            class="field-full"
             density="compact"
             label="Target Amount ($)"
             min="0"
@@ -349,7 +357,6 @@
             step="0.01"
             type="number"
             variant="outlined"
-            class="field-full"
           />
           <div class="d-flex align-center ga-2 field-full">
             <v-checkbox
@@ -396,6 +403,7 @@
         <form class="field-grid" @submit.prevent="submitSeries">
           <v-text-field
             v-model.number="seriesForm.targetAmount"
+            class="field-full"
             density="compact"
             label="Target Amount ($)"
             min="0"
@@ -403,7 +411,6 @@
             step="0.01"
             type="number"
             variant="outlined"
-            class="field-full"
           />
           <v-text-field
             v-model.number="seriesForm.startDay"
@@ -552,9 +559,9 @@
             <v-text-field
               v-model="newSalespersonName"
               density="compact"
+              hide-details
               label="Full name"
               variant="outlined"
-              hide-details
             />
             <v-btn color="primary" :loading="salespersonSaving" text="Add" type="submit" />
           </form>
@@ -599,9 +606,9 @@
 <script setup>
   import { onMounted, ref } from 'vue'
   import { useBranches } from '@/composables/useBranches'
+  import { useBranchSalespersons } from '@/composables/useBranchSalespersons'
   import { useBranchSettings } from '@/composables/useBranchSettings'
   import { useBranchTargets } from '@/composables/useBranchTargets'
-  import { useBranchSalespersons } from '@/composables/useBranchSalespersons'
 
   const { branches, fetchBranches, createBranch, setBranchActive, rotateBranchKey } = useBranches()
   const { getBranchSettings, updateBranchSettings, listBranchCommands } = useBranchSettings()
@@ -851,11 +858,7 @@
         targetAmount: Math.round(Number(targetForm.value.targetAmount) * 100),
         color: targetForm.value.autoColor ? '' : targetForm.value.color,
       }
-      if (editingTargetId.value) {
-        await updateBranchTarget(editingTargetId.value, payload)
-      } else {
-        await createBranchTarget(targetsBranch.value.id, payload)
-      }
+      await (editingTargetId.value ? updateBranchTarget(editingTargetId.value, payload) : createBranchTarget(targetsBranch.value.id, payload))
       targetFormDialog.value = false
       await loadTargets()
     } catch (error) {
@@ -925,11 +928,7 @@
         intervalCount: seriesForm.value.intervalCount,
         color: seriesForm.value.autoColor ? '' : seriesForm.value.color,
       }
-      if (editingSeriesId.value) {
-        await updateBranchTargetSeries(editingSeriesId.value, payload)
-      } else {
-        await createBranchTargetSeries(targetsBranch.value.id, payload)
-      }
+      await (editingSeriesId.value ? updateBranchTargetSeries(editingSeriesId.value, payload) : createBranchTargetSeries(targetsBranch.value.id, payload))
       seriesFormDialog.value = false
       await Promise.all([loadSeries(), loadTargets()])
     } catch (error) {

@@ -7,6 +7,7 @@
 // Composables
 import { createApp } from 'vue'
 
+import { installClientLogger } from '@/composables/useClientLogs'
 // Plugins
 import { registerPlugins } from '@/plugins'
 
@@ -23,7 +24,13 @@ import '@/styles/global.scss'
 // Styles
 import 'unfonts.css'
 
+installClientLogger()
+
 const app = createApp(App)
+
+app.config.errorHandler = (error, instance, info) => {
+  console.error(`Vue error (${info})`, error)
+}
 
 registerPlugins(app)
 

@@ -41,7 +41,7 @@ type Querier interface {
 	// which branch's sales are being summed, only who qualifies by type/search.
 	CountClientsBySpending(ctx context.Context, arg CountClientsBySpendingParams) (int64, error)
 	CountColors(ctx context.Context, search string) (int64, error)
-	CountCoupons(ctx context.Context) (int64, error)
+	CountCoupons(ctx context.Context, search string) (int64, error)
 	CountCurrencies(ctx context.Context) (int64, error)
 	CountDashboardExpenses(ctx context.Context, arg CountDashboardExpensesParams) (int64, error)
 	CountDashboardPurchases(ctx context.Context, arg CountDashboardPurchasesParams) (int64, error)

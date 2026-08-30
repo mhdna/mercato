@@ -12,10 +12,13 @@ import (
 
 const countCoupons = `-- name: CountCoupons :one
 SELECT COUNT(*) FROM coupons
+WHERE BTRIM($1::text) = ''
+   OR code ILIKE '%' || BTRIM($1::text) || '%'
+   OR reason ILIKE '%' || BTRIM($1::text) || '%'
 `
 
-func (q *Queries) CountCoupons(ctx context.Context) (int64, error) {
-	row := q.db.QueryRowContext(ctx, countCoupons)
+func (q *Queries) CountCoupons(ctx context.Context, search string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countCoupons, search)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -66,7 +69,7 @@ func (q *Queries) CreateCoupon(ctx context.Context, arg CreateCouponParams) (Cou
 }
 
 const deactivateCoupon = `-- name: DeactivateCoupon :exec
-UPDATE coupons 
+UPDATE coupons
   SET status = 'inactive'
 WHERE code = $1
 `
@@ -98,18 +101,22 @@ func (q *Queries) GetCoupon(ctx context.Context, code string) (Coupon, error) {
 
 const listCoupons = `-- name: ListCoupons :many
 SELECT code, status, discount_type, reason, client_id, valid_until, created_at FROM coupons
+WHERE BTRIM($1::text) = ''
+   OR code ILIKE '%' || BTRIM($1::text) || '%'
+   OR reason ILIKE '%' || BTRIM($1::text) || '%'
 ORDER BY code
-LIMIT $1
+LIMIT $3
 OFFSET $2
 `
 
 type ListCouponsParams struct {
-	Limit  int32 `json:"limit"`
-	Offset int32 `json:"offset"`
+	Search     string `json:"search"`
+	PageOffset int32  `json:"page_offset"`
+	PageSize   int32  `json:"page_size"`
 }
 
 func (q *Queries) ListCoupons(ctx context.Context, arg ListCouponsParams) ([]Coupon, error) {
-	rows, err := q.db.QueryContext(ctx, listCoupons, arg.Limit, arg.Offset)
+	rows, err := q.db.QueryContext(ctx, listCoupons, arg.Search, arg.PageOffset, arg.PageSize)
 	if err != nil {
 		return nil, err
 	}

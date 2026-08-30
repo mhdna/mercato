@@ -62,17 +62,30 @@
     </v-card>
   </v-dialog>
 
-  <div class="d-flex justify-space-between align-center mb-2">
+  <div class="d-flex flex-wrap align-center ga-3 mb-2">
     <h2 class="text-h6">Coupons</h2>
+    <v-spacer />
+    <v-text-field
+      v-model="search"
+      class="coupon-search"
+      clearable
+      density="compact"
+      hide-details
+      label="Search code or reason"
+      prepend-inner-icon="mdi-magnify"
+      variant="outlined"
+    />
     <v-btn color="primary" prepend-icon="mdi-plus" text="Add Coupon" @click="openCreate" />
   </div>
 
   <ServerSideTable
     ref="tableRef"
     :api-u-r-l="apiURL"
+    :external-search="search ?? ''"
     :headers="headers"
-    :max-page-size="10"
+    :max-page-size="100"
     root-key="coupons"
+    :show-search-icon="false"
   >
     <template #item.status="{ item }">
       <v-chip :color="item.status === 'active' ? 'success' : 'default'" size="small">{{ item.status }}</v-chip>
@@ -113,6 +126,7 @@
   ])
 
   const tableRef = ref(null)
+  const search = ref('')
   const dialog = ref(false)
   const submitting = ref(false)
   const submitError = ref('')
@@ -187,3 +201,9 @@
     }
   }
 </script>
+
+<style scoped>
+.coupon-search {
+  flex: 0 1 320px;
+}
+</style>

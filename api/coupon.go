@@ -73,8 +73,9 @@ func (server *Server) getCoupon(ctx *gin.Context) {
 }
 
 type listCouponsRequest struct {
-	PageSize int32 `form:"page_size,default=10" binding:"min=5,max=100"`
-	PageID   int32 `form:"page_id,default=0" binding:"min=0"`
+	PageSize int32  `form:"page_size,default=10" binding:"min=5,max=100"`
+	PageID   int32  `form:"page_id,default=0" binding:"min=0"`
+	Search   string `form:"search"`
 }
 
 func (server *Server) listCoupons(ctx *gin.Context) {
@@ -85,8 +86,9 @@ func (server *Server) listCoupons(ctx *gin.Context) {
 	}
 
 	arg := db.ListCouponsParams{
-		Limit:  req.PageSize,
-		Offset: req.PageID,
+		Search:     req.Search,
+		PageSize:   req.PageSize,
+		PageOffset: req.PageID,
 	}
 	coupons, err := server.store.ListCoupons(ctx, arg)
 	if err != nil {
@@ -94,7 +96,7 @@ func (server *Server) listCoupons(ctx *gin.Context) {
 		return
 	}
 
-	total, err := server.store.CountCoupons(ctx)
+	total, err := server.store.CountCoupons(ctx, req.Search)
 	if err != nil {
 		server.writeError(ctx, http.StatusInternalServerError, err)
 		return

@@ -66,8 +66,8 @@ func TestListCoupons(t *testing.T) {
 		createRandomCoupon(t)
 	}
 	arg := ListCouponsParams{
-		Limit:  5,
-		Offset: 5,
+		PageSize:   5,
+		PageOffset: 5,
 	}
 	coupons, err := testQueries.ListCoupons(context.Background(), arg)
 	require.NoError(t, err)

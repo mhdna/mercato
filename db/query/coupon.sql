@@ -16,13 +16,20 @@ WHERE code = $1 LIMIT 1;
 
 -- name: ListCoupons :many
 SELECT * FROM coupons
+WHERE BTRIM(sqlc.arg(search)::text) = ''
+   OR code ILIKE '%' || BTRIM(sqlc.arg(search)::text) || '%'
+   OR reason ILIKE '%' || BTRIM(sqlc.arg(search)::text) || '%'
 ORDER BY code
-LIMIT $1
-OFFSET $2;
+LIMIT sqlc.arg(page_size)
+OFFSET sqlc.arg(page_offset);
 
 -- name: DeactivateCoupon :exec
-UPDATE coupons 
+UPDATE coupons
   SET status = 'inactive'
 WHERE code = $1;
+
 -- name: CountCoupons :one
-SELECT COUNT(*) FROM coupons;
+SELECT COUNT(*) FROM coupons
+WHERE BTRIM(sqlc.arg(search)::text) = ''
+   OR code ILIKE '%' || BTRIM(sqlc.arg(search)::text) || '%'
+   OR reason ILIKE '%' || BTRIM(sqlc.arg(search)::text) || '%';

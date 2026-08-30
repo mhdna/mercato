@@ -220,7 +220,7 @@ func TestListCouponsAPI(t *testing.T) {
 					Times(1).
 					Return(coupons, nil)
 				store.EXPECT().
-					CountCoupons(gomock.Any()).
+					CountCoupons(gomock.Any(), gomock.Any()).
 					Times(1).
 					Return(int64(n), nil)
 			},

@@ -19,15 +19,6 @@ SELECT * FROM attributes_values
 WHERE id = $1;
 
 
--- name: ListAttributeValues :many
-SELECT a.*, av.*
-FROM attributes a
-INNER JOIN attributes_values av
-ON a.id = av.attribute_id
-ORDER BY value
-LIMIT $1
-OFFSET $2;
-
 -- name: ListAttributeValuesPage :many
 SELECT av.id, av.attribute_id, av.value, av.created_at, a.name AS attribute_name
 FROM attributes_values av
@@ -73,3 +64,7 @@ RETURNING *;
 -- name: DeleteAttributeValue :exec
 DELETE FROM attributes_values
 WHERE id = $1;
+
+-- name: DeleteAttributeValues :execrows
+DELETE FROM attributes_values
+WHERE id = ANY(sqlc.arg(ids)::bigint[]);

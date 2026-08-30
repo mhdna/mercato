@@ -29,6 +29,12 @@ type branchSettingsRequest struct {
 	Instagram           string          `json:"instagram"`
 	SocialPlatforms     json.RawMessage `json:"social_platforms"`
 	SocialHandles       json.RawMessage `json:"social_handles"`
+	// SearchButtonEnabled is the one field kashi both reads and writes: the
+	// branch reports its current value here every tick, and an admin can
+	// change it via an update_settings branch command (see
+	// api/branch_command.go), which the branch then reflects back on its
+	// next push. Defaults to true when a branch omits it (older POS build).
+	SearchButtonEnabled *bool `json:"search_button_enabled"`
 }
 
 // putBranchSettings is how a branch reports its current settings snapshot
@@ -54,6 +60,11 @@ func (server *Server) putBranchSettings(ctx *gin.Context) {
 		socialHandles = json.RawMessage("{}")
 	}
 
+	searchButtonEnabled := true
+	if req.SearchButtonEnabled != nil {
+		searchButtonEnabled = *req.SearchButtonEnabled
+	}
+
 	settings, err := server.store.UpsertBranchSettings(ctx, db.UpsertBranchSettingsParams{
 		BranchID:            branchID,
 		BranchName:          req.BranchName,
@@ -70,6 +81,7 @@ func (server *Server) putBranchSettings(ctx *gin.Context) {
 		Instagram:           req.Instagram,
 		SocialPlatforms:     socialPlatforms,
 		SocialHandles:       socialHandles,
+		SearchButtonEnabled: searchButtonEnabled,
 	})
 	if err != nil {
 		server.writeError(ctx, http.StatusInternalServerError, err)

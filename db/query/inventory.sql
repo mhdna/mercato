@@ -27,6 +27,10 @@ WHERE id = $1;
 DELETE FROM inventories
 WHERE id = $1;
 
+-- name: DeleteInventories :execrows
+DELETE FROM inventories
+WHERE id = ANY(sqlc.arg(ids)::bigint[]);
+
 -- name: CountInventories :one
 SELECT COUNT(*) FROM inventories;
 

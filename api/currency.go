@@ -84,8 +84,11 @@ func (server *Server) getCurrency(ctx *gin.Context) {
 }
 
 type listCurrencies struct {
-	PageSize int32 `form:"page_size,default=10" binding:"min=5,max=10"`
+	PageSize int32 `form:"page_size,default=10" binding:"min=5,max=100"`
 	PageID   int32 `form:"page_id,default=0" binding:"min=0"`
+	// all=true returns every currency unpaginated -- used by the currency
+	// picker (CurrencySelect.vue), which needs the whole list, not a page.
+	All bool `form:"all"`
 }
 
 func (server *Server) listCurrencies(ctx *gin.Context) {
@@ -95,23 +98,20 @@ func (server *Server) listCurrencies(ctx *gin.Context) {
 		return
 	}
 
-	arg := db.ListCurrenciesParams{
-		Limit:  req.PageSize,
-		Offset: req.PageID,
-	}
-	currencies, err := server.store.ListCurrencies(ctx, arg)
-	if err != nil {
-		server.writeError(ctx, http.StatusInternalServerError, err)
-		return
+	// all=true -> page_size 0 -> LIMIT NULLIF(0,0) -> every row, unpaginated.
+	pageSize := req.PageSize
+	if req.All {
+		pageSize = 0
 	}
 
-	total, err := server.store.CountCurrencies(ctx)
-	if err != nil {
-		server.writeError(ctx, http.StatusInternalServerError, err)
-		return
-	}
-
-	ctx.JSON(http.StatusOK, gin.H{"currencies": currencies, "total": total})
+	respondList(server, ctx, "currencies",
+		func() ([]db.Currency, error) {
+			return server.store.ListCurrencies(ctx, db.ListCurrenciesParams{
+				PageSize: pageSize, PageOffset: req.PageID,
+			})
+		},
+		func() (int64, error) { return server.store.CountCurrencies(ctx) },
+	)
 }
 
 type updateCurrencyRequest struct {

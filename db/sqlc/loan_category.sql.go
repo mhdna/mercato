@@ -7,31 +7,49 @@ package db
 
 import (
 	"context"
+	"database/sql"
+	"time"
 )
 
 const createLoanCategory = `-- name: CreateLoanCategory :one
 INSERT INTO loan_categories (
   name,
-  is_active
+  is_active,
+  icon,
+  color,
+  scope
 ) VALUES (
-  $1, $2
+  $1, $2, $3, $4, $5
 )
-RETURNING id, name, is_active, created_at
+RETURNING id, name, is_active, created_at, icon, color, scope, updated_at
 `
 
 type CreateLoanCategoryParams struct {
 	Name     string `json:"name"`
 	IsActive bool   `json:"is_active"`
+	Icon     string `json:"icon"`
+	Color    string `json:"color"`
+	Scope    string `json:"scope"`
 }
 
 func (q *Queries) CreateLoanCategory(ctx context.Context, arg CreateLoanCategoryParams) (LoanCategory, error) {
-	row := q.db.QueryRowContext(ctx, createLoanCategory, arg.Name, arg.IsActive)
+	row := q.db.QueryRowContext(ctx, createLoanCategory,
+		arg.Name,
+		arg.IsActive,
+		arg.Icon,
+		arg.Color,
+		arg.Scope,
+	)
 	var i LoanCategory
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
 		&i.IsActive,
 		&i.CreatedAt,
+		&i.Icon,
+		&i.Color,
+		&i.Scope,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
@@ -47,7 +65,7 @@ func (q *Queries) DeleteLoanCategory(ctx context.Context, id int64) error {
 }
 
 const getLoanCategory = `-- name: GetLoanCategory :one
-SELECT id, name, is_active, created_at FROM loan_categories
+SELECT id, name, is_active, created_at, icon, color, scope, updated_at FROM loan_categories
 WHERE id = $1 LIMIT 1
 `
 
@@ -59,17 +77,22 @@ func (q *Queries) GetLoanCategory(ctx context.Context, id int64) (LoanCategory, 
 		&i.Name,
 		&i.IsActive,
 		&i.CreatedAt,
+		&i.Icon,
+		&i.Color,
+		&i.Scope,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
 
 const listLoanCategories = `-- name: ListLoanCategories :many
-SELECT id, name, is_active, created_at FROM loan_categories
+SELECT id, name, is_active, created_at, icon, color, scope, updated_at FROM loan_categories
+WHERE ($1::text IS NULL OR scope = $1)
 ORDER BY id
 `
 
-func (q *Queries) ListLoanCategories(ctx context.Context) ([]LoanCategory, error) {
-	rows, err := q.db.QueryContext(ctx, listLoanCategories)
+func (q *Queries) ListLoanCategories(ctx context.Context, scope sql.NullString) ([]LoanCategory, error) {
+	rows, err := q.db.QueryContext(ctx, listLoanCategories, scope)
 	if err != nil {
 		return nil, err
 	}
@@ -82,6 +105,50 @@ func (q *Queries) ListLoanCategories(ctx context.Context) ([]LoanCategory, error
 			&i.Name,
 			&i.IsActive,
 			&i.CreatedAt,
+			&i.Icon,
+			&i.Color,
+			&i.Scope,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listLoanCategoriesUpdatedSince = `-- name: ListLoanCategoriesUpdatedSince :many
+SELECT id, name, is_active, created_at, icon, color, scope, updated_at FROM loan_categories
+WHERE scope = 'branch' AND updated_at > $1
+ORDER BY updated_at
+`
+
+// Only branch-scoped categories are synced down to kashi-pos -- central
+// ones are managed in kashi only.
+func (q *Queries) ListLoanCategoriesUpdatedSince(ctx context.Context, updatedAt time.Time) ([]LoanCategory, error) {
+	rows, err := q.db.QueryContext(ctx, listLoanCategoriesUpdatedSince, updatedAt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []LoanCategory{}
+	for rows.Next() {
+		var i LoanCategory
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.IsActive,
+			&i.CreatedAt,
+			&i.Icon,
+			&i.Color,
+			&i.Scope,
+			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -99,25 +166,43 @@ func (q *Queries) ListLoanCategories(ctx context.Context) ([]LoanCategory, error
 const updateLoanCategory = `-- name: UpdateLoanCategory :one
 UPDATE loan_categories
 SET name = $2,
-    is_active = $3
+    is_active = $3,
+    icon = $4,
+    color = $5,
+    scope = $6,
+    updated_at = now()
 WHERE id = $1
-RETURNING id, name, is_active, created_at
+RETURNING id, name, is_active, created_at, icon, color, scope, updated_at
 `
 
 type UpdateLoanCategoryParams struct {
 	ID       int64  `json:"id"`
 	Name     string `json:"name"`
 	IsActive bool   `json:"is_active"`
+	Icon     string `json:"icon"`
+	Color    string `json:"color"`
+	Scope    string `json:"scope"`
 }
 
 func (q *Queries) UpdateLoanCategory(ctx context.Context, arg UpdateLoanCategoryParams) (LoanCategory, error) {
-	row := q.db.QueryRowContext(ctx, updateLoanCategory, arg.ID, arg.Name, arg.IsActive)
+	row := q.db.QueryRowContext(ctx, updateLoanCategory,
+		arg.ID,
+		arg.Name,
+		arg.IsActive,
+		arg.Icon,
+		arg.Color,
+		arg.Scope,
+	)
 	var i LoanCategory
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
 		&i.IsActive,
 		&i.CreatedAt,
+		&i.Icon,
+		&i.Color,
+		&i.Scope,
+		&i.UpdatedAt,
 	)
 	return i, err
 }

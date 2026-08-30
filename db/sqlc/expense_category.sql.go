@@ -7,6 +7,8 @@ package db
 
 import (
 	"context"
+	"database/sql"
+	"time"
 )
 
 const createExpenseCategory = `-- name: CreateExpenseCategory :one
@@ -14,11 +16,12 @@ INSERT INTO expense_categories (
   name,
   is_active,
   icon,
-  color
+  color,
+  scope
 ) VALUES (
-  $1, $2, $3, $4
+  $1, $2, $3, $4, $5
 )
-RETURNING id, name, is_active, created_at, icon, color
+RETURNING id, name, is_active, created_at, icon, color, scope, updated_at
 `
 
 type CreateExpenseCategoryParams struct {
@@ -26,6 +29,7 @@ type CreateExpenseCategoryParams struct {
 	IsActive bool   `json:"is_active"`
 	Icon     string `json:"icon"`
 	Color    string `json:"color"`
+	Scope    string `json:"scope"`
 }
 
 func (q *Queries) CreateExpenseCategory(ctx context.Context, arg CreateExpenseCategoryParams) (ExpenseCategory, error) {
@@ -34,6 +38,7 @@ func (q *Queries) CreateExpenseCategory(ctx context.Context, arg CreateExpenseCa
 		arg.IsActive,
 		arg.Icon,
 		arg.Color,
+		arg.Scope,
 	)
 	var i ExpenseCategory
 	err := row.Scan(
@@ -43,6 +48,8 @@ func (q *Queries) CreateExpenseCategory(ctx context.Context, arg CreateExpenseCa
 		&i.CreatedAt,
 		&i.Icon,
 		&i.Color,
+		&i.Scope,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
@@ -58,7 +65,7 @@ func (q *Queries) DeleteExpenseCategory(ctx context.Context, id int64) error {
 }
 
 const getExpenseCategory = `-- name: GetExpenseCategory :one
-SELECT id, name, is_active, created_at, icon, color FROM expense_categories
+SELECT id, name, is_active, created_at, icon, color, scope, updated_at FROM expense_categories
 WHERE id = $1 LIMIT 1
 `
 
@@ -72,17 +79,20 @@ func (q *Queries) GetExpenseCategory(ctx context.Context, id int64) (ExpenseCate
 		&i.CreatedAt,
 		&i.Icon,
 		&i.Color,
+		&i.Scope,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
 
 const listExpenseCategories = `-- name: ListExpenseCategories :many
-SELECT id, name, is_active, created_at, icon, color FROM expense_categories
+SELECT id, name, is_active, created_at, icon, color, scope, updated_at FROM expense_categories
+WHERE ($1::text IS NULL OR scope = $1)
 ORDER BY id
 `
 
-func (q *Queries) ListExpenseCategories(ctx context.Context) ([]ExpenseCategory, error) {
-	rows, err := q.db.QueryContext(ctx, listExpenseCategories)
+func (q *Queries) ListExpenseCategories(ctx context.Context, scope sql.NullString) ([]ExpenseCategory, error) {
+	rows, err := q.db.QueryContext(ctx, listExpenseCategories, scope)
 	if err != nil {
 		return nil, err
 	}
@@ -97,6 +107,47 @@ func (q *Queries) ListExpenseCategories(ctx context.Context) ([]ExpenseCategory,
 			&i.CreatedAt,
 			&i.Icon,
 			&i.Color,
+			&i.Scope,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listExpenseCategoriesUpdatedSince = `-- name: ListExpenseCategoriesUpdatedSince :many
+SELECT id, name, is_active, created_at, icon, color, scope, updated_at FROM expense_categories
+WHERE scope = 'branch' AND updated_at > $1
+ORDER BY updated_at
+`
+
+// Only branch-scoped categories are synced down to kashi-pos.
+func (q *Queries) ListExpenseCategoriesUpdatedSince(ctx context.Context, updatedAt time.Time) ([]ExpenseCategory, error) {
+	rows, err := q.db.QueryContext(ctx, listExpenseCategoriesUpdatedSince, updatedAt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExpenseCategory{}
+	for rows.Next() {
+		var i ExpenseCategory
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.IsActive,
+			&i.CreatedAt,
+			&i.Icon,
+			&i.Color,
+			&i.Scope,
+			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -116,9 +167,11 @@ UPDATE expense_categories
 SET name = $2,
     is_active = $3,
     icon = $4,
-    color = $5
+    color = $5,
+    scope = $6,
+    updated_at = now()
 WHERE id = $1
-RETURNING id, name, is_active, created_at, icon, color
+RETURNING id, name, is_active, created_at, icon, color, scope, updated_at
 `
 
 type UpdateExpenseCategoryParams struct {
@@ -127,6 +180,7 @@ type UpdateExpenseCategoryParams struct {
 	IsActive bool   `json:"is_active"`
 	Icon     string `json:"icon"`
 	Color    string `json:"color"`
+	Scope    string `json:"scope"`
 }
 
 func (q *Queries) UpdateExpenseCategory(ctx context.Context, arg UpdateExpenseCategoryParams) (ExpenseCategory, error) {
@@ -136,6 +190,7 @@ func (q *Queries) UpdateExpenseCategory(ctx context.Context, arg UpdateExpenseCa
 		arg.IsActive,
 		arg.Icon,
 		arg.Color,
+		arg.Scope,
 	)
 	var i ExpenseCategory
 	err := row.Scan(
@@ -145,6 +200,8 @@ func (q *Queries) UpdateExpenseCategory(ctx context.Context, arg UpdateExpenseCa
 		&i.CreatedAt,
 		&i.Icon,
 		&i.Color,
+		&i.Scope,
+		&i.UpdatedAt,
 	)
 	return i, err
 }

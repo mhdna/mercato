@@ -67,40 +67,20 @@ func (server *Server) getSupplier(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, supplier)
 }
 
-type listSupplierRequest struct {
-	PageSize int32  `form:"page_size,default=10" binding:"min=5,max=100"`
-	PageID   int32  `form:"page_id,default=0" binding:"min=0"`
-	Search   string `form:"search"`
-}
-
 func (server *Server) listSuppliers(ctx *gin.Context) {
-	var req listSupplierRequest
-	if err := ctx.ShouldBindQuery(&req); err != nil {
-		server.writeError(ctx, http.StatusBadRequest, err)
+	q, ok := server.bindListPageQuery(ctx)
+	if !ok {
 		return
 	}
 
-	arg := db.ListSuppliersParams{
-		Search:     req.Search,
-		PageSize:   req.PageSize,
-		PageOffset: req.PageID,
-	}
-	suppliers, err := server.store.ListSuppliers(ctx, arg)
-	if err != nil {
-		server.writeError(ctx, http.StatusInternalServerError, err)
-		return
-	}
-
-	total, err := server.store.CountSuppliersFiltered(ctx, req.Search)
-	if err != nil {
-		server.writeError(ctx, http.StatusInternalServerError, err)
-		return
-	}
-
-	ctx.JSON(http.StatusOK, gin.H{
-		"suppliers": suppliers,
-		"total":     total,
-	})
+	respondList(server, ctx, "suppliers",
+		func() ([]db.Supplier, error) {
+			return server.store.ListSuppliers(ctx, db.ListSuppliersParams{
+				Search: q.Search, PageSize: q.PageSize, PageOffset: q.PageID,
+			})
+		},
+		func() (int64, error) { return server.store.CountSuppliersFiltered(ctx, q.Search) },
+	)
 }
 
 // type updateSupplierRequest struct {

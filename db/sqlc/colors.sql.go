@@ -7,6 +7,8 @@ package db
 
 import (
 	"context"
+
+	"github.com/lib/pq"
 )
 
 const countColors = `-- name: CountColors :one
@@ -60,6 +62,19 @@ WHERE id = $1
 func (q *Queries) DeleteColor(ctx context.Context, id int64) error {
 	_, err := q.db.ExecContext(ctx, deleteColor, id)
 	return err
+}
+
+const deleteColors = `-- name: DeleteColors :execrows
+DELETE FROM colors
+WHERE id = ANY($1::bigint[])
+`
+
+func (q *Queries) DeleteColors(ctx context.Context, ids []int64) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteColors, pq.Array(ids))
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const listColors = `-- name: ListColors :many

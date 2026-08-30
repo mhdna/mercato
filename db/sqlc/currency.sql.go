@@ -8,6 +8,8 @@ package db
 import (
 	"context"
 	"time"
+
+	"github.com/lib/pq"
 )
 
 const countCurrencies = `-- name: CountCurrencies :one
@@ -67,6 +69,19 @@ func (q *Queries) CreateCurrency(ctx context.Context, arg CreateCurrencyParams) 
 	return i, err
 }
 
+const deleteCurrencies = `-- name: DeleteCurrencies :execrows
+delete from currencies
+where code = ANY($1::text[])
+`
+
+func (q *Queries) DeleteCurrencies(ctx context.Context, codes []string) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteCurrencies, pq.Array(codes))
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const deleteCurrency = `-- name: DeleteCurrency :exec
 delete from currencies
 where code = $1
@@ -121,58 +136,23 @@ func (q *Queries) GetDefaultCurrency(ctx context.Context) (Currency, error) {
 	return i, err
 }
 
-const listAllCurrencies = `-- name: ListAllCurrencies :many
-SELECT code, name, symbol, is_default, value_in_default_currency, is_active, units_per_usd_micros, cash_rounding_unit, updated_at FROM currencies
-ORDER BY code
-`
-
-func (q *Queries) ListAllCurrencies(ctx context.Context) ([]Currency, error) {
-	rows, err := q.db.QueryContext(ctx, listAllCurrencies)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []Currency{}
-	for rows.Next() {
-		var i Currency
-		if err := rows.Scan(
-			&i.Code,
-			&i.Name,
-			&i.Symbol,
-			&i.IsDefault,
-			&i.ValueInDefaultCurrency,
-			&i.IsActive,
-			&i.UnitsPerUsdMicros,
-			&i.CashRoundingUnit,
-			&i.UpdatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const listCurrencies = `-- name: ListCurrencies :many
 SELECT code, name, symbol, is_default, value_in_default_currency, is_active, units_per_usd_micros, cash_rounding_unit, updated_at FROM currencies
 ORDER BY code
-LIMIT $1
-OFFSET $2
+LIMIT NULLIF($2::int, 0)
+OFFSET $1
 `
 
 type ListCurrenciesParams struct {
-	Limit  int32 `json:"limit"`
-	Offset int32 `json:"offset"`
+	PageOffset int32 `json:"page_offset"`
+	PageSize   int32 `json:"page_size"`
 }
 
+// page_size = 0 returns every currency (the CurrencySelect picker needs the
+// whole list); any positive value pages. Order is always by code, so the
+// picker and the paged table agree.
 func (q *Queries) ListCurrencies(ctx context.Context, arg ListCurrenciesParams) ([]Currency, error) {
-	rows, err := q.db.QueryContext(ctx, listCurrencies, arg.Limit, arg.Offset)
+	rows, err := q.db.QueryContext(ctx, listCurrencies, arg.PageOffset, arg.PageSize)
 	if err != nil {
 		return nil, err
 	}

@@ -81,6 +81,12 @@ func (server *Server) branchSyncChanges(ctx *gin.Context) {
 			BranchID:  sql.NullInt64{Int64: branchID, Valid: true},
 			UpdatedAt: since,
 		})
+	case "expense_categories":
+		// Global like currencies; the query itself restricts to
+		// scope='branch' rows -- central-only categories never leave kashi.
+		items, err = server.store.ListExpenseCategoriesUpdatedSince(ctx, since)
+	case "loan_categories":
+		items, err = server.store.ListLoanCategoriesUpdatedSince(ctx, since)
 	default:
 		server.writeError(ctx, http.StatusBadRequest, errUnknownSyncEntity)
 		return

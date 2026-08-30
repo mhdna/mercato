@@ -52,3 +52,7 @@ RETURNING *;
 -- name: DeleteSize :exec
 DELETE FROM sizes
 WHERE id = $1;
+
+-- name: DeleteSizes :execrows
+DELETE FROM sizes
+WHERE id = ANY(sqlc.arg(ids)::bigint[]);

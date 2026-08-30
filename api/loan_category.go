@@ -8,9 +8,42 @@ import (
 	db "github.com/mhdna/kashi/db/sqlc"
 )
 
+// defaultLoanCategoryIcon / Color / Scope fill in when the client omits
+// them, so every category row always has something to render and a valid
+// scope. Mirrors the expenseCategory* helpers in expense_category.go.
+const (
+	defaultLoanCategoryIcon  = "mdi-tag-outline"
+	defaultLoanCategoryColor = "blue-grey"
+	defaultLoanCategoryScope = "central"
+)
+
+func loanCategoryIcon(icon string) string {
+	if icon == "" {
+		return defaultLoanCategoryIcon
+	}
+	return icon
+}
+
+func loanCategoryColor(color string) string {
+	if color == "" {
+		return defaultLoanCategoryColor
+	}
+	return color
+}
+
+func loanCategoryScope(scope string) string {
+	if scope != "branch" {
+		return defaultLoanCategoryScope
+	}
+	return scope
+}
+
 type createLoanCategoryRequest struct {
 	Name     string `json:"name" binding:"required"`
 	IsActive bool   `json:"is_active"`
+	Icon     string `json:"icon"`
+	Color    string `json:"color"`
+	Scope    string `json:"scope"`
 }
 
 func (server *Server) createLoanCategory(ctx *gin.Context) {
@@ -23,11 +56,15 @@ func (server *Server) createLoanCategory(ctx *gin.Context) {
 	category, err := server.store.CreateLoanCategory(ctx, db.CreateLoanCategoryParams{
 		Name:     req.Name,
 		IsActive: req.IsActive,
+		Icon:     loanCategoryIcon(req.Icon),
+		Color:    loanCategoryColor(req.Color),
+		Scope:    loanCategoryScope(req.Scope),
 	})
 	if err != nil {
 		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
+	server.branchHub.broadcastAll(branchWSMessage{Type: "loan_categories_updated"})
 	ctx.JSON(http.StatusOK, category)
 }
 
@@ -54,8 +91,23 @@ func (server *Server) getLoanCategory(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, category)
 }
 
+type listLoanCategoriesRequest struct {
+	Scope string `form:"scope" binding:"omitempty,oneof=central branch"`
+}
+
 func (server *Server) listLoanCategories(ctx *gin.Context) {
-	categories, err := server.store.ListLoanCategories(ctx)
+	var req listLoanCategoriesRequest
+	if err := ctx.ShouldBindQuery(&req); err != nil {
+		server.writeError(ctx, http.StatusBadRequest, err)
+		return
+	}
+
+	var scope sql.NullString
+	if req.Scope != "" {
+		scope = sql.NullString{String: req.Scope, Valid: true}
+	}
+
+	categories, err := server.store.ListLoanCategories(ctx, scope)
 	if err != nil {
 		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
@@ -67,6 +119,9 @@ type updateLoanCategoryRequest struct {
 	ID       int64  `json:"id" binding:"required,min=1"`
 	Name     string `json:"name" binding:"required"`
 	IsActive bool   `json:"is_active"`
+	Icon     string `json:"icon"`
+	Color    string `json:"color"`
+	Scope    string `json:"scope"`
 }
 
 func (server *Server) updateLoanCategory(ctx *gin.Context) {
@@ -80,6 +135,9 @@ func (server *Server) updateLoanCategory(ctx *gin.Context) {
 		ID:       req.ID,
 		Name:     req.Name,
 		IsActive: req.IsActive,
+		Icon:     loanCategoryIcon(req.Icon),
+		Color:    loanCategoryColor(req.Color),
+		Scope:    loanCategoryScope(req.Scope),
 	})
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -89,6 +147,7 @@ func (server *Server) updateLoanCategory(ctx *gin.Context) {
 		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
+	server.branchHub.broadcastAll(branchWSMessage{Type: "loan_categories_updated"})
 	ctx.JSON(http.StatusOK, category)
 }
 
@@ -115,5 +174,6 @@ func (server *Server) deleteLoanCategory(ctx *gin.Context) {
 		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
+	server.branchHub.broadcastAll(branchWSMessage{Type: "loan_categories_updated"})
 	ctx.JSON(http.StatusOK, envelope{"deleted": true})
 }

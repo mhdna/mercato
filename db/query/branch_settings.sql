@@ -15,9 +15,10 @@ INSERT INTO branch_settings (
   instagram,
   social_platforms,
   social_handles,
+  search_button_enabled,
   updated_at
 ) VALUES (
-  $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, now()
+  $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, now()
 )
 ON CONFLICT (branch_id) DO UPDATE SET
   branch_name = EXCLUDED.branch_name,
@@ -34,6 +35,7 @@ ON CONFLICT (branch_id) DO UPDATE SET
   instagram = EXCLUDED.instagram,
   social_platforms = EXCLUDED.social_platforms,
   social_handles = EXCLUDED.social_handles,
+  search_button_enabled = EXCLUDED.search_button_enabled,
   updated_at = now()
 RETURNING *;
 

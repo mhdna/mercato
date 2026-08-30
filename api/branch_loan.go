@@ -109,12 +109,13 @@ func (server *Server) createBranchLoan(ctx *gin.Context) {
 }
 
 // getOrCreateLoanCategoryID resolves a lender-source name reported by a
-// branch to its loan_categories.id, creating the category (active by
-// default) on first use. Admin CRUD (loan_category.go) remains the only
-// way to rename/deactivate a category -- this path only ever adds new
-// ones, it never mutates an existing row.
+// branch to its loan_categories.id, creating the category (active,
+// scope='branch' so it syncs back down to kashi-pos) on first use. Admin
+// CRUD (loan_category.go) remains the only way to rename/deactivate a
+// category -- this path only ever adds new ones, it never mutates an
+// existing row.
 func (server *Server) getOrCreateLoanCategoryID(ctx *gin.Context, name string) (int64, error) {
-	categories, err := server.store.ListLoanCategories(ctx)
+	categories, err := server.store.ListLoanCategories(ctx, sql.NullString{})
 	if err != nil {
 		return 0, err
 	}
@@ -127,10 +128,13 @@ func (server *Server) getOrCreateLoanCategoryID(ctx *gin.Context, name string) (
 	category, err := server.store.CreateLoanCategory(ctx, db.CreateLoanCategoryParams{
 		Name:     name,
 		IsActive: true,
+		Icon:     defaultLoanCategoryIcon,
+		Color:    defaultLoanCategoryColor,
+		Scope:    "branch",
 	})
 	if err != nil {
 		if isUniqueViolation(err) {
-			if existing, lookupErr := server.store.ListLoanCategories(ctx); lookupErr == nil {
+			if existing, lookupErr := server.store.ListLoanCategories(ctx, sql.NullString{}); lookupErr == nil {
 				for _, category := range existing {
 					if category.Name == name {
 						return category.ID, nil

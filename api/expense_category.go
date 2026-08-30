@@ -8,11 +8,13 @@ import (
 	db "github.com/mhdna/kashi/db/sqlc"
 )
 
-// defaultExpenseCategoryIcon / Color fill in when the client omits them, so
-// every category row always has something to render.
+// defaultExpenseCategoryIcon / Color / Scope fill in when the client omits
+// them, so every category row always has something to render and a valid
+// scope. 'branch'-scoped categories are the ones synced down to kashi-pos.
 const (
 	defaultExpenseCategoryIcon  = "mdi-tag-outline"
 	defaultExpenseCategoryColor = "blue-grey"
+	defaultExpenseCategoryScope = "central"
 )
 
 func expenseCategoryIcon(icon string) string {
@@ -29,11 +31,19 @@ func expenseCategoryColor(color string) string {
 	return color
 }
 
+func expenseCategoryScope(scope string) string {
+	if scope != "branch" {
+		return defaultExpenseCategoryScope
+	}
+	return scope
+}
+
 type createExpenseCategoryRequest struct {
 	Name     string `json:"name" binding:"required"`
 	IsActive bool   `json:"is_active"`
 	Icon     string `json:"icon"`
 	Color    string `json:"color"`
+	Scope    string `json:"scope"`
 }
 
 func (server *Server) createExpenseCategory(ctx *gin.Context) {
@@ -48,11 +58,13 @@ func (server *Server) createExpenseCategory(ctx *gin.Context) {
 		IsActive: req.IsActive,
 		Icon:     expenseCategoryIcon(req.Icon),
 		Color:    expenseCategoryColor(req.Color),
+		Scope:    expenseCategoryScope(req.Scope),
 	})
 	if err != nil {
 		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
+	server.branchHub.broadcastAll(branchWSMessage{Type: "expense_categories_updated"})
 	ctx.JSON(http.StatusOK, category)
 }
 
@@ -79,8 +91,23 @@ func (server *Server) getExpenseCategory(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, category)
 }
 
+type listExpenseCategoriesRequest struct {
+	Scope string `form:"scope" binding:"omitempty,oneof=central branch"`
+}
+
 func (server *Server) listExpenseCategories(ctx *gin.Context) {
-	categories, err := server.store.ListExpenseCategories(ctx)
+	var req listExpenseCategoriesRequest
+	if err := ctx.ShouldBindQuery(&req); err != nil {
+		server.writeError(ctx, http.StatusBadRequest, err)
+		return
+	}
+
+	var scope sql.NullString
+	if req.Scope != "" {
+		scope = sql.NullString{String: req.Scope, Valid: true}
+	}
+
+	categories, err := server.store.ListExpenseCategories(ctx, scope)
 	if err != nil {
 		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
@@ -94,6 +121,7 @@ type updateExpenseCategoryRequest struct {
 	IsActive bool   `json:"is_active"`
 	Icon     string `json:"icon"`
 	Color    string `json:"color"`
+	Scope    string `json:"scope"`
 }
 
 func (server *Server) updateExpenseCategory(ctx *gin.Context) {
@@ -109,6 +137,7 @@ func (server *Server) updateExpenseCategory(ctx *gin.Context) {
 		IsActive: req.IsActive,
 		Icon:     expenseCategoryIcon(req.Icon),
 		Color:    expenseCategoryColor(req.Color),
+		Scope:    expenseCategoryScope(req.Scope),
 	})
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -118,6 +147,7 @@ func (server *Server) updateExpenseCategory(ctx *gin.Context) {
 		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
+	server.branchHub.broadcastAll(branchWSMessage{Type: "expense_categories_updated"})
 	ctx.JSON(http.StatusOK, category)
 }
 
@@ -144,5 +174,6 @@ func (server *Server) deleteExpenseCategory(ctx *gin.Context) {
 		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
+	server.branchHub.broadcastAll(branchWSMessage{Type: "expense_categories_updated"})
 	ctx.JSON(http.StatusOK, envelope{"deleted": true})
 }

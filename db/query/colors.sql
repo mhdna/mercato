@@ -47,3 +47,7 @@ RETURNING *;
 -- name: DeleteColor :exec
 DELETE FROM colors
 WHERE id = $1;
+
+-- name: DeleteColors :execrows
+DELETE FROM colors
+WHERE id = ANY(sqlc.arg(ids)::bigint[]);

@@ -61,6 +61,7 @@ func (server *Server) setupRoutes() {
 	authRoutes.GET("/inventories/", server.listInventories)
 	authRoutes.PUT("/inventories", server.updateInventory)
 	authRoutes.DELETE("/inventories/:id", server.deleteInventory)
+	authRoutes.POST("/inventories/bulk_delete", server.bulkDeleteInventories)
 	authRoutes.GET("/inventories/:id/stock", server.listInventoryStock)
 	authRoutes.POST("/inventories/:id/adjustments", server.createStockAdjustment)
 	authRoutes.GET("/stock_movements", server.listStockMovements)
@@ -82,6 +83,7 @@ func (server *Server) setupRoutes() {
 	authRoutes.GET("/attribute_types", server.listAttributes)
 	authRoutes.GET("/attribute_values", server.listAllAttributeValues)
 	authRoutes.DELETE("/attributes/:id", server.deleteAttributeValue)
+	authRoutes.POST("/attributes/bulk_delete", server.bulkDeleteAttributeValues)
 	// TODO: add updateAsset
 	authRoutes.POST("/assets", server.createAsset)
 	authRoutes.DELETE("/assets/:id", server.deleteAsset)
@@ -102,6 +104,7 @@ func (server *Server) setupRoutes() {
 	authRoutes.GET("/currencies/", server.listCurrencies)
 	authRoutes.PUT("/currencies", server.updateCurrency)
 	authRoutes.DELETE("/currencies/:code", server.deleteCurrency)
+	authRoutes.POST("/currencies/bulk_delete", server.bulkDeleteCurrencies)
 
 	authRoutes.POST("/cashboxes", server.createCashbox)
 	authRoutes.GET("/cashboxes/:id", server.getCashbox)
@@ -130,10 +133,12 @@ func (server *Server) setupRoutes() {
 	authRoutes.GET("/colors", server.listColors)
 	authRoutes.PUT("/colors", server.updateColor)
 	authRoutes.DELETE("/colors/:id", server.deleteColor)
+	authRoutes.POST("/colors/bulk_delete", server.bulkDeleteColors)
 	authRoutes.POST("/sizes", server.createSize)
 	authRoutes.GET("/sizes", server.listSizes)
 	authRoutes.PUT("/sizes", server.updateSize)
 	authRoutes.DELETE("/sizes/:id", server.deleteSize)
+	authRoutes.POST("/sizes/bulk_delete", server.bulkDeleteSizes)
 
 	authRoutes.POST("/sales_invoices", server.createSalesInvoice)
 	authRoutes.GET("/sales_invoices/:id", server.getSalesInvoice)
@@ -159,6 +164,7 @@ func (server *Server) setupRoutes() {
 	authRoutes.POST("/price_lists/items", server.createPriceListItem)
 	authRoutes.GET("/price_lists/:id/items", server.listPriceListItems)
 	authRoutes.DELETE("/price_lists/:id/items/:product_id", server.deletePriceListItem)
+	authRoutes.POST("/price_lists/:id/items/bulk_delete", server.bulkDeletePriceListItems)
 	authRoutes.GET("/price_lists/:id/branches", server.listPriceListBranches)
 	authRoutes.PUT("/price_lists/:id/branches", server.setPriceListBranches)
 
@@ -170,6 +176,7 @@ func (server *Server) setupRoutes() {
 	authRoutes.POST("/discount_lists/items", server.createDiscountListItem)
 	authRoutes.GET("/discount_lists/:id/items", server.listDiscountListItems)
 	authRoutes.DELETE("/discount_lists/:id/items/:product_id", server.deleteDiscountListItem)
+	authRoutes.POST("/discount_lists/:id/items/bulk_delete", server.bulkDeleteDiscountListItems)
 	authRoutes.GET("/discount_lists/:id/branches", server.listDiscountListBranches)
 	authRoutes.PUT("/discount_lists/:id/branches", server.setDiscountListBranches)
 
@@ -194,6 +201,7 @@ func (server *Server) setupRoutes() {
 	authRoutes.POST("/expenses", server.createExpense)
 	authRoutes.PUT("/expenses", server.updateExpense)
 	authRoutes.DELETE("/expenses/:id", server.deleteExpense)
+	authRoutes.POST("/expenses/bulk_delete", server.bulkDeleteExpenses)
 	authRoutes.GET("/expenses/:id", server.getExpense)
 	authRoutes.GET("/expenses", server.listExpenses)
 
@@ -210,6 +218,9 @@ func (server *Server) setupRoutes() {
 	authRoutes.POST("/loans", server.createLoan)
 	authRoutes.GET("/loans/:id", server.getLoan)
 	authRoutes.GET("/loans", server.listLoans)
+	authRoutes.PUT("/loans", server.updateLoan)
+	authRoutes.DELETE("/loans/:id", server.deleteLoan)
+	authRoutes.POST("/loans/bulk_delete", server.bulkDeleteLoans)
 
 	authRoutes.POST("/loan_payments", server.createLoanPayment)
 	authRoutes.GET("/loan_payments", server.listLoanPayments)
@@ -243,6 +254,7 @@ func (server *Server) setupRoutes() {
 	authRoutes.POST("/branches/:id/rotate_key", server.rotateBranchKey)
 
 	authRoutes.GET("/branch_expenses", server.listBranchExpenses)
+	authRoutes.POST("/branch_expenses", server.adminCreateBranchExpense)
 	authRoutes.GET("/branch_expense_images", server.listBranchExpenseImages)
 	authRoutes.GET("/branch_expenses/:id/images", server.listBranchExpenseImagesForExpense)
 	authRoutes.GET("/branch_expense_images/:id/file", server.getBranchExpenseImageFile)

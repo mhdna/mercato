@@ -227,7 +227,7 @@ func fetchExistingSupplierIDs(ctx context.Context, store db.Store, limit int) []
 	ids := make([]int64, 0, limit)
 	const pageSize = 100
 	for offset := int32(0); len(ids) < limit; offset += pageSize {
-		suppliers, err := store.ListSuppliers(ctx, db.ListSuppliersParams{Limit: pageSize, Offset: offset})
+		suppliers, err := store.ListSuppliers(ctx, db.ListSuppliersParams{PageSize: pageSize, PageOffset: offset})
 		if err != nil || len(suppliers) == 0 {
 			break
 		}

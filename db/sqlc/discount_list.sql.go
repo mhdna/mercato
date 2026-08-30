@@ -8,7 +8,31 @@ package db
 import (
 	"context"
 	"time"
+
+	"github.com/lib/pq"
 )
+
+const countDiscountListItemsWithProduct = `-- name: CountDiscountListItemsWithProduct :one
+SELECT COUNT(*)
+FROM discount_list_items dli
+JOIN products p ON p.id = dli.product_id
+WHERE dli.discount_list_id = $1
+  AND ($2::text = ''
+       OR p.name ILIKE '%' || $2::text || '%'
+       OR p.code ILIKE '%' || $2::text || '%')
+`
+
+type CountDiscountListItemsWithProductParams struct {
+	DiscountListID int64  `json:"discount_list_id"`
+	Search         string `json:"search"`
+}
+
+func (q *Queries) CountDiscountListItemsWithProduct(ctx context.Context, arg CountDiscountListItemsWithProductParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countDiscountListItemsWithProduct, arg.DiscountListID, arg.Search)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
 
 const countDiscountLists = `-- name: CountDiscountLists :one
 SELECT COUNT(*) FROM discount_lists
@@ -102,6 +126,24 @@ func (q *Queries) DeleteDiscountListItem(ctx context.Context, arg DeleteDiscount
 	return err
 }
 
+const deleteDiscountListItems = `-- name: DeleteDiscountListItems :execrows
+DELETE FROM discount_list_items
+WHERE discount_list_id = $1 AND product_id = ANY($2::bigint[])
+`
+
+type DeleteDiscountListItemsParams struct {
+	DiscountListID int64   `json:"discount_list_id"`
+	ProductIds     []int64 `json:"product_ids"`
+}
+
+func (q *Queries) DeleteDiscountListItems(ctx context.Context, arg DeleteDiscountListItemsParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteDiscountListItems, arg.DiscountListID, pq.Array(arg.ProductIds))
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const getDefaultDiscountForProduct = `-- name: GetDefaultDiscountForProduct :one
 SELECT dli.discount FROM discount_list_items dli
 JOIN discount_lists dl ON dl.id = dli.discount_list_id
@@ -190,8 +232,20 @@ SELECT dli.discount_list_id, dli.product_id, dli.discount,
 FROM discount_list_items dli
 JOIN products p ON p.id = dli.product_id
 WHERE dli.discount_list_id = $1
-ORDER BY p.name
+  AND ($2::text = ''
+       OR p.name ILIKE '%' || $2::text || '%'
+       OR p.code ILIKE '%' || $2::text || '%')
+ORDER BY p.name, dli.product_id
+LIMIT $4
+OFFSET $3
 `
+
+type ListDiscountListItemsWithProductParams struct {
+	DiscountListID int64  `json:"discount_list_id"`
+	Search         string `json:"search"`
+	PageOffset     int32  `json:"page_offset"`
+	PageSize       int32  `json:"page_size"`
+}
 
 type ListDiscountListItemsWithProductRow struct {
 	DiscountListID int64  `json:"discount_list_id"`
@@ -201,8 +255,13 @@ type ListDiscountListItemsWithProductRow struct {
 	ProductName    string `json:"product_name"`
 }
 
-func (q *Queries) ListDiscountListItemsWithProduct(ctx context.Context, discountListID int64) ([]ListDiscountListItemsWithProductRow, error) {
-	rows, err := q.db.QueryContext(ctx, listDiscountListItemsWithProduct, discountListID)
+func (q *Queries) ListDiscountListItemsWithProduct(ctx context.Context, arg ListDiscountListItemsWithProductParams) ([]ListDiscountListItemsWithProductRow, error) {
+	rows, err := q.db.QueryContext(ctx, listDiscountListItemsWithProduct,
+		arg.DiscountListID,
+		arg.Search,
+		arg.PageOffset,
+		arg.PageSize,
+	)
 	if err != nil {
 		return nil, err
 	}

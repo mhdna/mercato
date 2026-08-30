@@ -71,8 +71,10 @@ func (server *Server) getExpense(ctx *gin.Context) {
 }
 
 type listExpensesRequest struct {
-	PageSize int32 `form:"page_size,default=25" binding:"min=5,max=100"`
-	PageID   int32 `form:"page_id,default=0" binding:"min=0"`
+	PageSize   int32  `form:"page_size,default=25" binding:"min=5,max=100"`
+	PageID     int32  `form:"page_id,default=0" binding:"min=0"`
+	CategoryID int64  `form:"category_id"`
+	Search     string `form:"search"`
 }
 
 func (server *Server) listExpenses(ctx *gin.Context) {
@@ -82,9 +84,20 @@ func (server *Server) listExpenses(ctx *gin.Context) {
 		return
 	}
 
+	var categoryID sql.NullInt64
+	if req.CategoryID > 0 {
+		categoryID = sql.NullInt64{Int64: req.CategoryID, Valid: true}
+	}
+	var search sql.NullString
+	if req.Search != "" {
+		search = sql.NullString{String: req.Search, Valid: true}
+	}
+
 	arg := db.ListExpensesParams{
-		Limit:  req.PageSize,
-		Offset: req.PageID,
+		Limit:      req.PageSize,
+		Offset:     req.PageID,
+		CategoryID: categoryID,
+		Search:     search,
 	}
 	expenses, err := server.store.ListExpenses(ctx, arg)
 	if err != nil {

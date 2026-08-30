@@ -7,7 +7,31 @@ package db
 
 import (
 	"context"
+
+	"github.com/lib/pq"
 )
+
+const countPriceListItemsWithProduct = `-- name: CountPriceListItemsWithProduct :one
+SELECT COUNT(*)
+FROM price_list_items pli
+JOIN products p ON p.id = pli.product_id
+WHERE pli.price_list_id = $1
+  AND ($2::text = ''
+       OR p.name ILIKE '%' || $2::text || '%'
+       OR p.code ILIKE '%' || $2::text || '%')
+`
+
+type CountPriceListItemsWithProductParams struct {
+	PriceListID int64  `json:"price_list_id"`
+	Search      string `json:"search"`
+}
+
+func (q *Queries) CountPriceListItemsWithProduct(ctx context.Context, arg CountPriceListItemsWithProductParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countPriceListItemsWithProduct, arg.PriceListID, arg.Search)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
 
 const createPriceListItem = `-- name: CreatePriceListItem :one
 INSERT INTO price_list_items (price_list_id, product_id, price)
@@ -43,6 +67,24 @@ type DeletePriceListItemParams struct {
 func (q *Queries) DeletePriceListItem(ctx context.Context, arg DeletePriceListItemParams) error {
 	_, err := q.db.ExecContext(ctx, deletePriceListItem, arg.PriceListID, arg.ProductID)
 	return err
+}
+
+const deletePriceListItems = `-- name: DeletePriceListItems :execrows
+DELETE FROM price_list_items
+WHERE price_list_id = $1 AND product_id = ANY($2::bigint[])
+`
+
+type DeletePriceListItemsParams struct {
+	PriceListID int64   `json:"price_list_id"`
+	ProductIds  []int64 `json:"product_ids"`
+}
+
+func (q *Queries) DeletePriceListItems(ctx context.Context, arg DeletePriceListItemsParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deletePriceListItems, arg.PriceListID, pq.Array(arg.ProductIds))
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const getDefaultPriceForProduct = `-- name: GetDefaultPriceForProduct :one
@@ -113,8 +155,20 @@ SELECT pli.price_list_id, pli.product_id, pli.price,
 FROM price_list_items pli
 JOIN products p ON p.id = pli.product_id
 WHERE pli.price_list_id = $1
-ORDER BY p.name
+  AND ($2::text = ''
+       OR p.name ILIKE '%' || $2::text || '%'
+       OR p.code ILIKE '%' || $2::text || '%')
+ORDER BY p.name, pli.product_id
+LIMIT $4
+OFFSET $3
 `
+
+type ListPriceListItemsWithProductParams struct {
+	PriceListID int64  `json:"price_list_id"`
+	Search      string `json:"search"`
+	PageOffset  int32  `json:"page_offset"`
+	PageSize    int32  `json:"page_size"`
+}
 
 type ListPriceListItemsWithProductRow struct {
 	PriceListID int64  `json:"price_list_id"`
@@ -124,8 +178,13 @@ type ListPriceListItemsWithProductRow struct {
 	ProductName string `json:"product_name"`
 }
 
-func (q *Queries) ListPriceListItemsWithProduct(ctx context.Context, priceListID int64) ([]ListPriceListItemsWithProductRow, error) {
-	rows, err := q.db.QueryContext(ctx, listPriceListItemsWithProduct, priceListID)
+func (q *Queries) ListPriceListItemsWithProduct(ctx context.Context, arg ListPriceListItemsWithProductParams) ([]ListPriceListItemsWithProductRow, error) {
+	rows, err := q.db.QueryContext(ctx, listPriceListItemsWithProduct,
+		arg.PriceListID,
+		arg.Search,
+		arg.PageOffset,
+		arg.PageSize,
+	)
 	if err != nil {
 		return nil, err
 	}

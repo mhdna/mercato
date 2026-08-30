@@ -9,21 +9,45 @@ import (
 	"context"
 	"database/sql"
 	"time"
+
+	"github.com/lib/pq"
 )
 
 const countLoans = `-- name: CountLoans :one
-SELECT COUNT(*) FROM loans
-WHERE ($1::bigint IS NULL OR branch_id = $1)
-  AND ($2::text IS NULL OR origin = $2)
+SELECT COUNT(*)
+FROM loans
+LEFT JOIN (
+  SELECT loan_id, SUM(amount) AS paid_amount
+  FROM loan_payments
+  GROUP BY loan_id
+) pay ON pay.loan_id = loans.id
+WHERE ($1::bigint IS NULL OR loans.branch_id = $1)
+  AND ($2::text IS NULL OR loans.origin = $2)
+  AND ($3::bigint IS NULL OR loans.category_id = $3)
+  AND ($4::text IS NULL OR loans.description ILIKE '%' || $4 || '%')
+  AND ($5::text IS NULL OR $5 = (CASE
+    WHEN COALESCE(pay.paid_amount, 0) >= loans.amount THEN 'paid'
+    WHEN COALESCE(pay.paid_amount, 0) > 0 THEN 'partial'
+    ELSE 'unpaid'
+  END))
 `
 
 type CountLoansParams struct {
-	BranchID sql.NullInt64  `json:"branch_id"`
-	Origin   sql.NullString `json:"origin"`
+	BranchID   sql.NullInt64  `json:"branch_id"`
+	Origin     sql.NullString `json:"origin"`
+	CategoryID sql.NullInt64  `json:"category_id"`
+	Search     sql.NullString `json:"search"`
+	Status     sql.NullString `json:"status"`
 }
 
 func (q *Queries) CountLoans(ctx context.Context, arg CountLoansParams) (int64, error) {
-	row := q.db.QueryRowContext(ctx, countLoans, arg.BranchID, arg.Origin)
+	row := q.db.QueryRowContext(ctx, countLoans,
+		arg.BranchID,
+		arg.Origin,
+		arg.CategoryID,
+		arg.Search,
+		arg.Status,
+	)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -134,6 +158,30 @@ func (q *Queries) CreateCentralLoan(ctx context.Context, arg CreateCentralLoanPa
 	return i, err
 }
 
+const deleteLoan = `-- name: DeleteLoan :exec
+DELETE FROM loans
+WHERE id = $1 AND origin = 'central_loan'
+`
+
+func (q *Queries) DeleteLoan(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, deleteLoan, id)
+	return err
+}
+
+const deleteLoans = `-- name: DeleteLoans :execrows
+DELETE FROM loans
+WHERE id = ANY($1::bigint[]) AND origin = 'central_loan'
+`
+
+// Central loans only, same read-only guard as DeleteLoan.
+func (q *Queries) DeleteLoans(ctx context.Context, ids []int64) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteLoans, pq.Array(ids))
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const getBranchLoanByClientRef = `-- name: GetBranchLoanByClientRef :one
 SELECT id, origin, description, category_id, amount, currency_code, branch_id, client_ref, branch_cashbox_account_id, branch_shift_id, occurred_at, received_at FROM loans
 WHERE branch_id = $1 AND client_ref = $2
@@ -191,36 +239,83 @@ func (q *Queries) GetLoan(ctx context.Context, id int64) (Loan, error) {
 }
 
 const listLoans = `-- name: ListLoans :many
-SELECT id, origin, description, category_id, amount, currency_code, branch_id, client_ref, branch_cashbox_account_id, branch_shift_id, occurred_at, received_at FROM loans
-WHERE ($3::bigint IS NULL OR branch_id = $3)
-  AND ($4::text IS NULL OR origin = $4)
-ORDER BY id DESC
+SELECT
+  loans.id, loans.origin, loans.description, loans.category_id, loans.amount, loans.currency_code, loans.branch_id, loans.client_ref, loans.branch_cashbox_account_id, loans.branch_shift_id, loans.occurred_at, loans.received_at,
+  COALESCE(pay.paid_amount, 0)::bigint AS paid_amount,
+  (CASE
+    WHEN COALESCE(pay.paid_amount, 0) >= loans.amount THEN 'paid'
+    WHEN COALESCE(pay.paid_amount, 0) > 0 THEN 'partial'
+    ELSE 'unpaid'
+  END)::text AS status
+FROM loans
+LEFT JOIN (
+  SELECT loan_id, SUM(amount) AS paid_amount
+  FROM loan_payments
+  GROUP BY loan_id
+) pay ON pay.loan_id = loans.id
+WHERE ($3::bigint IS NULL OR loans.branch_id = $3)
+  AND ($4::text IS NULL OR loans.origin = $4)
+  AND ($5::bigint IS NULL OR loans.category_id = $5)
+  AND ($6::text IS NULL OR loans.description ILIKE '%' || $6 || '%')
+  AND ($7::text IS NULL OR $7 = (CASE
+    WHEN COALESCE(pay.paid_amount, 0) >= loans.amount THEN 'paid'
+    WHEN COALESCE(pay.paid_amount, 0) > 0 THEN 'partial'
+    ELSE 'unpaid'
+  END))
+ORDER BY loans.id DESC
 LIMIT $1 OFFSET $2
 `
 
 type ListLoansParams struct {
-	Limit    int32          `json:"limit"`
-	Offset   int32          `json:"offset"`
-	BranchID sql.NullInt64  `json:"branch_id"`
-	Origin   sql.NullString `json:"origin"`
+	Limit      int32          `json:"limit"`
+	Offset     int32          `json:"offset"`
+	BranchID   sql.NullInt64  `json:"branch_id"`
+	Origin     sql.NullString `json:"origin"`
+	CategoryID sql.NullInt64  `json:"category_id"`
+	Search     sql.NullString `json:"search"`
+	Status     sql.NullString `json:"status"`
+}
+
+type ListLoansRow struct {
+	ID                     int64          `json:"id"`
+	Origin                 string         `json:"origin"`
+	Description            string         `json:"description"`
+	CategoryID             int64          `json:"category_id"`
+	Amount                 int64          `json:"amount"`
+	CurrencyCode           string         `json:"currency_code"`
+	BranchID               sql.NullInt64  `json:"branch_id"`
+	ClientRef              sql.NullString `json:"client_ref"`
+	BranchCashboxAccountID sql.NullInt64  `json:"branch_cashbox_account_id"`
+	BranchShiftID          sql.NullInt64  `json:"branch_shift_id"`
+	OccurredAt             time.Time      `json:"occurred_at"`
+	ReceivedAt             time.Time      `json:"received_at"`
+	PaidAmount             int64          `json:"paid_amount"`
+	Status                 string         `json:"status"`
 }
 
 // sqlc.narg(branch_id)/sqlc.narg(origin) are nullable: NULL means "no
 // filter", matching ListBranchExpenses' admin-filter convention.
-func (q *Queries) ListLoans(ctx context.Context, arg ListLoansParams) ([]Loan, error) {
+// paid_amount is the running total of loan_payments against the loan;
+// status is derived from it (never stored) -- 'paid' once payments cover
+// the loan amount, 'partial' while some but not all is covered, else
+// 'unpaid'. sqlc.narg(status) filters on that same derived value.
+func (q *Queries) ListLoans(ctx context.Context, arg ListLoansParams) ([]ListLoansRow, error) {
 	rows, err := q.db.QueryContext(ctx, listLoans,
 		arg.Limit,
 		arg.Offset,
 		arg.BranchID,
 		arg.Origin,
+		arg.CategoryID,
+		arg.Search,
+		arg.Status,
 	)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []Loan{}
+	items := []ListLoansRow{}
 	for rows.Next() {
-		var i Loan
+		var i ListLoansRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.Origin,
@@ -234,6 +329,8 @@ func (q *Queries) ListLoans(ctx context.Context, arg ListLoansParams) ([]Loan, e
 			&i.BranchShiftID,
 			&i.OccurredAt,
 			&i.ReceivedAt,
+			&i.PaidAmount,
+			&i.Status,
 		); err != nil {
 			return nil, err
 		}
@@ -246,4 +343,51 @@ func (q *Queries) ListLoans(ctx context.Context, arg ListLoansParams) ([]Loan, e
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateLoan = `-- name: UpdateLoan :one
+UPDATE loans
+SET description = $2,
+    category_id = $3,
+    amount = $4,
+    currency_code = $5
+WHERE id = $1 AND origin = 'central_loan'
+RETURNING id, origin, description, category_id, amount, currency_code, branch_id, client_ref, branch_cashbox_account_id, branch_shift_id, occurred_at, received_at
+`
+
+type UpdateLoanParams struct {
+	ID           int64  `json:"id"`
+	Description  string `json:"description"`
+	CategoryID   int64  `json:"category_id"`
+	Amount       int64  `json:"amount"`
+	CurrencyCode string `json:"currency_code"`
+}
+
+// Central loans only -- branch-origin loans are a synced record of what a
+// branch reported and stay read-only here (WHERE origin filter makes a
+// branch-loan id return no rows, surfaced as a 404 by the handler).
+func (q *Queries) UpdateLoan(ctx context.Context, arg UpdateLoanParams) (Loan, error) {
+	row := q.db.QueryRowContext(ctx, updateLoan,
+		arg.ID,
+		arg.Description,
+		arg.CategoryID,
+		arg.Amount,
+		arg.CurrencyCode,
+	)
+	var i Loan
+	err := row.Scan(
+		&i.ID,
+		&i.Origin,
+		&i.Description,
+		&i.CategoryID,
+		&i.Amount,
+		&i.CurrencyCode,
+		&i.BranchID,
+		&i.ClientRef,
+		&i.BranchCashboxAccountID,
+		&i.BranchShiftID,
+		&i.OccurredAt,
+		&i.ReceivedAt,
+	)
+	return i, err
 }

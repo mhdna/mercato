@@ -8,14 +8,23 @@ package db
 import (
 	"context"
 	"database/sql"
+
+	"github.com/lib/pq"
 )
 
 const countExpenses = `-- name: CountExpenses :one
 SELECT COUNT(*) FROM expenses
+WHERE ($1::bigint IS NULL OR category_id = $1)
+  AND ($2::text IS NULL OR description ILIKE '%' || $2 || '%')
 `
 
-func (q *Queries) CountExpenses(ctx context.Context) (int64, error) {
-	row := q.db.QueryRowContext(ctx, countExpenses)
+type CountExpensesParams struct {
+	CategoryID sql.NullInt64  `json:"category_id"`
+	Search     sql.NullString `json:"search"`
+}
+
+func (q *Queries) CountExpenses(ctx context.Context, arg CountExpensesParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countExpenses, arg.CategoryID, arg.Search)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -72,6 +81,19 @@ func (q *Queries) DeleteExpense(ctx context.Context, id int64) error {
 	return err
 }
 
+const deleteExpenses = `-- name: DeleteExpenses :execrows
+DELETE FROM expenses
+WHERE id = ANY($1::bigint[])
+`
+
+func (q *Queries) DeleteExpenses(ctx context.Context, ids []int64) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteExpenses, pq.Array(ids))
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const getExpense = `-- name: GetExpense :one
 SELECT id, description, amount, currency_code, created_at, recurring_expense_id, category_id FROM expenses
 WHERE id = $1 LIMIT 1
@@ -94,18 +116,27 @@ func (q *Queries) GetExpense(ctx context.Context, id int64) (Expense, error) {
 
 const listExpenses = `-- name: ListExpenses :many
 SELECT id, description, amount, currency_code, created_at, recurring_expense_id, category_id FROM expenses
+WHERE ($3::bigint IS NULL OR category_id = $3)
+  AND ($4::text IS NULL OR description ILIKE '%' || $4 || '%')
 ORDER BY id DESC
 LIMIT $1
 OFFSET $2
 `
 
 type ListExpensesParams struct {
-	Limit  int32 `json:"limit"`
-	Offset int32 `json:"offset"`
+	Limit      int32          `json:"limit"`
+	Offset     int32          `json:"offset"`
+	CategoryID sql.NullInt64  `json:"category_id"`
+	Search     sql.NullString `json:"search"`
 }
 
 func (q *Queries) ListExpenses(ctx context.Context, arg ListExpensesParams) ([]Expense, error) {
-	rows, err := q.db.QueryContext(ctx, listExpenses, arg.Limit, arg.Offset)
+	rows, err := q.db.QueryContext(ctx, listExpenses,
+		arg.Limit,
+		arg.Offset,
+		arg.CategoryID,
+		arg.Search,
+	)
 	if err != nil {
 		return nil, err
 	}

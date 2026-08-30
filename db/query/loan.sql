@@ -36,16 +36,74 @@ SELECT * FROM loans
 WHERE branch_id = $1 AND client_ref = $2
 LIMIT 1;
 
+-- name: UpdateLoan :one
+-- Central loans only -- branch-origin loans are a synced record of what a
+-- branch reported and stay read-only here (WHERE origin filter makes a
+-- branch-loan id return no rows, surfaced as a 404 by the handler).
+UPDATE loans
+SET description = $2,
+    category_id = $3,
+    amount = $4,
+    currency_code = $5
+WHERE id = $1 AND origin = 'central_loan'
+RETURNING *;
+
+-- name: DeleteLoan :exec
+DELETE FROM loans
+WHERE id = $1 AND origin = 'central_loan';
+
+-- name: DeleteLoans :execrows
+-- Central loans only, same read-only guard as DeleteLoan.
+DELETE FROM loans
+WHERE id = ANY(sqlc.arg(ids)::bigint[]) AND origin = 'central_loan';
+
 -- name: ListLoans :many
 -- sqlc.narg(branch_id)/sqlc.narg(origin) are nullable: NULL means "no
 -- filter", matching ListBranchExpenses' admin-filter convention.
-SELECT * FROM loans
-WHERE (sqlc.narg(branch_id)::bigint IS NULL OR branch_id = sqlc.narg(branch_id))
-  AND (sqlc.narg(origin)::text IS NULL OR origin = sqlc.narg(origin))
-ORDER BY id DESC
+-- paid_amount is the running total of loan_payments against the loan;
+-- status is derived from it (never stored) -- 'paid' once payments cover
+-- the loan amount, 'partial' while some but not all is covered, else
+-- 'unpaid'. sqlc.narg(status) filters on that same derived value.
+SELECT
+  loans.*,
+  COALESCE(pay.paid_amount, 0)::bigint AS paid_amount,
+  (CASE
+    WHEN COALESCE(pay.paid_amount, 0) >= loans.amount THEN 'paid'
+    WHEN COALESCE(pay.paid_amount, 0) > 0 THEN 'partial'
+    ELSE 'unpaid'
+  END)::text AS status
+FROM loans
+LEFT JOIN (
+  SELECT loan_id, SUM(amount) AS paid_amount
+  FROM loan_payments
+  GROUP BY loan_id
+) pay ON pay.loan_id = loans.id
+WHERE (sqlc.narg(branch_id)::bigint IS NULL OR loans.branch_id = sqlc.narg(branch_id))
+  AND (sqlc.narg(origin)::text IS NULL OR loans.origin = sqlc.narg(origin))
+  AND (sqlc.narg(category_id)::bigint IS NULL OR loans.category_id = sqlc.narg(category_id))
+  AND (sqlc.narg(search)::text IS NULL OR loans.description ILIKE '%' || sqlc.narg(search) || '%')
+  AND (sqlc.narg(status)::text IS NULL OR sqlc.narg(status) = (CASE
+    WHEN COALESCE(pay.paid_amount, 0) >= loans.amount THEN 'paid'
+    WHEN COALESCE(pay.paid_amount, 0) > 0 THEN 'partial'
+    ELSE 'unpaid'
+  END))
+ORDER BY loans.id DESC
 LIMIT $1 OFFSET $2;
 
 -- name: CountLoans :one
-SELECT COUNT(*) FROM loans
-WHERE (sqlc.narg(branch_id)::bigint IS NULL OR branch_id = sqlc.narg(branch_id))
-  AND (sqlc.narg(origin)::text IS NULL OR origin = sqlc.narg(origin));
+SELECT COUNT(*)
+FROM loans
+LEFT JOIN (
+  SELECT loan_id, SUM(amount) AS paid_amount
+  FROM loan_payments
+  GROUP BY loan_id
+) pay ON pay.loan_id = loans.id
+WHERE (sqlc.narg(branch_id)::bigint IS NULL OR loans.branch_id = sqlc.narg(branch_id))
+  AND (sqlc.narg(origin)::text IS NULL OR loans.origin = sqlc.narg(origin))
+  AND (sqlc.narg(category_id)::bigint IS NULL OR loans.category_id = sqlc.narg(category_id))
+  AND (sqlc.narg(search)::text IS NULL OR loans.description ILIKE '%' || sqlc.narg(search) || '%')
+  AND (sqlc.narg(status)::text IS NULL OR sqlc.narg(status) = (CASE
+    WHEN COALESCE(pay.paid_amount, 0) >= loans.amount THEN 'paid'
+    WHEN COALESCE(pay.paid_amount, 0) > 0 THEN 'partial'
+    ELSE 'unpaid'
+  END));

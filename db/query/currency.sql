@@ -14,6 +14,10 @@ RETURNING *;
 delete from currencies
 where code = $1;
 
+-- name: DeleteCurrencies :execrows
+delete from currencies
+where code = ANY(sqlc.arg(codes)::text[]);
+
 -- name: UpdateCurrency :one
 UPDATE currencies
 SET name = $2,
@@ -35,14 +39,14 @@ SELECT * FROM currencies
 WHERE is_default = true;
 
 -- name: ListCurrencies :many
+-- page_size = 0 returns every currency (the CurrencySelect picker needs the
+-- whole list); any positive value pages. Order is always by code, so the
+-- picker and the paged table agree.
 SELECT * FROM currencies
 ORDER BY code
-LIMIT $1
-OFFSET $2;
+LIMIT NULLIF(sqlc.arg(page_size)::int, 0)
+OFFSET sqlc.arg(page_offset);
 
--- name: ListAllCurrencies :many
-SELECT * FROM currencies
-ORDER BY code;
 -- name: CountCurrencies :one
 SELECT COUNT(*) FROM currencies;
 

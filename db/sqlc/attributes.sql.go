@@ -8,6 +8,8 @@ package db
 import (
 	"context"
 	"time"
+
+	"github.com/lib/pq"
 )
 
 const countAttributeValues = `-- name: CountAttributeValues :one
@@ -41,6 +43,19 @@ WHERE id = $1
 func (q *Queries) DeleteAttributeValue(ctx context.Context, id int64) error {
 	_, err := q.db.ExecContext(ctx, deleteAttributeValue, id)
 	return err
+}
+
+const deleteAttributeValues = `-- name: DeleteAttributeValues :execrows
+DELETE FROM attributes_values
+WHERE id = ANY($1::bigint[])
+`
+
+func (q *Queries) DeleteAttributeValues(ctx context.Context, ids []int64) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteAttributeValues, pq.Array(ids))
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const getAttribute = `-- name: GetAttribute :one
@@ -105,60 +120,6 @@ func (q *Queries) ListAllAttributeValues(ctx context.Context) ([]ListAllAttribut
 			&i.Value,
 			&i.CreatedAt,
 			&i.AttributeName,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listAttributeValues = `-- name: ListAttributeValues :many
-SELECT a.id, a.name, av.id, av.attribute_id, av.value, av.created_at
-FROM attributes a
-INNER JOIN attributes_values av
-ON a.id = av.attribute_id
-ORDER BY value
-LIMIT $1
-OFFSET $2
-`
-
-type ListAttributeValuesParams struct {
-	Limit  int32 `json:"limit"`
-	Offset int32 `json:"offset"`
-}
-
-type ListAttributeValuesRow struct {
-	ID          int64     `json:"id"`
-	Name        string    `json:"name"`
-	ID_2        int64     `json:"id_2"`
-	AttributeID int64     `json:"attribute_id"`
-	Value       string    `json:"value"`
-	CreatedAt   time.Time `json:"created_at"`
-}
-
-func (q *Queries) ListAttributeValues(ctx context.Context, arg ListAttributeValuesParams) ([]ListAttributeValuesRow, error) {
-	rows, err := q.db.QueryContext(ctx, listAttributeValues, arg.Limit, arg.Offset)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []ListAttributeValuesRow{}
-	for rows.Next() {
-		var i ListAttributeValuesRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.Name,
-			&i.ID_2,
-			&i.AttributeID,
-			&i.Value,
-			&i.CreatedAt,
 		); err != nil {
 			return nil, err
 		}

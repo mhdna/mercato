@@ -600,6 +600,7 @@ type BranchSetting struct {
 	SocialPlatforms     json.RawMessage `json:"social_platforms"`
 	SocialHandles       json.RawMessage `json:"social_handles"`
 	UpdatedAt           time.Time       `json:"updated_at"`
+	SearchButtonEnabled bool            `json:"search_button_enabled"`
 }
 
 type BranchShift struct {
@@ -766,6 +767,8 @@ type ExpenseCategory struct {
 	CreatedAt time.Time `json:"created_at"`
 	Icon      string    `json:"icon"`
 	Color     string    `json:"color"`
+	Scope     string    `json:"scope"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 type InventoriesAsset struct {
@@ -866,6 +869,10 @@ type LoanCategory struct {
 	Name      string    `json:"name"`
 	IsActive  bool      `json:"is_active"`
 	CreatedAt time.Time `json:"created_at"`
+	Icon      string    `json:"icon"`
+	Color     string    `json:"color"`
+	Scope     string    `json:"scope"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 type LoanPayment struct {

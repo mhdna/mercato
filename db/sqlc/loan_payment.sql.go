@@ -12,11 +12,21 @@ import (
 
 const countLoanPayments = `-- name: CountLoanPayments :one
 SELECT COUNT(*) FROM loan_payments
-WHERE $1::bigint IS NULL OR loan_id = $1
+WHERE ($1::bigint IS NULL OR loan_id = $1)
+  AND ($2::bigint IS NULL OR loan_id IN (
+    SELECT id FROM loans WHERE category_id = $2
+  ))
+  AND ($3::text IS NULL OR note ILIKE '%' || $3 || '%')
 `
 
-func (q *Queries) CountLoanPayments(ctx context.Context, loanID sql.NullInt64) (int64, error) {
-	row := q.db.QueryRowContext(ctx, countLoanPayments, loanID)
+type CountLoanPaymentsParams struct {
+	LoanID     sql.NullInt64  `json:"loan_id"`
+	CategoryID sql.NullInt64  `json:"category_id"`
+	Search     sql.NullString `json:"search"`
+}
+
+func (q *Queries) CountLoanPayments(ctx context.Context, arg CountLoanPaymentsParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countLoanPayments, arg.LoanID, arg.CategoryID, arg.Search)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -91,20 +101,33 @@ func (q *Queries) GetLoanPayment(ctx context.Context, id int64) (LoanPayment, er
 
 const listLoanPayments = `-- name: ListLoanPayments :many
 SELECT id, loan_id, amount, currency_code, note, paid_at FROM loan_payments
-WHERE $3::bigint IS NULL OR loan_id = $3
+WHERE ($3::bigint IS NULL OR loan_id = $3)
+  AND ($4::bigint IS NULL OR loan_id IN (
+    SELECT id FROM loans WHERE category_id = $4
+  ))
+  AND ($5::text IS NULL OR note ILIKE '%' || $5 || '%')
 ORDER BY id DESC
 LIMIT $1 OFFSET $2
 `
 
 type ListLoanPaymentsParams struct {
-	Limit  int32         `json:"limit"`
-	Offset int32         `json:"offset"`
-	LoanID sql.NullInt64 `json:"loan_id"`
+	Limit      int32          `json:"limit"`
+	Offset     int32          `json:"offset"`
+	LoanID     sql.NullInt64  `json:"loan_id"`
+	CategoryID sql.NullInt64  `json:"category_id"`
+	Search     sql.NullString `json:"search"`
 }
 
-// sqlc.narg(loan_id) is nullable: NULL means "all loans".
+// sqlc.narg(loan_id) is nullable: NULL means "all loans". sqlc.narg(category_id)
+// filters by the parent loan's lender-source category.
 func (q *Queries) ListLoanPayments(ctx context.Context, arg ListLoanPaymentsParams) ([]LoanPayment, error) {
-	rows, err := q.db.QueryContext(ctx, listLoanPayments, arg.Limit, arg.Offset, arg.LoanID)
+	rows, err := q.db.QueryContext(ctx, listLoanPayments,
+		arg.Limit,
+		arg.Offset,
+		arg.LoanID,
+		arg.CategoryID,
+		arg.Search,
+	)
 	if err != nil {
 		return nil, err
 	}

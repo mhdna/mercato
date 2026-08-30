@@ -72,37 +72,20 @@ func (server *Server) getCoupon(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, coupon)
 }
 
-type listCouponsRequest struct {
-	PageSize int32  `form:"page_size,default=10" binding:"min=5,max=100"`
-	PageID   int32  `form:"page_id,default=0" binding:"min=0"`
-	Search   string `form:"search"`
-}
-
 func (server *Server) listCoupons(ctx *gin.Context) {
-	var req listCouponsRequest
-	if err := ctx.ShouldBindQuery(&req); err != nil {
-		server.writeError(ctx, http.StatusBadRequest, err)
+	q, ok := server.bindListPageQuery(ctx)
+	if !ok {
 		return
 	}
 
-	arg := db.ListCouponsParams{
-		Search:     req.Search,
-		PageSize:   req.PageSize,
-		PageOffset: req.PageID,
-	}
-	coupons, err := server.store.ListCoupons(ctx, arg)
-	if err != nil {
-		server.writeError(ctx, http.StatusInternalServerError, err)
-		return
-	}
-
-	total, err := server.store.CountCoupons(ctx, req.Search)
-	if err != nil {
-		server.writeError(ctx, http.StatusInternalServerError, err)
-		return
-	}
-
-	ctx.JSON(http.StatusOK, gin.H{"coupons": coupons, "total": total})
+	respondList(server, ctx, "coupons",
+		func() ([]db.Coupon, error) {
+			return server.store.ListCoupons(ctx, db.ListCouponsParams{
+				Search: q.Search, PageSize: q.PageSize, PageOffset: q.PageID,
+			})
+		},
+		func() (int64, error) { return server.store.CountCoupons(ctx, q.Search) },
+	)
 }
 
 type deactivateCouponRequest struct {

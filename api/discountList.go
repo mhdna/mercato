@@ -72,35 +72,20 @@ func (server *Server) getDiscountList(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, discountList)
 }
 
-type listDiscountListsRequest struct {
-	PageSize int32 `form:"page_size,default=10" binding:"min=5,max=100"`
-	PageID   int32 `form:"page_id,default=0" binding:"min=0"`
-}
-
 func (server *Server) listDiscountLists(ctx *gin.Context) {
-	var req listDiscountListsRequest
-	if err := ctx.ShouldBindQuery(&req); err != nil {
-		server.writeError(ctx, http.StatusBadRequest, err)
+	q, ok := server.bindListPageQuery(ctx)
+	if !ok {
 		return
 	}
 
-	arg := db.ListDiscountListsParams{
-		Limit:  req.PageSize,
-		Offset: req.PageID,
-	}
-	discountLists, err := server.store.ListDiscountLists(ctx, arg)
-	if err != nil {
-		server.writeError(ctx, http.StatusInternalServerError, err)
-		return
-	}
-
-	total, err := server.store.CountDiscountLists(ctx)
-	if err != nil {
-		server.writeError(ctx, http.StatusInternalServerError, err)
-		return
-	}
-
-	ctx.JSON(http.StatusOK, gin.H{"discount_lists": discountLists, "total": total})
+	respondList(server, ctx, "discount_lists",
+		func() ([]db.DiscountList, error) {
+			return server.store.ListDiscountLists(ctx, db.ListDiscountListsParams{
+				Limit: q.PageSize, Offset: q.PageID,
+			})
+		},
+		func() (int64, error) { return server.store.CountDiscountLists(ctx) },
+	)
 }
 
 type updateDiscountListRequest struct {
@@ -202,13 +187,27 @@ func (server *Server) listDiscountListItems(ctx *gin.Context) {
 		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
-
-	items, err := server.store.ListDiscountListItemsWithProduct(ctx, req.DiscountListID)
-	if err != nil {
-		server.writeError(ctx, http.StatusInternalServerError, err)
+	q, ok := server.bindListPageQuery(ctx)
+	if !ok {
 		return
 	}
-	ctx.JSON(http.StatusOK, gin.H{"items": items})
+
+	respondList(server, ctx, "items",
+		func() ([]db.ListDiscountListItemsWithProductRow, error) {
+			return server.store.ListDiscountListItemsWithProduct(ctx, db.ListDiscountListItemsWithProductParams{
+				DiscountListID: req.DiscountListID,
+				Search:         q.Search,
+				PageSize:       q.PageSize,
+				PageOffset:     q.PageID,
+			})
+		},
+		func() (int64, error) {
+			return server.store.CountDiscountListItemsWithProduct(ctx, db.CountDiscountListItemsWithProductParams{
+				DiscountListID: req.DiscountListID,
+				Search:         q.Search,
+			})
+		},
+	)
 }
 
 type deleteDiscountListItemRequest struct {

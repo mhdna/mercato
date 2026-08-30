@@ -46,14 +46,16 @@ type Querier interface {
 	CountDashboardExpenses(ctx context.Context, arg CountDashboardExpensesParams) (int64, error)
 	CountDashboardPurchases(ctx context.Context, arg CountDashboardPurchasesParams) (int64, error)
 	CountDashboardSales(ctx context.Context, arg CountDashboardSalesParams) (int64, error)
+	CountDiscountListItemsWithProduct(ctx context.Context, arg CountDiscountListItemsWithProductParams) (int64, error)
 	CountDiscountLists(ctx context.Context) (int64, error)
-	CountExpenses(ctx context.Context) (int64, error)
+	CountExpenses(ctx context.Context, arg CountExpensesParams) (int64, error)
 	CountInventories(ctx context.Context) (int64, error)
 	CountInventoryStock(ctx context.Context, arg CountInventoryStockParams) (int64, error)
 	CountInvoices(ctx context.Context) (int64, error)
 	CountInvoicesFiltered(ctx context.Context, search string) (int64, error)
-	CountLoanPayments(ctx context.Context, loanID sql.NullInt64) (int64, error)
+	CountLoanPayments(ctx context.Context, arg CountLoanPaymentsParams) (int64, error)
 	CountLoans(ctx context.Context, arg CountLoansParams) (int64, error)
+	CountPriceListItemsWithProduct(ctx context.Context, arg CountPriceListItemsWithProductParams) (int64, error)
 	CountPriceListsFiltered(ctx context.Context, search string) (int64, error)
 	CountProductVariants(ctx context.Context) (int64, error)
 	CountProducts(ctx context.Context, arg CountProductsParams) (int64, error)
@@ -209,29 +211,40 @@ type Querier interface {
 	DeleteAsset(ctx context.Context, id int64) error
 	DeleteAssetType(ctx context.Context, id int64) error
 	DeleteAttributeValue(ctx context.Context, id int64) error
+	DeleteAttributeValues(ctx context.Context, ids []int64) (int64, error)
 	DeleteBranchInvoicePaymentsForInvoice(ctx context.Context, branchInvoiceID int64) error
 	DeleteBranchTargetSeries(ctx context.Context, id int64) (BranchTargetSeries, error)
 	DeleteClient(ctx context.Context, id int64) error
 	DeleteColor(ctx context.Context, id int64) error
+	DeleteColors(ctx context.Context, ids []int64) (int64, error)
+	DeleteCurrencies(ctx context.Context, codes []string) (int64, error)
 	DeleteCurrency(ctx context.Context, code string) error
 	DeleteDiscountList(ctx context.Context, id int64) error
 	DeleteDiscountListBranch(ctx context.Context, branchID int64) error
 	DeleteDiscountListBranchesForList(ctx context.Context, discountListID int64) error
 	DeleteDiscountListItem(ctx context.Context, arg DeleteDiscountListItemParams) error
+	DeleteDiscountListItems(ctx context.Context, arg DeleteDiscountListItemsParams) (int64, error)
 	DeleteExpense(ctx context.Context, id int64) error
 	DeleteExpenseCategory(ctx context.Context, id int64) error
+	DeleteExpenses(ctx context.Context, ids []int64) (int64, error)
+	DeleteInventories(ctx context.Context, ids []int64) (int64, error)
 	DeleteInventory(ctx context.Context, id int64) error
+	DeleteLoan(ctx context.Context, id int64) error
 	DeleteLoanCategory(ctx context.Context, id int64) error
 	DeleteLoanPayment(ctx context.Context, id int64) error
+	// Central loans only, same read-only guard as DeleteLoan.
+	DeleteLoans(ctx context.Context, ids []int64) (int64, error)
 	DeletePriceList(ctx context.Context, id int64) error
 	DeletePriceListBranch(ctx context.Context, branchID int64) error
 	DeletePriceListBranchesForList(ctx context.Context, priceListID int64) error
 	DeletePriceListItem(ctx context.Context, arg DeletePriceListItemParams) error
+	DeletePriceListItems(ctx context.Context, arg DeletePriceListItemsParams) (int64, error)
 	DeleteProduct(ctx context.Context, id int64) error
 	DeleteProductVariant(ctx context.Context, id int64) error
 	DeletePurchaseItem(ctx context.Context, arg DeletePurchaseItemParams) error
 	DeleteSalesperson(ctx context.Context, id int64) error
 	DeleteSize(ctx context.Context, id int64) error
+	DeleteSizes(ctx context.Context, ids []int64) (int64, error)
 	DeleteTransferItem(ctx context.Context, arg DeleteTransferItemParams) error
 	DeleteUser(ctx context.Context, id int64) error
 	GetAppSettings(ctx context.Context) (AppSetting, error)
@@ -312,9 +325,7 @@ type Querier interface {
 	ListActiveBranchTargetSeries(ctx context.Context) ([]BranchTargetSeries, error)
 	ListAllAttributeValues(ctx context.Context) ([]ListAllAttributeValuesRow, error)
 	ListAllCashboxAccounts(ctx context.Context) ([]CashboxAccount, error)
-	ListAllCurrencies(ctx context.Context) ([]Currency, error)
 	ListAssets(ctx context.Context, arg ListAssetsParams) ([]Asset, error)
-	ListAttributeValues(ctx context.Context, arg ListAttributeValuesParams) ([]ListAttributeValuesRow, error)
 	ListAttributeValuesPage(ctx context.Context, arg ListAttributeValuesPageParams) ([]ListAttributeValuesPageRow, error)
 	ListAttributes(ctx context.Context) ([]Attribute, error)
 	ListBranchAttendanceChanges(ctx context.Context, arg ListBranchAttendanceChangesParams) ([]BranchAttendanceChange, error)
@@ -390,6 +401,9 @@ type Querier interface {
 	ListColors(ctx context.Context) ([]Color, error)
 	ListColorsPage(ctx context.Context, arg ListColorsPageParams) ([]Color, error)
 	ListCoupons(ctx context.Context, arg ListCouponsParams) ([]Coupon, error)
+	// page_size = 0 returns every currency (the CurrencySelect picker needs the
+	// whole list); any positive value pages. Order is always by code, so the
+	// picker and the paged table agree.
 	ListCurrencies(ctx context.Context, arg ListCurrenciesParams) ([]Currency, error)
 	ListCurrenciesUpdatedSince(ctx context.Context, updatedAt time.Time) ([]Currency, error)
 	// Sums grand_total across both kinds ('sales' and 'return') rather than
@@ -406,11 +420,13 @@ type Querier interface {
 	ListDailyIncome(ctx context.Context, arg ListDailyIncomeParams) ([]ListDailyIncomeRow, error)
 	ListDiscountListBranchIDs(ctx context.Context, discountListID int64) ([]int64, error)
 	ListDiscountListItems(ctx context.Context, discountListID int64) ([]DiscountListItem, error)
-	ListDiscountListItemsWithProduct(ctx context.Context, discountListID int64) ([]ListDiscountListItemsWithProductRow, error)
+	ListDiscountListItemsWithProduct(ctx context.Context, arg ListDiscountListItemsWithProductParams) ([]ListDiscountListItemsWithProductRow, error)
 	ListDiscountLists(ctx context.Context, arg ListDiscountListsParams) ([]DiscountList, error)
 	ListDueRecurringExpenses(ctx context.Context, nextDueAt time.Time) ([]RecurringExpense, error)
 	ListEntries(ctx context.Context, arg ListEntriesParams) ([]Entry, error)
-	ListExpenseCategories(ctx context.Context) ([]ExpenseCategory, error)
+	ListExpenseCategories(ctx context.Context, scope sql.NullString) ([]ExpenseCategory, error)
+	// Only branch-scoped categories are synced down to kashi-pos.
+	ListExpenseCategoriesUpdatedSince(ctx context.Context, updatedAt time.Time) ([]ExpenseCategory, error)
 	ListExpenses(ctx context.Context, arg ListExpensesParams) ([]Expense, error)
 	ListInventories(ctx context.Context, arg ListInventoriesParams) ([]Inventory, error)
 	ListInventoryStock(ctx context.Context, arg ListInventoryStockParams) ([]ListInventoryStockRow, error)
@@ -419,16 +435,24 @@ type Querier interface {
 	ListInvoiceTypes(ctx context.Context) ([]InvoiceType, error)
 	ListInvoices(ctx context.Context, arg ListInvoicesParams) ([]Invoice, error)
 	ListInvoicesPage(ctx context.Context, arg ListInvoicesPageParams) ([]Invoice, error)
-	ListLoanCategories(ctx context.Context) ([]LoanCategory, error)
-	// sqlc.narg(loan_id) is nullable: NULL means "all loans".
+	ListLoanCategories(ctx context.Context, scope sql.NullString) ([]LoanCategory, error)
+	// Only branch-scoped categories are synced down to kashi-pos -- central
+	// ones are managed in kashi only.
+	ListLoanCategoriesUpdatedSince(ctx context.Context, updatedAt time.Time) ([]LoanCategory, error)
+	// sqlc.narg(loan_id) is nullable: NULL means "all loans". sqlc.narg(category_id)
+	// filters by the parent loan's lender-source category.
 	ListLoanPayments(ctx context.Context, arg ListLoanPaymentsParams) ([]LoanPayment, error)
 	// sqlc.narg(branch_id)/sqlc.narg(origin) are nullable: NULL means "no
 	// filter", matching ListBranchExpenses' admin-filter convention.
-	ListLoans(ctx context.Context, arg ListLoansParams) ([]Loan, error)
+	// paid_amount is the running total of loan_payments against the loan;
+	// status is derived from it (never stored) -- 'paid' once payments cover
+	// the loan amount, 'partial' while some but not all is covered, else
+	// 'unpaid'. sqlc.narg(status) filters on that same derived value.
+	ListLoans(ctx context.Context, arg ListLoansParams) ([]ListLoansRow, error)
 	ListPendingBranchCommands(ctx context.Context, branchID int64) ([]BranchCommand, error)
 	ListPriceListBranchIDs(ctx context.Context, priceListID int64) ([]int64, error)
 	ListPriceListItems(ctx context.Context, priceListID int64) ([]PriceListItem, error)
-	ListPriceListItemsWithProduct(ctx context.Context, priceListID int64) ([]ListPriceListItemsWithProductRow, error)
+	ListPriceListItemsWithProduct(ctx context.Context, arg ListPriceListItemsWithProductParams) ([]ListPriceListItemsWithProductRow, error)
 	ListPriceLists(ctx context.Context, arg ListPriceListsParams) ([]PriceList, error)
 	ListProductAttributes(ctx context.Context, arg ListProductAttributesParams) ([]ProductsAttribute, error)
 	ListProductVariants(ctx context.Context, arg ListProductVariantsParams) ([]ListProductVariantsRow, error)
@@ -519,6 +543,10 @@ type Querier interface {
 	UpdateExpenseCategory(ctx context.Context, arg UpdateExpenseCategoryParams) (ExpenseCategory, error)
 	UpdateInventory(ctx context.Context, arg UpdateInventoryParams) error
 	UpdateInvoiceType(ctx context.Context, arg UpdateInvoiceTypeParams) (InvoiceType, error)
+	// Central loans only -- branch-origin loans are a synced record of what a
+	// branch reported and stay read-only here (WHERE origin filter makes a
+	// branch-loan id return no rows, surfaced as a 404 by the handler).
+	UpdateLoan(ctx context.Context, arg UpdateLoanParams) (Loan, error)
 	UpdateLoanCategory(ctx context.Context, arg UpdateLoanCategoryParams) (LoanCategory, error)
 	UpdatePriceList(ctx context.Context, arg UpdatePriceListParams) error
 	UpdatePriceListItem(ctx context.Context, arg UpdatePriceListItemParams) error

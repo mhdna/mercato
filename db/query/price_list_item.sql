@@ -26,6 +26,10 @@ WHERE price_list_id = $1 AND product_id = $2;
 DELETE FROM price_list_items
 WHERE price_list_id = $1 AND product_id = $2;
 
+-- name: DeletePriceListItems :execrows
+DELETE FROM price_list_items
+WHERE price_list_id = $1 AND product_id = ANY(sqlc.arg(product_ids)::bigint[]);
+
 -- name: ListPriceListItems :many
 SELECT * FROM price_list_items
 WHERE price_list_id = $1
@@ -37,4 +41,18 @@ SELECT pli.price_list_id, pli.product_id, pli.price,
 FROM price_list_items pli
 JOIN products p ON p.id = pli.product_id
 WHERE pli.price_list_id = $1
-ORDER BY p.name;
+  AND (sqlc.arg(search)::text = ''
+       OR p.name ILIKE '%' || sqlc.arg(search)::text || '%'
+       OR p.code ILIKE '%' || sqlc.arg(search)::text || '%')
+ORDER BY p.name, pli.product_id
+LIMIT sqlc.arg(page_size)
+OFFSET sqlc.arg(page_offset);
+
+-- name: CountPriceListItemsWithProduct :one
+SELECT COUNT(*)
+FROM price_list_items pli
+JOIN products p ON p.id = pli.product_id
+WHERE pli.price_list_id = $1
+  AND (sqlc.arg(search)::text = ''
+       OR p.name ILIKE '%' || sqlc.arg(search)::text || '%'
+       OR p.code ILIKE '%' || sqlc.arg(search)::text || '%');

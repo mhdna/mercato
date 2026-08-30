@@ -49,9 +49,11 @@ func (server *Server) createLoanPayment(ctx *gin.Context) {
 }
 
 type listLoanPaymentsRequest struct {
-	PageSize int32 `form:"page_size,default=10" binding:"min=5,max=100"`
-	PageID   int32 `form:"page_id,default=0" binding:"min=0"`
-	LoanID   int64 `form:"loan_id"`
+	PageSize   int32  `form:"page_size,default=10" binding:"min=5,max=100"`
+	PageID     int32  `form:"page_id,default=0" binding:"min=0"`
+	LoanID     int64  `form:"loan_id"`
+	CategoryID int64  `form:"category_id"`
+	Search     string `form:"search"`
 }
 
 func (server *Server) listLoanPayments(ctx *gin.Context) {
@@ -65,18 +67,32 @@ func (server *Server) listLoanPayments(ctx *gin.Context) {
 	if req.LoanID > 0 {
 		loanID = sql.NullInt64{Int64: req.LoanID, Valid: true}
 	}
+	var categoryID sql.NullInt64
+	if req.CategoryID > 0 {
+		categoryID = sql.NullInt64{Int64: req.CategoryID, Valid: true}
+	}
+	var search sql.NullString
+	if req.Search != "" {
+		search = sql.NullString{String: req.Search, Valid: true}
+	}
 
 	payments, err := server.store.ListLoanPayments(ctx, db.ListLoanPaymentsParams{
-		Limit:  req.PageSize,
-		Offset: req.PageID,
-		LoanID: loanID,
+		Limit:      req.PageSize,
+		Offset:     req.PageID,
+		LoanID:     loanID,
+		CategoryID: categoryID,
+		Search:     search,
 	})
 	if err != nil {
 		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 
-	total, err := server.store.CountLoanPayments(ctx, loanID)
+	total, err := server.store.CountLoanPayments(ctx, db.CountLoanPaymentsParams{
+		LoanID:     loanID,
+		CategoryID: categoryID,
+		Search:     search,
+	})
 	if err != nil {
 		server.writeError(ctx, http.StatusInternalServerError, err)
 		return

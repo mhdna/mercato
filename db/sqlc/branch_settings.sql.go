@@ -11,7 +11,7 @@ import (
 )
 
 const getBranchSettings = `-- name: GetBranchSettings :one
-SELECT branch_id, branch_name, tax_rate, rounding_mode, rounding_currency, exchange_rate, exchange_window_hours, market_name, market_phone, market_description, return_policy, website, instagram, social_platforms, social_handles, updated_at FROM branch_settings WHERE branch_id = $1
+SELECT branch_id, branch_name, tax_rate, rounding_mode, rounding_currency, exchange_rate, exchange_window_hours, market_name, market_phone, market_description, return_policy, website, instagram, social_platforms, social_handles, updated_at, search_button_enabled FROM branch_settings WHERE branch_id = $1
 `
 
 func (q *Queries) GetBranchSettings(ctx context.Context, branchID int64) (BranchSetting, error) {
@@ -34,6 +34,7 @@ func (q *Queries) GetBranchSettings(ctx context.Context, branchID int64) (Branch
 		&i.SocialPlatforms,
 		&i.SocialHandles,
 		&i.UpdatedAt,
+		&i.SearchButtonEnabled,
 	)
 	return i, err
 }
@@ -55,9 +56,10 @@ INSERT INTO branch_settings (
   instagram,
   social_platforms,
   social_handles,
+  search_button_enabled,
   updated_at
 ) VALUES (
-  $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, now()
+  $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, now()
 )
 ON CONFLICT (branch_id) DO UPDATE SET
   branch_name = EXCLUDED.branch_name,
@@ -74,8 +76,9 @@ ON CONFLICT (branch_id) DO UPDATE SET
   instagram = EXCLUDED.instagram,
   social_platforms = EXCLUDED.social_platforms,
   social_handles = EXCLUDED.social_handles,
+  search_button_enabled = EXCLUDED.search_button_enabled,
   updated_at = now()
-RETURNING branch_id, branch_name, tax_rate, rounding_mode, rounding_currency, exchange_rate, exchange_window_hours, market_name, market_phone, market_description, return_policy, website, instagram, social_platforms, social_handles, updated_at
+RETURNING branch_id, branch_name, tax_rate, rounding_mode, rounding_currency, exchange_rate, exchange_window_hours, market_name, market_phone, market_description, return_policy, website, instagram, social_platforms, social_handles, updated_at, search_button_enabled
 `
 
 type UpsertBranchSettingsParams struct {
@@ -94,6 +97,7 @@ type UpsertBranchSettingsParams struct {
 	Instagram           string          `json:"instagram"`
 	SocialPlatforms     json.RawMessage `json:"social_platforms"`
 	SocialHandles       json.RawMessage `json:"social_handles"`
+	SearchButtonEnabled bool            `json:"search_button_enabled"`
 }
 
 func (q *Queries) UpsertBranchSettings(ctx context.Context, arg UpsertBranchSettingsParams) (BranchSetting, error) {
@@ -113,6 +117,7 @@ func (q *Queries) UpsertBranchSettings(ctx context.Context, arg UpsertBranchSett
 		arg.Instagram,
 		arg.SocialPlatforms,
 		arg.SocialHandles,
+		arg.SearchButtonEnabled,
 	)
 	var i BranchSetting
 	err := row.Scan(
@@ -132,6 +137,7 @@ func (q *Queries) UpsertBranchSettings(ctx context.Context, arg UpsertBranchSett
 		&i.SocialPlatforms,
 		&i.SocialHandles,
 		&i.UpdatedAt,
+		&i.SearchButtonEnabled,
 	)
 	return i, err
 }

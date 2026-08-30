@@ -7,6 +7,8 @@ package db
 
 import (
 	"context"
+
+	"github.com/lib/pq"
 )
 
 const countSizes = `-- name: CountSizes :one
@@ -64,6 +66,19 @@ WHERE id = $1
 func (q *Queries) DeleteSize(ctx context.Context, id int64) error {
 	_, err := q.db.ExecContext(ctx, deleteSize, id)
 	return err
+}
+
+const deleteSizes = `-- name: DeleteSizes :execrows
+DELETE FROM sizes
+WHERE id = ANY($1::bigint[])
+`
+
+func (q *Queries) DeleteSizes(ctx context.Context, ids []int64) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteSizes, pq.Array(ids))
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const listSizes = `-- name: ListSizes :many

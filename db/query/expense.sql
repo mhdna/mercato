@@ -15,12 +15,16 @@ WHERE id = $1 LIMIT 1;
 
 -- name: ListExpenses :many
 SELECT * FROM expenses
+WHERE (sqlc.narg(category_id)::bigint IS NULL OR category_id = sqlc.narg(category_id))
+  AND (sqlc.narg(search)::text IS NULL OR description ILIKE '%' || sqlc.narg(search) || '%')
 ORDER BY id DESC
 LIMIT $1
 OFFSET $2;
 
 -- name: CountExpenses :one
-SELECT COUNT(*) FROM expenses;
+SELECT COUNT(*) FROM expenses
+WHERE (sqlc.narg(category_id)::bigint IS NULL OR category_id = sqlc.narg(category_id))
+  AND (sqlc.narg(search)::text IS NULL OR description ILIKE '%' || sqlc.narg(search) || '%');
 
 -- name: UpdateExpense :one
 UPDATE expenses
@@ -34,3 +38,7 @@ RETURNING *;
 -- name: DeleteExpense :exec
 DELETE FROM expenses
 WHERE id = $1;
+
+-- name: DeleteExpenses :execrows
+DELETE FROM expenses
+WHERE id = ANY(sqlc.arg(ids)::bigint[]);

@@ -136,36 +136,20 @@ func (server *Server) getPriceList(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, priceList)
 }
 
-type listPriceListsRequest struct {
-	PageSize int32  `form:"page_size,default=10" binding:"min=5,max=100"`
-	PageID   int32  `form:"page_id,default=0" binding:"min=0"`
-	Search   string `form:"search"`
-}
-
 func (server *Server) listPriceLists(ctx *gin.Context) {
-	var req listPriceListsRequest
-	if err := ctx.ShouldBindQuery(&req); err != nil {
-		server.writeError(ctx, http.StatusBadRequest, err)
+	q, ok := server.bindListPageQuery(ctx)
+	if !ok {
 		return
 	}
 
-	arg := db.ListPriceListsParams{
-		Search:     req.Search,
-		PageSize:   req.PageSize,
-		PageOffset: req.PageID,
-	}
-	priceLists, err := server.store.ListPriceLists(ctx, arg)
-	if err != nil {
-		server.writeError(ctx, http.StatusInternalServerError, err)
-		return
-	}
-
-	total, err := server.store.CountPriceListsFiltered(ctx, req.Search)
-	if err != nil {
-		server.writeError(ctx, http.StatusInternalServerError, err)
-		return
-	}
-	ctx.JSON(http.StatusOK, gin.H{"price_lists": priceLists, "total": total})
+	respondList(server, ctx, "price_lists",
+		func() ([]db.PriceList, error) {
+			return server.store.ListPriceLists(ctx, db.ListPriceListsParams{
+				Search: q.Search, PageSize: q.PageSize, PageOffset: q.PageID,
+			})
+		},
+		func() (int64, error) { return server.store.CountPriceListsFiltered(ctx, q.Search) },
+	)
 }
 
 type createPriceListItemRequest struct {
@@ -206,13 +190,27 @@ func (server *Server) listPriceListItems(ctx *gin.Context) {
 		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
-
-	items, err := server.store.ListPriceListItemsWithProduct(ctx, req.PriceListID)
-	if err != nil {
-		server.writeError(ctx, http.StatusInternalServerError, err)
+	q, ok := server.bindListPageQuery(ctx)
+	if !ok {
 		return
 	}
-	ctx.JSON(http.StatusOK, gin.H{"items": items})
+
+	respondList(server, ctx, "items",
+		func() ([]db.ListPriceListItemsWithProductRow, error) {
+			return server.store.ListPriceListItemsWithProduct(ctx, db.ListPriceListItemsWithProductParams{
+				PriceListID: req.PriceListID,
+				Search:      q.Search,
+				PageSize:    q.PageSize,
+				PageOffset:  q.PageID,
+			})
+		},
+		func() (int64, error) {
+			return server.store.CountPriceListItemsWithProduct(ctx, db.CountPriceListItemsWithProductParams{
+				PriceListID: req.PriceListID,
+				Search:      q.Search,
+			})
+		},
+	)
 }
 
 type deletePriceListItemRequest struct {

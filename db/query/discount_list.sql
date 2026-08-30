@@ -51,6 +51,10 @@ WHERE discount_list_id = $1 AND product_id = $2;
 DELETE FROM discount_list_items
 WHERE discount_list_id = $1 AND product_id = $2;
 
+-- name: DeleteDiscountListItems :execrows
+DELETE FROM discount_list_items
+WHERE discount_list_id = $1 AND product_id = ANY(sqlc.arg(product_ids)::bigint[]);
+
 -- name: ListDiscountListItems :many
 SELECT * FROM discount_list_items
 WHERE discount_list_id = $1
@@ -62,7 +66,21 @@ SELECT dli.discount_list_id, dli.product_id, dli.discount,
 FROM discount_list_items dli
 JOIN products p ON p.id = dli.product_id
 WHERE dli.discount_list_id = $1
-ORDER BY p.name;
+  AND (sqlc.arg(search)::text = ''
+       OR p.name ILIKE '%' || sqlc.arg(search)::text || '%'
+       OR p.code ILIKE '%' || sqlc.arg(search)::text || '%')
+ORDER BY p.name, dli.product_id
+LIMIT sqlc.arg(page_size)
+OFFSET sqlc.arg(page_offset);
+
+-- name: CountDiscountListItemsWithProduct :one
+SELECT COUNT(*)
+FROM discount_list_items dli
+JOIN products p ON p.id = dli.product_id
+WHERE dli.discount_list_id = $1
+  AND (sqlc.arg(search)::text = ''
+       OR p.name ILIKE '%' || sqlc.arg(search)::text || '%'
+       OR p.code ILIKE '%' || sqlc.arg(search)::text || '%');
 
 -- name: CountDiscountLists :one
 SELECT COUNT(*) FROM discount_lists;

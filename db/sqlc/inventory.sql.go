@@ -9,6 +9,8 @@ import (
 	"context"
 	"database/sql"
 	"time"
+
+	"github.com/lib/pq"
 )
 
 const addInventoryStockQuantity = `-- name: AddInventoryStockQuantity :one
@@ -196,6 +198,19 @@ func (q *Queries) CreateStockMovement(ctx context.Context, arg CreateStockMoveme
 		&i.CreatedAt,
 	)
 	return i, err
+}
+
+const deleteInventories = `-- name: DeleteInventories :execrows
+DELETE FROM inventories
+WHERE id = ANY($1::bigint[])
+`
+
+func (q *Queries) DeleteInventories(ctx context.Context, ids []int64) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteInventories, pq.Array(ids))
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const deleteInventory = `-- name: DeleteInventory :exec

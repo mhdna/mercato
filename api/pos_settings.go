@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	db "github.com/mhdna/kashi/db/sqlc"
 )
 
 type posSettingsRequest struct {
@@ -33,7 +34,7 @@ func (server *Server) posSettings(ctx *gin.Context) {
 		return
 	}
 
-	currencies, err := server.store.ListAllCurrencies(ctx)
+	currencies, err := server.store.ListCurrencies(ctx, db.ListCurrenciesParams{PageSize: 0})
 	if err != nil {
 		server.writeError(ctx, http.StatusInternalServerError, err)
 		return

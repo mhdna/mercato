@@ -25,11 +25,12 @@ type Querier interface {
 	AddPurchasedProductCost(ctx context.Context, arg AddPurchasedProductCostParams) (ProductSupplierCost, error)
 	CloseShift(ctx context.Context, id int64) error
 	CompleteBranchCommand(ctx context.Context, arg CompleteBranchCommandParams) (BranchCommand, error)
+	CountAssets(ctx context.Context, arg CountAssetsParams) (int64, error)
 	CountAttributeValues(ctx context.Context, arg CountAttributeValuesParams) (int64, error)
 	CountBranchAttendanceChanges(ctx context.Context, branchID sql.NullInt64) (int64, error)
 	CountBranchAttendanceEvents(ctx context.Context, branchID sql.NullInt64) (int64, error)
 	CountBranchExpenseImages(ctx context.Context) (int64, error)
-	CountBranchExpenses(ctx context.Context, branchID sql.NullInt64) (int64, error)
+	CountBranchExpenses(ctx context.Context, arg CountBranchExpensesParams) (int64, error)
 	CountBranchInvoiceSettlements(ctx context.Context, branchID sql.NullInt64) (int64, error)
 	CountBranchInvoices(ctx context.Context, branchID sql.NullInt64) (int64, error)
 	CountBranchInvoicesFiltered(ctx context.Context, arg CountBranchInvoicesFilteredParams) (int64, error)
@@ -67,7 +68,7 @@ type Querier interface {
 	CountTransfers(ctx context.Context) (int64, error)
 	CountVariantsForBarcodes(ctx context.Context, search string) (int64, error)
 	CreateAsset(ctx context.Context, arg CreateAssetParams) (Asset, error)
-	CreateAssetType(ctx context.Context, type_ string) (AssetsType, error)
+	CreateAssetCategory(ctx context.Context, arg CreateAssetCategoryParams) (AssetCategory, error)
 	CreateBranch(ctx context.Context, arg CreateBranchParams) (Branch, error)
 	CreateBranchAttendanceChange(ctx context.Context, arg CreateBranchAttendanceChangeParams) (BranchAttendanceChange, error)
 	CreateBranchAttendanceEvent(ctx context.Context, arg CreateBranchAttendanceEventParams) (BranchAttendanceEvent, error)
@@ -209,7 +210,8 @@ type Querier interface {
 	DeactivateCoupon(ctx context.Context, code string) error
 	DecrementInvoicesIndex(ctx context.Context, arg DecrementInvoicesIndexParams) (int64, error)
 	DeleteAsset(ctx context.Context, id int64) error
-	DeleteAssetType(ctx context.Context, id int64) error
+	DeleteAssetCategory(ctx context.Context, id int64) error
+	DeleteAssets(ctx context.Context, ids []int64) (int64, error)
 	DeleteAttributeValue(ctx context.Context, id int64) error
 	DeleteAttributeValues(ctx context.Context, ids []int64) (int64, error)
 	DeleteBranchInvoicePaymentsForInvoice(ctx context.Context, branchInvoiceID int64) error
@@ -249,6 +251,7 @@ type Querier interface {
 	DeleteUser(ctx context.Context, id int64) error
 	GetAppSettings(ctx context.Context) (AppSetting, error)
 	GetAsset(ctx context.Context, id int64) (Asset, error)
+	GetAssetCategory(ctx context.Context, id int64) (AssetCategory, error)
 	GetAttribute(ctx context.Context, name string) (Attribute, error)
 	// upserting instead of inserting makes product creation with attributes easier
 	GetAttributeValue(ctx context.Context, id int64) (AttributesValue, error)
@@ -325,7 +328,8 @@ type Querier interface {
 	ListActiveBranchTargetSeries(ctx context.Context) ([]BranchTargetSeries, error)
 	ListAllAttributeValues(ctx context.Context) ([]ListAllAttributeValuesRow, error)
 	ListAllCashboxAccounts(ctx context.Context) ([]CashboxAccount, error)
-	ListAssets(ctx context.Context, arg ListAssetsParams) ([]Asset, error)
+	ListAssetCategories(ctx context.Context) ([]AssetCategory, error)
+	ListAssetsPage(ctx context.Context, arg ListAssetsPageParams) ([]Asset, error)
 	ListAttributeValuesPage(ctx context.Context, arg ListAttributeValuesPageParams) ([]ListAttributeValuesPageRow, error)
 	ListAttributes(ctx context.Context) ([]Attribute, error)
 	ListBranchAttendanceChanges(ctx context.Context, arg ListBranchAttendanceChangesParams) ([]BranchAttendanceChange, error)
@@ -337,7 +341,7 @@ type Querier interface {
 	ListBranchExpenseImages(ctx context.Context, arg ListBranchExpenseImagesParams) ([]ListBranchExpenseImagesRow, error)
 	ListBranchExpenseImagesForExpense(ctx context.Context, branchExpenseID int64) ([]BranchExpenseImage, error)
 	// sqlc.narg(branch_id) is nullable: NULL means "all branches", matching
-	// ListBranchInvoices' admin-filter convention.
+	// ListBranchInvoices' admin-filter convention. search '' means no filter.
 	ListBranchExpenses(ctx context.Context, arg ListBranchExpensesParams) ([]BranchExpense, error)
 	ListBranchInvoiceItems(ctx context.Context, branchInvoiceID int64) ([]BranchInvoiceItem, error)
 	ListBranchInvoicePayments(ctx context.Context, branchInvoiceID int64) ([]BranchInvoicePayment, error)
@@ -523,7 +527,8 @@ type Querier interface {
 	UnsetDefaultDiscountList(ctx context.Context, id int64) error
 	UnsetDefaultPriceList(ctx context.Context, id int64) error
 	UpdateAppSettings(ctx context.Context, arg UpdateAppSettingsParams) (AppSetting, error)
-	UpdateAsset(ctx context.Context, arg UpdateAssetParams) error
+	UpdateAsset(ctx context.Context, arg UpdateAssetParams) (Asset, error)
+	UpdateAssetCategory(ctx context.Context, arg UpdateAssetCategoryParams) (AssetCategory, error)
 	UpdateAttributeValue(ctx context.Context, arg UpdateAttributeValueParams) (AttributesValue, error)
 	UpdateBranchAPIKeyHash(ctx context.Context, arg UpdateBranchAPIKeyHashParams) error
 	UpdateBranchLastSeenAt(ctx context.Context, id int64) error

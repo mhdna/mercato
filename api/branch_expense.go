@@ -194,9 +194,10 @@ func (server *Server) adminCreateBranchExpense(ctx *gin.Context) {
 }
 
 type listBranchExpensesRequest struct {
-	PageSize int32 `form:"page_size,default=10" binding:"min=5,max=100"`
-	PageID   int32 `form:"page_id,default=0" binding:"min=0"`
-	BranchID int64 `form:"branch_id"`
+	PageSize int32  `form:"page_size,default=10" binding:"min=5,max=100"`
+	PageID   int32  `form:"page_id,default=0" binding:"min=0"`
+	BranchID int64  `form:"branch_id"`
+	Search   string `form:"search"`
 }
 
 // listBranchExpenses is the admin-facing counterpart to createBranchExpense,
@@ -218,13 +219,17 @@ func (server *Server) listBranchExpenses(ctx *gin.Context) {
 		Limit:    req.PageSize,
 		Offset:   req.PageID,
 		BranchID: branchID,
+		Search:   req.Search,
 	})
 	if err != nil {
 		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 
-	total, err := server.store.CountBranchExpenses(ctx, branchID)
+	total, err := server.store.CountBranchExpenses(ctx, db.CountBranchExpensesParams{
+		BranchID: branchID,
+		Search:   req.Search,
+	})
 	if err != nil {
 		server.writeError(ctx, http.StatusInternalServerError, err)
 		return

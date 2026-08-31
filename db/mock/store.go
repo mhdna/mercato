@@ -201,6 +201,21 @@ func (mr *MockStoreMockRecorder) CompleteBranchCommand(arg0, arg1 interface{}) *
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CompleteBranchCommand", reflect.TypeOf((*MockStore)(nil).CompleteBranchCommand), arg0, arg1)
 }
 
+// CountAssets mocks base method.
+func (m *MockStore) CountAssets(arg0 context.Context, arg1 db.CountAssetsParams) (int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CountAssets", arg0, arg1)
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CountAssets indicates an expected call of CountAssets.
+func (mr *MockStoreMockRecorder) CountAssets(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CountAssets", reflect.TypeOf((*MockStore)(nil).CountAssets), arg0, arg1)
+}
+
 // CountAttributeValues mocks base method.
 func (m *MockStore) CountAttributeValues(arg0 context.Context, arg1 db.CountAttributeValuesParams) (int64, error) {
 	m.ctrl.T.Helper()
@@ -262,7 +277,7 @@ func (mr *MockStoreMockRecorder) CountBranchExpenseImages(arg0 interface{}) *gom
 }
 
 // CountBranchExpenses mocks base method.
-func (m *MockStore) CountBranchExpenses(arg0 context.Context, arg1 sql.NullInt64) (int64, error) {
+func (m *MockStore) CountBranchExpenses(arg0 context.Context, arg1 db.CountBranchExpensesParams) (int64, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CountBranchExpenses", arg0, arg1)
 	ret0, _ := ret[0].(int64)
@@ -771,19 +786,19 @@ func (mr *MockStoreMockRecorder) CreateAsset(arg0, arg1 interface{}) *gomock.Cal
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateAsset", reflect.TypeOf((*MockStore)(nil).CreateAsset), arg0, arg1)
 }
 
-// CreateAssetType mocks base method.
-func (m *MockStore) CreateAssetType(arg0 context.Context, arg1 string) (db.AssetsType, error) {
+// CreateAssetCategory mocks base method.
+func (m *MockStore) CreateAssetCategory(arg0 context.Context, arg1 db.CreateAssetCategoryParams) (db.AssetCategory, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateAssetType", arg0, arg1)
-	ret0, _ := ret[0].(db.AssetsType)
+	ret := m.ctrl.Call(m, "CreateAssetCategory", arg0, arg1)
+	ret0, _ := ret[0].(db.AssetCategory)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// CreateAssetType indicates an expected call of CreateAssetType.
-func (mr *MockStoreMockRecorder) CreateAssetType(arg0, arg1 interface{}) *gomock.Call {
+// CreateAssetCategory indicates an expected call of CreateAssetCategory.
+func (mr *MockStoreMockRecorder) CreateAssetCategory(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateAssetType", reflect.TypeOf((*MockStore)(nil).CreateAssetType), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateAssetCategory", reflect.TypeOf((*MockStore)(nil).CreateAssetCategory), arg0, arg1)
 }
 
 // CreateBranch mocks base method.
@@ -2013,18 +2028,33 @@ func (mr *MockStoreMockRecorder) DeleteAsset(arg0, arg1 interface{}) *gomock.Cal
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteAsset", reflect.TypeOf((*MockStore)(nil).DeleteAsset), arg0, arg1)
 }
 
-// DeleteAssetType mocks base method.
-func (m *MockStore) DeleteAssetType(arg0 context.Context, arg1 int64) error {
+// DeleteAssetCategory mocks base method.
+func (m *MockStore) DeleteAssetCategory(arg0 context.Context, arg1 int64) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DeleteAssetType", arg0, arg1)
+	ret := m.ctrl.Call(m, "DeleteAssetCategory", arg0, arg1)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// DeleteAssetType indicates an expected call of DeleteAssetType.
-func (mr *MockStoreMockRecorder) DeleteAssetType(arg0, arg1 interface{}) *gomock.Call {
+// DeleteAssetCategory indicates an expected call of DeleteAssetCategory.
+func (mr *MockStoreMockRecorder) DeleteAssetCategory(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteAssetType", reflect.TypeOf((*MockStore)(nil).DeleteAssetType), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteAssetCategory", reflect.TypeOf((*MockStore)(nil).DeleteAssetCategory), arg0, arg1)
+}
+
+// DeleteAssets mocks base method.
+func (m *MockStore) DeleteAssets(arg0 context.Context, arg1 []int64) (int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteAssets", arg0, arg1)
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// DeleteAssets indicates an expected call of DeleteAssets.
+func (mr *MockStoreMockRecorder) DeleteAssets(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteAssets", reflect.TypeOf((*MockStore)(nil).DeleteAssets), arg0, arg1)
 }
 
 // DeleteAttributeValue mocks base method.
@@ -2599,6 +2629,21 @@ func (m *MockStore) GetAsset(arg0 context.Context, arg1 int64) (db.Asset, error)
 func (mr *MockStoreMockRecorder) GetAsset(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAsset", reflect.TypeOf((*MockStore)(nil).GetAsset), arg0, arg1)
+}
+
+// GetAssetCategory mocks base method.
+func (m *MockStore) GetAssetCategory(arg0 context.Context, arg1 int64) (db.AssetCategory, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetAssetCategory", arg0, arg1)
+	ret0, _ := ret[0].(db.AssetCategory)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetAssetCategory indicates an expected call of GetAssetCategory.
+func (mr *MockStoreMockRecorder) GetAssetCategory(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAssetCategory", reflect.TypeOf((*MockStore)(nil).GetAssetCategory), arg0, arg1)
 }
 
 // GetAttribute mocks base method.
@@ -3681,19 +3726,34 @@ func (mr *MockStoreMockRecorder) ListAllCashboxAccounts(arg0 interface{}) *gomoc
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListAllCashboxAccounts", reflect.TypeOf((*MockStore)(nil).ListAllCashboxAccounts), arg0)
 }
 
-// ListAssets mocks base method.
-func (m *MockStore) ListAssets(arg0 context.Context, arg1 db.ListAssetsParams) ([]db.Asset, error) {
+// ListAssetCategories mocks base method.
+func (m *MockStore) ListAssetCategories(arg0 context.Context) ([]db.AssetCategory, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ListAssets", arg0, arg1)
+	ret := m.ctrl.Call(m, "ListAssetCategories", arg0)
+	ret0, _ := ret[0].([]db.AssetCategory)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListAssetCategories indicates an expected call of ListAssetCategories.
+func (mr *MockStoreMockRecorder) ListAssetCategories(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListAssetCategories", reflect.TypeOf((*MockStore)(nil).ListAssetCategories), arg0)
+}
+
+// ListAssetsPage mocks base method.
+func (m *MockStore) ListAssetsPage(arg0 context.Context, arg1 db.ListAssetsPageParams) ([]db.Asset, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListAssetsPage", arg0, arg1)
 	ret0, _ := ret[0].([]db.Asset)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// ListAssets indicates an expected call of ListAssets.
-func (mr *MockStoreMockRecorder) ListAssets(arg0, arg1 interface{}) *gomock.Call {
+// ListAssetsPage indicates an expected call of ListAssetsPage.
+func (mr *MockStoreMockRecorder) ListAssetsPage(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListAssets", reflect.TypeOf((*MockStore)(nil).ListAssets), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListAssetsPage", reflect.TypeOf((*MockStore)(nil).ListAssetsPage), arg0, arg1)
 }
 
 // ListAttributeValuesPage mocks base method.
@@ -5251,17 +5311,33 @@ func (mr *MockStoreMockRecorder) UpdateAppSettings(arg0, arg1 interface{}) *gomo
 }
 
 // UpdateAsset mocks base method.
-func (m *MockStore) UpdateAsset(arg0 context.Context, arg1 db.UpdateAssetParams) error {
+func (m *MockStore) UpdateAsset(arg0 context.Context, arg1 db.UpdateAssetParams) (db.Asset, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateAsset", arg0, arg1)
-	ret0, _ := ret[0].(error)
-	return ret0
+	ret0, _ := ret[0].(db.Asset)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // UpdateAsset indicates an expected call of UpdateAsset.
 func (mr *MockStoreMockRecorder) UpdateAsset(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateAsset", reflect.TypeOf((*MockStore)(nil).UpdateAsset), arg0, arg1)
+}
+
+// UpdateAssetCategory mocks base method.
+func (m *MockStore) UpdateAssetCategory(arg0 context.Context, arg1 db.UpdateAssetCategoryParams) (db.AssetCategory, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateAssetCategory", arg0, arg1)
+	ret0, _ := ret[0].(db.AssetCategory)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// UpdateAssetCategory indicates an expected call of UpdateAssetCategory.
+func (mr *MockStoreMockRecorder) UpdateAssetCategory(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateAssetCategory", reflect.TypeOf((*MockStore)(nil).UpdateAssetCategory), arg0, arg1)
 }
 
 // UpdateAttributeValue mocks base method.

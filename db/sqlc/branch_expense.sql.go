@@ -13,11 +13,17 @@ import (
 
 const countBranchExpenses = `-- name: CountBranchExpenses :one
 SELECT COUNT(*) FROM branch_expenses
-WHERE $1::bigint IS NULL OR branch_id = $1
+WHERE ($1::bigint IS NULL OR branch_id = $1)
+  AND ($2::text = '' OR description ILIKE '%' || $2::text || '%')
 `
 
-func (q *Queries) CountBranchExpenses(ctx context.Context, branchID sql.NullInt64) (int64, error) {
-	row := q.db.QueryRowContext(ctx, countBranchExpenses, branchID)
+type CountBranchExpensesParams struct {
+	BranchID sql.NullInt64 `json:"branch_id"`
+	Search   string        `json:"search"`
+}
+
+func (q *Queries) CountBranchExpenses(ctx context.Context, arg CountBranchExpensesParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countBranchExpenses, arg.BranchID, arg.Search)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -138,7 +144,8 @@ func (q *Queries) GetBranchExpenseByClientRef(ctx context.Context, arg GetBranch
 
 const listBranchExpenses = `-- name: ListBranchExpenses :many
 SELECT id, branch_id, client_ref, description, amount, currency_code, branch_cashbox_account_id, branch_shift_id, occurred_at, received_at, category_id FROM branch_expenses
-WHERE $3::bigint IS NULL OR branch_id = $3
+WHERE ($3::bigint IS NULL OR branch_id = $3)
+  AND ($4::text = '' OR description ILIKE '%' || $4::text || '%')
 ORDER BY id DESC
 LIMIT $1 OFFSET $2
 `
@@ -147,12 +154,18 @@ type ListBranchExpensesParams struct {
 	Limit    int32         `json:"limit"`
 	Offset   int32         `json:"offset"`
 	BranchID sql.NullInt64 `json:"branch_id"`
+	Search   string        `json:"search"`
 }
 
 // sqlc.narg(branch_id) is nullable: NULL means "all branches", matching
-// ListBranchInvoices' admin-filter convention.
+// ListBranchInvoices' admin-filter convention. search ” means no filter.
 func (q *Queries) ListBranchExpenses(ctx context.Context, arg ListBranchExpensesParams) ([]BranchExpense, error) {
-	rows, err := q.db.QueryContext(ctx, listBranchExpenses, arg.Limit, arg.Offset, arg.BranchID)
+	rows, err := q.db.QueryContext(ctx, listBranchExpenses,
+		arg.Limit,
+		arg.Offset,
+		arg.BranchID,
+		arg.Search,
+	)
 	if err != nil {
 		return nil, err
 	}

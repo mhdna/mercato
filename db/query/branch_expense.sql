@@ -26,12 +26,14 @@ LIMIT 1;
 
 -- name: ListBranchExpenses :many
 -- sqlc.narg(branch_id) is nullable: NULL means "all branches", matching
--- ListBranchInvoices' admin-filter convention.
+-- ListBranchInvoices' admin-filter convention. search '' means no filter.
 SELECT * FROM branch_expenses
-WHERE sqlc.narg(branch_id)::bigint IS NULL OR branch_id = sqlc.narg(branch_id)
+WHERE (sqlc.narg(branch_id)::bigint IS NULL OR branch_id = sqlc.narg(branch_id))
+  AND (sqlc.arg(search)::text = '' OR description ILIKE '%' || sqlc.arg(search)::text || '%')
 ORDER BY id DESC
 LIMIT $1 OFFSET $2;
 
 -- name: CountBranchExpenses :one
 SELECT COUNT(*) FROM branch_expenses
-WHERE sqlc.narg(branch_id)::bigint IS NULL OR branch_id = sqlc.narg(branch_id);
+WHERE (sqlc.narg(branch_id)::bigint IS NULL OR branch_id = sqlc.narg(branch_id))
+  AND (sqlc.arg(search)::text = '' OR description ILIKE '%' || sqlc.arg(search)::text || '%');

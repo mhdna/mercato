@@ -7,6 +7,8 @@ package db
 
 import (
 	"context"
+	"database/sql"
+	"time"
 )
 
 const closeShift = `-- name: CloseShift :exec
@@ -22,11 +24,31 @@ func (q *Queries) CloseShift(ctx context.Context, id int64) error {
 }
 
 const countShifts = `-- name: CountShifts :one
-SELECT COUNT(*) FROM shifts
+SELECT COUNT(*)
+FROM shifts s
+INNER JOIN cashboxes c ON c.id = s.cashbox_id
+WHERE (
+    $1::text = ''
+    OR ($1::text = 'open' AND s.is_closed = false)
+    OR ($1::text = 'closed' AND s.is_closed = true)
+  )
+  AND ($2::bigint IS NULL OR s.cashbox_id = $2)
+  AND (
+    $3::text = ''
+    OR c.name ILIKE '%' || $3::text || '%'
+    OR c.code ILIKE '%' || $3::text || '%'
+    OR CAST(s.id AS text) = $3::text
+  )
 `
 
-func (q *Queries) CountShifts(ctx context.Context) (int64, error) {
-	row := q.db.QueryRowContext(ctx, countShifts)
+type CountShiftsParams struct {
+	Status    string        `json:"status"`
+	CashboxID sql.NullInt64 `json:"cashbox_id"`
+	Search    string        `json:"search"`
+}
+
+func (q *Queries) CountShifts(ctx context.Context, arg CountShiftsParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countShifts, arg.Status, arg.CashboxID, arg.Search)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -73,32 +95,82 @@ func (q *Queries) GetShift(ctx context.Context, id int64) (Shift, error) {
 }
 
 const listShifts = `-- name: ListShifts :many
-SELECT id, is_closed, cashbox_id, created_at, closed_at FROM shifts
-ORDER BY id
-LIMIT $1
-OFFSET $2
+SELECT
+  s.id, s.is_closed, s.cashbox_id, s.created_at, s.closed_at,
+  c.name AS cashbox_name,
+  c.code AS cashbox_code
+FROM shifts s
+INNER JOIN cashboxes c ON c.id = s.cashbox_id
+WHERE (
+    $1::text = ''
+    OR ($1::text = 'open' AND s.is_closed = false)
+    OR ($1::text = 'closed' AND s.is_closed = true)
+  )
+  AND ($2::bigint IS NULL OR s.cashbox_id = $2)
+  AND (
+    $3::text = ''
+    OR c.name ILIKE '%' || $3::text || '%'
+    OR c.code ILIKE '%' || $3::text || '%'
+    OR CAST(s.id AS text) = $3::text
+  )
+ORDER BY
+  CASE WHEN $4::text = 'cashbox' AND $5::text = 'asc' THEN c.name END ASC,
+  CASE WHEN $4::text = 'cashbox' AND $5::text = 'desc' THEN c.name END DESC,
+  CASE WHEN $4::text = 'created_at' AND $5::text = 'asc' THEN s.created_at END ASC,
+  CASE WHEN $4::text = 'created_at' AND $5::text = 'desc' THEN s.created_at END DESC,
+  CASE WHEN $4::text = 'closed_at' AND $5::text = 'asc' THEN s.closed_at END ASC,
+  CASE WHEN $4::text = 'closed_at' AND $5::text = 'desc' THEN s.closed_at END DESC,
+  CASE WHEN $4::text = 'id' AND $5::text = 'asc' THEN s.id END ASC,
+  s.id DESC
+LIMIT $7
+OFFSET $6
 `
 
 type ListShiftsParams struct {
-	Limit  int32 `json:"limit"`
-	Offset int32 `json:"offset"`
+	Status     string        `json:"status"`
+	CashboxID  sql.NullInt64 `json:"cashbox_id"`
+	Search     string        `json:"search"`
+	SortBy     string        `json:"sort_by"`
+	SortOrder  string        `json:"sort_order"`
+	PageOffset int32         `json:"page_offset"`
+	PageSize   int32         `json:"page_size"`
 }
 
-func (q *Queries) ListShifts(ctx context.Context, arg ListShiftsParams) ([]Shift, error) {
-	rows, err := q.db.QueryContext(ctx, listShifts, arg.Limit, arg.Offset)
+type ListShiftsRow struct {
+	ID          int64        `json:"id"`
+	IsClosed    bool         `json:"is_closed"`
+	CashboxID   int64        `json:"cashbox_id"`
+	CreatedAt   time.Time    `json:"created_at"`
+	ClosedAt    sql.NullTime `json:"closed_at"`
+	CashboxName string       `json:"cashbox_name"`
+	CashboxCode string       `json:"cashbox_code"`
+}
+
+func (q *Queries) ListShifts(ctx context.Context, arg ListShiftsParams) ([]ListShiftsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listShifts,
+		arg.Status,
+		arg.CashboxID,
+		arg.Search,
+		arg.SortBy,
+		arg.SortOrder,
+		arg.PageOffset,
+		arg.PageSize,
+	)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []Shift{}
+	items := []ListShiftsRow{}
 	for rows.Next() {
-		var i Shift
+		var i ListShiftsRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.IsClosed,
 			&i.CashboxID,
 			&i.CreatedAt,
 			&i.ClosedAt,
+			&i.CashboxName,
+			&i.CashboxCode,
 		); err != nil {
 			return nil, err
 		}

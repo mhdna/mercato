@@ -16,9 +16,40 @@ INSERT INTO branch_settings (
   social_platforms,
   social_handles,
   search_button_enabled,
+  custom_item_discounts_enabled,
+  custom_item_prices_enabled,
+  per_unit_item_prices_enabled,
+  price_change_manual_override_mode,
+  invoice_keyboard_mode,
+  client_required,
+  page_unlock_clients,
+  page_unlock_inventory,
+  page_unlock_transfers,
+  page_unlock_attendance,
+  page_unlock_salespersons,
+  printer_size,
+  receipt_width,
+  receipt_height,
+  receipt_enabled,
+  receipt_font,
+  receipt_body_font,
+  receipt_title_size,
+  receipt_body_size,
+  receipt_cutoff,
+  printer_id,
+  receipt_printer,
+  screen_port,
+  akuvox_ip,
+  akuvox_username,
+  attendance_enabled,
+  attendance_duplicate_interval_seconds,
+  attendance_cashier_history,
   updated_at
 ) VALUES (
-  $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, now()
+  $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,
+  $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27,
+  $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39,
+  $40, $41, $42, $43, $44, now()
 )
 ON CONFLICT (branch_id) DO UPDATE SET
   branch_name = EXCLUDED.branch_name,
@@ -36,7 +67,43 @@ ON CONFLICT (branch_id) DO UPDATE SET
   social_platforms = EXCLUDED.social_platforms,
   social_handles = EXCLUDED.social_handles,
   search_button_enabled = EXCLUDED.search_button_enabled,
+  custom_item_discounts_enabled = EXCLUDED.custom_item_discounts_enabled,
+  custom_item_prices_enabled = EXCLUDED.custom_item_prices_enabled,
+  per_unit_item_prices_enabled = EXCLUDED.per_unit_item_prices_enabled,
+  price_change_manual_override_mode = EXCLUDED.price_change_manual_override_mode,
+  invoice_keyboard_mode = EXCLUDED.invoice_keyboard_mode,
+  client_required = EXCLUDED.client_required,
+  page_unlock_clients = EXCLUDED.page_unlock_clients,
+  page_unlock_inventory = EXCLUDED.page_unlock_inventory,
+  page_unlock_transfers = EXCLUDED.page_unlock_transfers,
+  page_unlock_attendance = EXCLUDED.page_unlock_attendance,
+  page_unlock_salespersons = EXCLUDED.page_unlock_salespersons,
+  printer_size = EXCLUDED.printer_size,
+  receipt_width = EXCLUDED.receipt_width,
+  receipt_height = EXCLUDED.receipt_height,
+  receipt_enabled = EXCLUDED.receipt_enabled,
+  receipt_font = EXCLUDED.receipt_font,
+  receipt_body_font = EXCLUDED.receipt_body_font,
+  receipt_title_size = EXCLUDED.receipt_title_size,
+  receipt_body_size = EXCLUDED.receipt_body_size,
+  receipt_cutoff = EXCLUDED.receipt_cutoff,
+  printer_id = EXCLUDED.printer_id,
+  receipt_printer = EXCLUDED.receipt_printer,
+  screen_port = EXCLUDED.screen_port,
+  akuvox_ip = EXCLUDED.akuvox_ip,
+  akuvox_username = EXCLUDED.akuvox_username,
+  attendance_enabled = EXCLUDED.attendance_enabled,
+  attendance_duplicate_interval_seconds = EXCLUDED.attendance_duplicate_interval_seconds,
+  attendance_cashier_history = EXCLUDED.attendance_cashier_history,
   updated_at = now()
+RETURNING *;
+
+-- managed_locally is admin-owned, not branch-reported: a branch's settings
+-- push (UpsertBranchSettings) never touches it. Only the admin UI sets it.
+-- name: SetBranchSettingsManagedLocally :one
+UPDATE branch_settings
+SET managed_locally = $2
+WHERE branch_id = $1
 RETURNING *;
 
 -- name: GetBranchSettings :one

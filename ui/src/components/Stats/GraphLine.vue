@@ -3,10 +3,7 @@
 </template>
 
 <script setup>
-  import { provide } from 'vue'
-  import VChart, { THEME_KEY } from 'vue-echarts'
-
-  provide(THEME_KEY, 'dark')
+  import VChart from 'vue-echarts'
 
   const colorList = [
     '#4f81bd', '#c0504d', '#9bbb59', '#604a7b', '#948a54', '#e46c0b',

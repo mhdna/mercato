@@ -22,14 +22,9 @@
             :items="inventories"
             label="Destination Inventory"
           />
-          <v-select
+          <CurrencySelect
             v-model="currencyCode.value.value"
-            density="compact"
             :error-messages="currencyCode.errorMessage.value"
-            :item-title="c => c.code"
-            :item-value="c => c.code"
-            :items="currencies"
-            label="Currency"
           />
           <v-text-field
             v-model="purchasedAt.value.value"
@@ -185,7 +180,6 @@
   import { useField, useForm } from 'vee-validate'
   import { ref } from 'vue'
   import ServerSideTable from '@/components/Tables/ServerSideTable.vue'
-  import { useCurrencies } from '@/composables/useCurrencies'
   import { useInventories } from '@/composables/useInventories'
   import { usePurchases } from '@/composables/usePurchases'
   import { useSuppliers } from '@/composables/useSuppliers'
@@ -195,11 +189,9 @@
   const { createPurchase, fetchPurchase, addPurchaseItem, receivePurchase } = usePurchases()
   const { suppliers, fetchSuppliers } = useSuppliers()
   const { inventories, fetchInventories } = useInventories()
-  const { currencies, fetchCurrencies } = useCurrencies()
   const { variants: skuOptions, loading: skuLoading, searchVariants } = useVariants()
   fetchSuppliers()
   fetchInventories()
-  fetchCurrencies()
   searchVariants('')
 
   let skuSearchTimer = null

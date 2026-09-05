@@ -46,26 +46,6 @@ async function fetchAll (force = false) {
   await Promise.all([fetchTypes(force), fetchValues(force)])
 }
 
-async function fetchValuesPage ({ attribute, page, itemsPerPage, search = '', sortBy = [] }) {
-  const url = new URL(`${API_BASE}/attributes/`)
-  url.searchParams.set('attribute', attribute)
-  url.searchParams.set('page_size', itemsPerPage)
-  url.searchParams.set('page_id', (page - 1) * itemsPerPage)
-  if (search.trim()) {
-    url.searchParams.set('search', search.trim())
-  }
-  if (sortBy.length > 0) {
-    url.searchParams.set('sort_by', sortBy[0].key)
-    url.searchParams.set('sort_order', sortBy[0].order)
-  }
-
-  const data = await requestJSON(url.toString())
-  return {
-    items: data?.values ?? [],
-    total: data?.total ?? 0,
-  }
-}
-
 // `attribute` is the type *name* (the API resolves it to an id and upserts).
 async function createValue ({ attribute, value }) {
   const created = await requestJSON(`${API_BASE}/attributes`, {
@@ -123,7 +103,6 @@ export function useAttributes () {
     valuesByType,
     fetchTypes,
     fetchValues,
-    fetchValuesPage,
     fetchAll,
     createValue,
     updateValue,

@@ -8,7 +8,7 @@
 </template>
 
 <script setup lang="ts">
-  import gbImage from '../../GB.png'
+  import gbImage from '@/assets/gb-logo.png'
 </script>
 
 <style scoped>

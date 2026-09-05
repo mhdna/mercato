@@ -24,6 +24,7 @@ var (
 var allowedBranchCommandTypes = map[string]bool{
 	"update_settings":       true,
 	"remote_return_invoice": true,
+	"set_branch_user_pin":   true,
 }
 
 type createBranchCommandRequest struct {

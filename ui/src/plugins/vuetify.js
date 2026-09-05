@@ -19,19 +19,19 @@ import { aliases, mdi } from './icons'
 // Styles
 import 'vuetify/styles'
 
-function getSystemTheme () {
-  if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-    return 'dark'
-  }
-  return 'light'
-}
-
+// Mirror stores/app.js: 'themePreference' is the current key ('system' |
+// 'light' | 'dark'), 'theme' is the legacy resolved value we still honour.
+// Vuetify takes 'system' directly as defaultTheme.
 function getInitialTheme () {
-  const saved = localStorage.getItem('theme')
-  if (saved) {
-    return saved
+  const pref = localStorage.getItem('themePreference')
+  if (pref === 'system' || pref === 'light' || pref === 'dark') {
+    return pref
   }
-  return getSystemTheme()
+  const legacy = localStorage.getItem('theme')
+  if (legacy === 'light' || legacy === 'dark') {
+    return legacy
+  }
+  return 'system'
 }
 
 // https://vuetifyjs.com/en/introduction/why-vuetify/#feature-guides

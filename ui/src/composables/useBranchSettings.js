@@ -45,5 +45,18 @@ export function useBranchSettings () {
     return data?.branch_commands ?? []
   }
 
-  return { getBranchSettings, updateBranchSettings, listBranchCommands }
+  // Records which settings groups the admin has handed back to the branch
+  // (e.g. 'secrets', 'device_ids'). Those groups are shown read-only and
+  // never included in an update_settings command payload. Applies
+  // immediately -- it's central admin state, not a branch command.
+  async function setBranchSettingsManagedLocally (branchId, groups) {
+    const data = await requestJSON(`${API_BASE}/branches/${branchId}/settings/managed_locally`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ managed_locally: groups }),
+    })
+    return data?.settings ?? null
+  }
+
+  return { getBranchSettings, updateBranchSettings, listBranchCommands, setBranchSettingsManagedLocally }
 }

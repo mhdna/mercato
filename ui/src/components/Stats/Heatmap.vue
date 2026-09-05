@@ -1,16 +1,10 @@
 <template>
-  <VChart autoresize class="chart" :option="option" :theme="currentTheme" />
+  <VChart autoresize class="chart" :option="option" />
 </template>
 
 <script setup>
-  import { computed, ref } from 'vue'
+  import { ref } from 'vue'
   import VChart from 'vue-echarts'
-  import { useTheme } from 'vuetify'
-
-  const theme = useTheme()
-  const currentTheme = computed(() =>
-    theme.global.current.value?.dark ? 'dark' : 'light',
-  )
 
   function getVirtualData (year) {
     const date = +new Date(year + '-01-01')

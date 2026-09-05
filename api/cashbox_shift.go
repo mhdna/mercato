@@ -55,8 +55,13 @@ func (server *Server) getShift(ctx *gin.Context) {
 }
 
 type listShifts struct {
-	PageSize int32 `form:"page_size,default=10" binding:"min=5,max=10"`
-	PageID   int32 `form:"page_id,default=0" binding:"min=0"`
+	PageSize  int32  `form:"page_size,default=20" binding:"min=5,max=100"`
+	PageID    int32  `form:"page_id,default=0" binding:"min=0"`
+	Search    string `form:"search"`
+	Status    string `form:"status" binding:"omitempty,oneof=open closed"`
+	CashboxID int64  `form:"cashbox_id" binding:"omitempty,min=1"`
+	SortBy    string `form:"sort_by,default=id" binding:"oneof=id created_at closed_at cashbox"`
+	SortOrder string `form:"sort_order,default=desc" binding:"oneof=asc desc"`
 }
 
 func (server *Server) listShifts(ctx *gin.Context) {
@@ -66,17 +71,30 @@ func (server *Server) listShifts(ctx *gin.Context) {
 		return
 	}
 
-	arg := db.ListShiftsParams{
-		Limit:  req.PageSize,
-		Offset: req.PageID,
+	var cashboxID sql.NullInt64
+	if req.CashboxID > 0 {
+		cashboxID = sql.NullInt64{Int64: req.CashboxID, Valid: true}
 	}
-	shifts, err := server.store.ListShifts(ctx, arg)
+
+	shifts, err := server.store.ListShifts(ctx, db.ListShiftsParams{
+		Status:     req.Status,
+		CashboxID:  cashboxID,
+		Search:     req.Search,
+		SortBy:     req.SortBy,
+		SortOrder:  req.SortOrder,
+		PageSize:   req.PageSize,
+		PageOffset: req.PageID,
+	})
 	if err != nil {
 		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 
-	total, err := server.store.CountShifts(ctx)
+	total, err := server.store.CountShifts(ctx, db.CountShiftsParams{
+		Status:    req.Status,
+		CashboxID: cashboxID,
+		Search:    req.Search,
+	})
 	if err != nil {
 		server.writeError(ctx, http.StatusInternalServerError, err)
 		return

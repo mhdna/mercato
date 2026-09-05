@@ -1,6 +1,9 @@
 import { createResource } from './useApiResource'
 
-const resource = createResource({ path: '/currencies', rootKey: 'currencies', idKey: 'code' })
+// listPath asks for the full currency list (not a 10-row page) -- this
+// composable backs the CurrencySelect picker; currencies.vue's table talks
+// to /currencies/ through ServerSideTable for its own pagination.
+const resource = createResource({ path: '/currencies', listPath: '/currencies/?all=true', rootKey: 'currencies', idKey: 'code' })
 
 export function useCurrencies () {
   return {

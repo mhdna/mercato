@@ -1,156 +1,192 @@
 <template>
-  <div>
-    <div class="d-flex justify-space-between align-center mb-4">
-      <h2 class="text-h6">Settings</h2>
-    </div>
-
-    <v-card max-width="480">
-      <v-card-title class="text-subtitle-1">Branch activity</v-card-title>
-      <v-card-subtitle>How live branch sales/returns/expenses are shown in the appbar</v-card-subtitle>
-      <v-card-text>
-        <div class="text-body-2 mb-2">Display mode</div>
-        <v-btn-toggle
-          v-model="displayMode"
-          class="mb-4"
-          color="primary"
-          divided
-          mandatory
-        >
-          <v-btn value="notification">Notification</v-btn>
-          <v-btn value="appbar">Appbar messages</v-btn>
-        </v-btn-toggle>
-
-        <v-text-field
-          v-model.number="messageSeconds"
-          density="compact"
-          hint="How long each message is shown before moving to the next one queued behind it"
-          label="Message duration (seconds)"
-          min="1"
-          persistent-hint
-          type="number"
-        />
-      </v-card-text>
-    </v-card>
-
-    <v-card class="mt-4" max-width="480">
-      <v-card-title class="text-subtitle-1">Financials</v-card-title>
-      <v-card-subtitle>Dashboard "Financials" tab revenue chart</v-card-subtitle>
-      <v-card-text>
-        <v-select
-          v-model="highSeasonMonths"
-          chips
-          density="compact"
-          hint="Months that earn ~1.5x a normal month, shaded on the revenue candles chart"
-          :items="monthItems"
-          label="High season months"
-          multiple
-          persistent-hint
-        />
-      </v-card-text>
-    </v-card>
-
-    <v-card class="mt-4" max-width="480">
-      <v-card-title class="text-subtitle-1">Barcode labels</v-card-title>
-      <v-card-subtitle>Default page size for generated barcode-label PDFs</v-card-subtitle>
-      <v-card-text>
-        <div class="d-flex ga-3">
-          <v-text-field
-            v-model.number="labelWidth"
-            density="compact"
-            hide-details
-            label="Width (pt)"
-            type="number"
-            variant="outlined"
-          />
-          <v-text-field
-            v-model.number="labelHeight"
-            density="compact"
-            hide-details
-            label="Height (pt)"
-            type="number"
-            variant="outlined"
-          />
-        </div>
-        <div class="text-caption text-medium-emphasis mt-1">72 pt = 1 inch. Common thermal label: 288 × 144 (4 × 2 in).</div>
-        <v-btn
-          class="mt-3"
-          :disabled="!labelSizeDirty"
-          :loading="savingLabel"
-          size="small"
-          text="Save"
-          variant="tonal"
-          @click="saveLabelSize"
-        />
-      </v-card-text>
-    </v-card>
-
-    <v-card class="mt-4" max-width="640">
-      <v-card-title class="d-flex align-center justify-space-between">
-        <span class="text-subtitle-1">Users</span>
-        <v-btn
-          color="primary"
-          prepend-icon="mdi-plus"
-          size="small"
-          variant="tonal"
-          @click="openCreate"
-        >
-          Add user
-        </v-btn>
+  <div class="page-root">
+    <v-card class="set-card" flat>
+      <v-card-title class="page-heading d-flex align-center ga-3 px-4 py-3">
+        <v-icon icon="mdi-cog-outline" />
+        <span>Settings</span>
       </v-card-title>
-      <v-card-subtitle>POS operators and their login PINs. Changes take effect on the next login.</v-card-subtitle>
-      <v-card-text>
-        <v-alert
-          v-if="usersError"
-          class="mb-3"
-          density="compact"
-          type="error"
-          variant="tonal"
-        >
-          {{ usersError }}
-        </v-alert>
+      <v-divider />
 
-        <v-table density="compact">
-          <thead>
-            <tr>
-              <th class="text-left">Name</th>
-              <th class="text-left">Status</th>
-              <th class="text-left">Created</th>
-              <th class="text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="u in users" :key="u.id">
-              <td>{{ u.name }}</td>
-              <td>
-                <v-chip :color="u.activated ? 'success' : 'default'" size="x-small" variant="tonal">
-                  {{ u.activated ? 'Active' : 'Inactive' }}
-                </v-chip>
-              </td>
-              <td>{{ formatDate(u.created_at) }}</td>
-              <td class="text-right">
-                <v-btn
-                  icon="mdi-key"
-                  size="small"
-                  title="Change PIN"
-                  variant="text"
-                  @click="openPin(u)"
-                />
-                <v-btn
-                  color="error"
-                  icon="mdi-delete"
-                  size="small"
-                  title="Delete user"
-                  variant="text"
-                  @click="confirmDelete(u)"
-                />
-              </td>
-            </tr>
-            <tr v-if="users.length === 0">
-              <td class="text-medium-emphasis py-4" colspan="4">No users yet.</td>
-            </tr>
-          </tbody>
-        </v-table>
-      </v-card-text>
+      <div class="set-layout">
+        <v-tabs
+          v-model="tab"
+          class="set-tabs"
+          color="primary"
+          direction="vertical"
+        >
+          <v-tab prepend-icon="mdi-cog-outline" text="General" value="general" />
+          <v-tab prepend-icon="mdi-chart-line" text="Financials" value="financials" />
+          <v-tab prepend-icon="mdi-barcode" text="Barcode labels" value="barcodes" />
+          <v-tab prepend-icon="mdi-account-group" text="Users" value="users" />
+        </v-tabs>
+
+        <v-divider vertical />
+
+        <div class="set-content pa-5">
+          <!-- ------------------------------------------------------- GENERAL -->
+          <section v-show="tab === 'general'" class="set-section">
+            <h3 class="text-subtitle-1 mb-1">Branch activity</h3>
+            <p class="text-body-2 text-medium-emphasis mb-4">
+              How live branch sales / returns / expenses are shown in the appbar.
+            </p>
+
+            <div class="text-body-2 mb-2">Display mode</div>
+            <v-btn-toggle
+              v-model="displayMode"
+              class="mb-4"
+              color="primary"
+              divided
+              mandatory
+            >
+              <v-btn value="notification">Notification</v-btn>
+              <v-btn value="appbar">Appbar messages</v-btn>
+            </v-btn-toggle>
+
+            <v-text-field
+              v-model.number="messageSeconds"
+              class="field-md"
+              density="compact"
+              hint="How long each message is shown before moving to the next one queued behind it"
+              label="Message duration (seconds)"
+              min="1"
+              persistent-hint
+              type="number"
+              variant="outlined"
+            />
+          </section>
+
+          <!-- ---------------------------------------------------- FINANCIALS -->
+          <section v-show="tab === 'financials'" class="set-section">
+            <h3 class="text-subtitle-1 mb-1">Revenue chart</h3>
+            <p class="text-body-2 text-medium-emphasis mb-4">
+              Dashboard &ldquo;Financials&rdquo; tab revenue candles.
+            </p>
+
+            <v-select
+              v-model="highSeasonMonths"
+              chips
+              class="field-md"
+              density="compact"
+              hint="Months that earn ~1.5x a normal month, shaded on the revenue candles chart"
+              :items="monthItems"
+              label="High season months"
+              multiple
+              persistent-hint
+              variant="outlined"
+            />
+          </section>
+
+          <!-- ------------------------------------------------------ BARCODES -->
+          <section v-show="tab === 'barcodes'" class="set-section">
+            <h3 class="text-subtitle-1 mb-1">Barcode labels</h3>
+            <p class="text-body-2 text-medium-emphasis mb-4">
+              Default page size for generated barcode-label PDFs.
+            </p>
+
+            <div class="d-flex ga-3 field-md">
+              <v-text-field
+                v-model.number="labelWidth"
+                density="compact"
+                hide-details
+                label="Width (pt)"
+                type="number"
+                variant="outlined"
+              />
+              <v-text-field
+                v-model.number="labelHeight"
+                density="compact"
+                hide-details
+                label="Height (pt)"
+                type="number"
+                variant="outlined"
+              />
+            </div>
+            <div class="text-caption text-medium-emphasis mt-2">
+              72 pt = 1 inch. Common thermal label: 288 &times; 144 (4 &times; 2 in).
+            </div>
+            <v-btn
+              class="mt-3"
+              :disabled="!labelSizeDirty"
+              :loading="savingLabel"
+              size="small"
+              text="Save"
+              variant="tonal"
+              @click="saveLabelSize"
+            />
+          </section>
+
+          <!-- --------------------------------------------------------- USERS -->
+          <section v-show="tab === 'users'" class="set-section">
+            <div class="d-flex align-center justify-space-between mb-1">
+              <h3 class="text-subtitle-1">Users</h3>
+              <v-btn
+                color="primary"
+                prepend-icon="mdi-plus"
+                size="small"
+                variant="tonal"
+                @click="openCreate"
+              >
+                Add user
+              </v-btn>
+            </div>
+            <p class="text-body-2 text-medium-emphasis mb-4">
+              POS operators and their login PINs. Changes take effect on the next login.
+            </p>
+
+            <v-alert
+              v-if="usersError"
+              class="mb-3"
+              density="compact"
+              type="error"
+              variant="tonal"
+            >
+              {{ usersError }}
+            </v-alert>
+
+            <v-table density="compact">
+              <thead>
+                <tr>
+                  <th class="text-left">Name</th>
+                  <th class="text-left">Status</th>
+                  <th class="text-left">Created</th>
+                  <th class="text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="u in users" :key="u.id">
+                  <td>{{ u.name }}</td>
+                  <td>
+                    <v-chip :color="u.activated ? 'success' : 'default'" size="x-small" variant="tonal">
+                      {{ u.activated ? 'Active' : 'Inactive' }}
+                    </v-chip>
+                  </td>
+                  <td>{{ formatDate(u.created_at) }}</td>
+                  <td class="text-right">
+                    <v-btn
+                      icon="mdi-key"
+                      size="small"
+                      title="Change PIN"
+                      variant="text"
+                      @click="openPin(u)"
+                    />
+                    <v-btn
+                      color="error"
+                      icon="mdi-delete"
+                      size="small"
+                      title="Delete user"
+                      variant="text"
+                      @click="confirmDelete(u)"
+                    />
+                  </td>
+                </tr>
+                <tr v-if="users.length === 0">
+                  <td class="text-medium-emphasis py-4" colspan="4">No users yet.</td>
+                </tr>
+              </tbody>
+            </v-table>
+          </section>
+        </div>
+      </div>
     </v-card>
 
     <!-- Add user -->
@@ -265,10 +301,12 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
   import { computed, onMounted, reactive, ref } from 'vue'
   import { useUsers } from '@/composables/useUsers'
   import { useSettingsStore } from '@/stores/settings'
+
+  const tab = ref('general')
 
   const settingsStore = useSettingsStore()
   onMounted(async () => {
@@ -431,3 +469,40 @@
     }
   }
 </script>
+
+<style scoped>
+/* Fill the layout's flex-column scroll wrapper so the scroll lives inside the
+   settings pane, not the whole page. */
+.page-root {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.set-card {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.set-layout {
+  display: flex;
+  height: 100%;
+  overflow: hidden;
+}
+.set-tabs {
+  flex: 0 0 180px;
+}
+.set-content {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+}
+.set-section {
+  max-width: 640px;
+}
+.field-md {
+  max-width: 420px;
+}
+</style>

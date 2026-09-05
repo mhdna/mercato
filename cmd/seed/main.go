@@ -242,33 +242,38 @@ func fetchExistingSupplierIDs(ctx context.Context, store db.Store, limit int) []
 }
 
 func seedAssets(ctx context.Context, store db.Store) {
-	// Create asset types
-	var assetTypeIDs []int64
+	// Create asset categories
+	var assetCategoryIDs []int64
 	for _, aType := range assetTypes {
-		assetTypeObj, err := store.CreateAssetType(ctx, aType)
+		category, err := store.CreateAssetCategory(ctx, db.CreateAssetCategoryParams{
+			Name:     aType,
+			IsActive: true,
+			Icon:     "mdi-tag-outline",
+			Color:    "blue-grey",
+		})
 		if err != nil {
-			log.Printf("warning: failed to create asset type %s: %v", aType, err)
+			log.Printf("warning: failed to create asset category %s: %v", aType, err)
 		} else {
-			assetTypeIDs = append(assetTypeIDs, assetTypeObj.ID)
-			fmt.Printf("  ✓ Created asset type: %s\n", aType)
+			assetCategoryIDs = append(assetCategoryIDs, category.ID)
+			fmt.Printf("  ✓ Created asset category: %s\n", aType)
 		}
 	}
 
 	// Create 5000 assets
 	for i := 0; i < 5000; i++ {
-		if len(assetTypeIDs) == 0 {
+		if len(assetCategoryIDs) == 0 {
 			break
 		}
-		typeID := assetTypeIDs[rand.Intn(len(assetTypeIDs))]
+		categoryID := assetCategoryIDs[rand.Intn(len(assetCategoryIDs))]
 		name := fmt.Sprintf("Asset %d", i+1)
 		code := fmt.Sprintf("AST%05d", 10000+i)
 		boughtAt := time.Now().AddDate(-rand.Intn(5), -rand.Intn(12), -rand.Intn(30))
 
 		_, err := store.CreateAsset(ctx, db.CreateAssetParams{
-			Name:     name,
-			Code:     code,
-			TypeID:   typeID,
-			BoughtAt: boughtAt,
+			Name:       name,
+			Code:       code,
+			CategoryID: categoryID,
+			BoughtAt:   boughtAt,
 		})
 		if err != nil {
 			log.Printf("warning: failed to create asset %s: %v", name, err)

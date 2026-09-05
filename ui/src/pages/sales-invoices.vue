@@ -181,7 +181,7 @@
           <v-progress-circular color="primary" indeterminate />
         </div>
         <template v-else-if="details">
-          <v-row dense>
+          <v-row density="compact">
             <v-col cols="6" md="4"><span class="text-caption">Kind</span><div class="text-capitalize">{{ details.kind }}</div></v-col>
             <v-col cols="6" md="4"><span class="text-caption">Client</span><div>{{ details.client?.name || '--' }}</div></v-col>
             <v-col cols="6" md="4"><span class="text-caption">Salesperson</span><div>{{ details.salesperson?.name || '--' }}</div></v-col>

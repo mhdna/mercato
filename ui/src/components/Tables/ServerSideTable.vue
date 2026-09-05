@@ -21,16 +21,21 @@
       </template>
     </v-alert>
     <v-data-table-server
+      v-model:expanded="expandedRows"
       v-model:items-per-page="itemsPerPage"
       v-model:page="page"
+      v-model:selected="selected"
       :density="density"
-      :headers="headers"
+      :expand-on-click="expandable"
+      :headers="resolvedHeaders"
       :hover="hover"
-      item-value="id"
+      :item-value="itemValue"
       :items="serverItems"
       :items-length="totalItems"
       :items-per-page-options="itemsPerPageOptions"
       :loading="loading"
+      :show-expand="expandable"
+      :show-select="selectable"
       @click:row="onRowClick"
       @update:options="loadItemsTracked"
     >
@@ -40,8 +45,8 @@
     </v-data-table-server>
   </v-card>
 </template>
-<script setup>
-  import { ref, watch } from 'vue'
+<script setup lang="ts">
+  import { computed, ref, watch } from 'vue'
   import { dedupedFetch } from '@/composables/useRequestDedup'
 
   const props = defineProps({
@@ -88,6 +93,15 @@
       type: Array,
       required: true,
     },
+    // Column keys the server can sort on (its sort_by whitelist). A header
+    // whose key is listed sorts server-side via ?sort_by=&sort_order=;
+    // every other column has its sort arrow suppressed, because this table
+    // only ever holds one page and a client-side sort of that page would
+    // silently reorder 14 rows instead of the whole result set.
+    sortKeys: {
+      type: Array,
+      default: () => [],
+    },
     maxPageSize: {
       type: Number,
       default: 100,
@@ -100,6 +114,26 @@
       type: String,
       required: true,
     },
+    // Enables the checkbox column + header select-all. The parent reads the
+    // selection via the exposed `selected` ref / `update:selected` event.
+    selectable: {
+      type: Boolean,
+      default: false,
+    },
+    // Enables the expand column + expand-on-click. Pair with an
+    // #expanded-row slot; bind :expanded / @update:expanded for the ids.
+    expandable: {
+      type: Boolean,
+      default: false,
+    },
+    expanded: {
+      type: Array,
+      default: () => [],
+    },
+    itemValue: {
+      type: String,
+      default: 'id',
+    },
     title: {
       type: String,
       default: '',
@@ -110,21 +144,47 @@
     },
   })
 
-  const emit = defineEmits(['row-click'])
+  const emit = defineEmits(['row-click', 'update:selected', 'update:expanded', 'loaded'])
+
+  const expandedRows = ref([...props.expanded])
+  watch(() => props.expanded, value => {
+    if (value !== expandedRows.value) expandedRows.value = [...value]
+  })
+  watch(expandedRows, value => emit('update:expanded', value), { deep: true })
+
+  const sortableKeys = new Set(props.sortKeys)
+  const resolvedHeaders = computed(() =>
+    props.headers.map(h => ({
+      ...h,
+      sortable: h.sortable ?? sortableKeys.has(h.key),
+    })),
+  )
 
   // The table needs all valid choices, not only the initial page size.
-
-  const itemsPerPageOption_ = [...new Set([props.defaultItemsPerPage, 14, 25, 50, 100])]
-    .find(n => n <= props.maxPageSize)
-  const itemsPerPageOption = props.defaultItemsPerPage <= props.maxPageSize
-    ? props.defaultItemsPerPage
-    : itemsPerPageOption_
-  const itemsPerPage = ref(itemsPerPageOption ?? 14)
+  // Every option (and the initial value) must stay within maxPageSize, or
+  // the server rejects the request with a PageSize "max" validation error.
+  const itemsPerPageOptions = [
+    ...new Set([props.defaultItemsPerPage, 14, 25, 50, 100, props.maxPageSize]),
+  ]
+    .filter(n => n > 0 && n <= props.maxPageSize)
+    .toSorted((a, b) => a - b)
+  const itemsPerPage = ref(
+    props.defaultItemsPerPage <= props.maxPageSize
+      ? props.defaultItemsPerPage
+      : (itemsPerPageOptions.at(-1) ?? props.maxPageSize),
+  )
   const page = ref(1)
   const serverItems = ref([])
   const loading = ref(true)
   const totalItems = ref(-1)
   const error = ref('')
+  const selected = ref([])
+
+  watch(selected, value => emit('update:selected', value), { deep: true })
+
+  function clearSelection () {
+    selected.value = []
+  }
 
   function applyQueryParams (url) {
     for (const [key, value] of Object.entries(props.queryParams || {})) {
@@ -147,24 +207,17 @@
     if (props.externalSearch.trim()) {
       url.searchParams.set('search', props.externalSearch.trim())
     }
+    // Server-side sort only, and only for whitelisted columns (see sortKeys).
+    if (sortBy.length > 0 && sortableKeys.has(sortBy[0].key)) {
+      url.searchParams.set('sort_by', sortBy[0].key)
+      url.searchParams.set('sort_order', sortBy[0].order || 'asc')
+    }
     applyQueryParams(url)
 
     const data = await dedupedFetch(url.toString())
 
-    let items = Array.isArray(data) ? data : (data[props.rootKey] ?? [])
+    const items = Array.isArray(data) ? data : (data[props.rootKey] ?? [])
     const total = Array.isArray(data) ? -1 : (data[props.totalKey] ?? -1)
-
-    if (sortBy.length > 0) {
-      const sortKey = sortBy[0].key
-      const sortOrder = sortBy[0].order
-      items = items.toSorted((a, b) => {
-        const aValue = a[sortKey]
-        const bValue = b[sortKey]
-        return sortOrder === 'desc'
-          ? (bValue > aValue ? 1 : -1)
-          : (aValue > bValue ? 1 : -1)
-      })
-    }
 
     return { items, total }
   }
@@ -176,6 +229,13 @@
       .then(({ items, total }) => {
         serverItems.value = items
         totalItems.value = total
+        // Collapse rows that fell off the page and tell the parent what
+        // loaded (so it can drop any per-row state it was caching).
+        if (expandedRows.value.length > 0) {
+          const ids = new Set(items.map(i => i[props.itemValue]))
+          expandedRows.value = expandedRows.value.filter(id => ids.has(id))
+        }
+        emit('loaded', items)
       })
       .catch(error_ => {
         error.value = error_.message
@@ -223,5 +283,5 @@
   watch(() => props.externalSearch, debouncedReload)
   watch(() => props.queryParams, debouncedReload, { deep: true })
 
-  defineExpose({ reload })
+  defineExpose({ reload, reloadFromFirstPage, selected, clearSelection, items: serverItems })
 </script>

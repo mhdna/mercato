@@ -3,11 +3,8 @@
 </template>
 
 <script setup>
-  import { provide } from 'vue'
-  import VChart, { THEME_KEY } from 'vue-echarts'
+  import VChart from 'vue-echarts'
   import { graphic } from '@/plugins/echarts'
-
-  provide(THEME_KEY, 'light')
 
   const data = []
   const dataCount = 10

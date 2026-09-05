@@ -4,17 +4,12 @@
     class="chart"
     :loading="loading"
     :option="option"
-    :theme="currentTheme"
   />
 </template>
 
 <script setup>
-  import { computed, ref } from 'vue'
+  import { ref } from 'vue'
   import VChart from 'vue-echarts'
-  import { useTheme } from 'vuetify'
-
-  const theme = useTheme()
-  const currentTheme = computed(() => theme.global.current.value?.dark ? 'dark' : 'light')
 
   const loading = ref(false)
 

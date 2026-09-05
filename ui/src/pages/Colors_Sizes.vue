@@ -73,19 +73,28 @@
           <!-- ---------------------------------------------------------- COLORS -->
           <div v-show="tab === 'colors'">
             <div class="pa-4">
-              <v-data-table-server
-                v-model:items-per-page="colorItemsPerPage"
-                v-model:page="colorPage"
-                v-model:sort-by="colorSortBy"
+              <BulkDeleteBar
+                :count="colorSelected.length"
+                :error="colorSelError"
+                :loading="colorDeleting"
+                @clear="resetColorSel"
+                @confirm="bulkDeleteColors"
+              />
+              <ServerSideTable
+                ref="colorTableRef"
+                :api-u-r-l="`${API_BASE}/colors`"
                 class="color-table"
                 density="comfortable"
+                :external-search="colorSearch ?? ''"
+                flush
                 :headers="colorHeaders"
-                :items="colorRows"
-                :items-length="colorTotal"
-                :items-per-page-options="[14, 25, 50, 100]"
-                :loading="colorLoading"
-                @click:row="openColorRow"
-                @update:options="loadColorRows"
+                item-value="id"
+                root-key="colors"
+                selectable
+                :show-search-icon="false"
+                :sort-keys="['id', 'name', 'hex_value', 'created_at']"
+                @row-click="openEditColor"
+                @update:selected="v => (colorSelected = v)"
               >
                 <template #item.hex_value="{ item }">
                   <div class="d-flex align-center ga-2">
@@ -94,29 +103,38 @@
                   </div>
                 </template>
                 <template #item.created_at="{ item }">{{ formatDate(item.created_at) }}</template>
-              </v-data-table-server>
+              </ServerSideTable>
             </div>
           </div>
 
           <!-- ----------------------------------------------------------- SIZES -->
           <div v-show="tab === 'sizes'">
             <div class="pa-4">
-              <v-data-table-server
-                v-model:items-per-page="sizeItemsPerPage"
-                v-model:page="sizePage"
-                v-model:sort-by="sizeSortBy"
+              <BulkDeleteBar
+                :count="sizeSelected.length"
+                :error="sizeSelError"
+                :loading="sizeDeleting"
+                @clear="resetSizeSel"
+                @confirm="bulkDeleteSizes"
+              />
+              <ServerSideTable
+                ref="sizeTableRef"
+                :api-u-r-l="`${API_BASE}/sizes`"
                 class="size-table"
                 density="comfortable"
+                :external-search="sizeSearch ?? ''"
+                flush
                 :headers="sizeHeaders"
-                :items="sizeRows"
-                :items-length="sizeTotal"
-                :items-per-page-options="[14, 25, 50, 100]"
-                :loading="sizeLoading"
-                @click:row="openSizeRow"
-                @update:options="loadSizeRows"
+                item-value="id"
+                root-key="sizes"
+                selectable
+                :show-search-icon="false"
+                :sort-keys="['id', 'name', 'type', 'order', 'created_at']"
+                @row-click="openEditSize"
+                @update:selected="v => (sizeSelected = v)"
               >
                 <template #item.created_at="{ item }">{{ formatDate(item.created_at) }}</template>
-              </v-data-table-server>
+              </ServerSideTable>
             </div>
           </div>
         </div>
@@ -393,12 +411,16 @@
 </template>
 
 <script setup lang="ts">
-  import { computed, reactive, ref, watch } from 'vue'
+  import { computed, onMounted, reactive, ref } from 'vue'
+  import BulkDeleteBar from '@/components/Tables/BulkDeleteBar.vue'
+  import ServerSideTable from '@/components/Tables/ServerSideTable.vue'
+  import { useBulkDelete } from '@/composables/useBulkDelete'
   import { useColorsAndSizes } from '@/composables/useColorsAndSizes'
+  import { API_BASE } from '@/config'
 
   const {
-    fetchColorsPage,
-    fetchSizesPage,
+    sizes,
+    fetchSizes,
     createColor,
     updateColor,
     deleteColor,
@@ -407,24 +429,52 @@
     deleteSize,
   } = useColorsAndSizes()
 
+  const {
+    selected: colorSelected,
+    deleting: colorDeleting,
+    error: colorSelError,
+    reset: resetColorSel,
+    run: runColorBulk,
+  } = useBulkDelete()
+  const {
+    selected: sizeSelected,
+    deleting: sizeDeleting,
+    error: sizeSelError,
+    reset: resetSizeSel,
+    run: runSizeBulk,
+  } = useBulkDelete()
+
+  const colorTableRef = ref(null)
+  const sizeTableRef = ref(null)
+  function reloadColors () {
+    colorTableRef.value?.reload()
+  }
+  function reloadSizes () {
+    sizeTableRef.value?.reload()
+    // Keep the size-type picker in sync with newly added/removed types.
+    fetchSizes(true)
+  }
+
+  async function bulkDeleteColors () {
+    try {
+      await runColorBulk('/colors/bulk_delete', { ids: colorSelected.value })
+      resetColorSel()
+      reloadColors()
+    } catch { /* error shown in the bar */ }
+  }
+
+  async function bulkDeleteSizes () {
+    try {
+      await runSizeBulk('/sizes/bulk_delete', { ids: sizeSelected.value })
+      resetSizeSel()
+      reloadSizes()
+    } catch { /* error shown in the bar */ }
+  }
+
   const tab = ref('colors')
   const loadError = ref('')
   const colorSearch = ref('')
   const sizeSearch = ref('')
-  const colorRows = ref([])
-  const sizeRows = ref([])
-  const colorTotal = ref(0)
-  const sizeTotal = ref(0)
-  const colorPage = ref(1)
-  const sizePage = ref(1)
-  const colorItemsPerPage = ref(14)
-  const sizeItemsPerPage = ref(14)
-  const colorSortBy = ref([{ key: 'created_at', order: 'desc' }])
-  const sizeSortBy = ref([{ key: 'created_at', order: 'desc' }])
-  const colorLoading = ref(false)
-  const sizeLoading = ref(false)
-  const lastColorOptions = ref(null)
-  const lastSizeOptions = ref(null)
 
   const colorHeaders = [
     { title: 'Name', key: 'name', align: 'start' },
@@ -441,67 +491,13 @@
     { title: 'Created At', key: 'created_at', align: 'start', width: 200 },
   ]
 
-  const sizeTypes = computed(() => [...new Set(sizeRows.value.map(s => s.type))].toSorted())
+  // Distinct size types for the add/edit dialog picker — derived from the
+  // full size list (fetchSizes), not the visible table page.
+  const sizeTypes = computed(() => [...new Set(sizes.value.map(s => s.type))].toSorted())
 
-  async function loadColorRows (options) {
-    lastColorOptions.value = options
-    colorLoading.value = true
-    loadError.value = ''
-    try {
-      const result = await fetchColorsPage({ ...options, search: colorSearch.value })
-      colorRows.value = result.items
-      colorTotal.value = result.total
-    } catch (error) {
-      loadError.value = error.message
-      colorRows.value = []
-      colorTotal.value = 0
-    } finally {
-      colorLoading.value = false
-    }
-  }
-
-  async function loadSizeRows (options) {
-    lastSizeOptions.value = options
-    sizeLoading.value = true
-    loadError.value = ''
-    try {
-      const result = await fetchSizesPage({ ...options, search: sizeSearch.value })
-      sizeRows.value = result.items
-      sizeTotal.value = result.total
-    } catch (error) {
-      loadError.value = error.message
-      sizeRows.value = []
-      sizeTotal.value = 0
-    } finally {
-      sizeLoading.value = false
-    }
-  }
-
-  function reloadColors () {
-    if (lastColorOptions.value) loadColorRows({ ...lastColorOptions.value, page: colorPage.value })
-  }
-
-  function reloadSizes () {
-    if (lastSizeOptions.value) loadSizeRows({ ...lastSizeOptions.value, page: sizePage.value })
-  }
-
-  function debounceSearch (page, reload) {
-    let timer
-    return () => {
-      clearTimeout(timer)
-      timer = setTimeout(() => {
-        if (page.value !== 1) {
-          page.value = 1
-          return
-        }
-        page.value = 1
-        reload()
-      }, 300)
-    }
-  }
-
-  watch(colorSearch, debounceSearch(colorPage, reloadColors))
-  watch(sizeSearch, debounceSearch(sizePage, reloadSizes))
+  onMounted(() => {
+    fetchSizes().catch(error => { loadError.value = error.message })
+  })
 
   function isValidHex (value) {
     return /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(value ?? '')
@@ -597,15 +593,10 @@
     editColorDialog.value = true
   }
 
-  function openColorRow (_event, { item }) {
-    openEditColor(item)
-  }
-
   function deleteEditedColor () {
-    const item = colorRows.value.find(color => color.id === editColorForm.id)
-    if (!item) return
+    if (editColorForm.id == null) return
     editColorDialog.value = false
-    confirmDelete('color', item)
+    confirmDelete('color', { id: editColorForm.id, name: editColorForm.name })
   }
 
   function openEditSize (item) {
@@ -614,15 +605,10 @@
     editSizeDialog.value = true
   }
 
-  function openSizeRow (_event, { item }) {
-    openEditSize(item)
-  }
-
   function deleteEditedSize () {
-    const item = sizeRows.value.find(size => size.id === editSizeForm.id)
-    if (!item) return
+    if (editSizeForm.id == null) return
     editSizeDialog.value = false
-    confirmDelete('size', item)
+    confirmDelete('size', { id: editSizeForm.id, name: editSizeForm.name, type: editSizeForm.type })
   }
 
   async function saveColor () {

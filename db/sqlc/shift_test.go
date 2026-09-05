@@ -51,8 +51,10 @@ func TestListShifts(t *testing.T) {
 	}
 
 	arg := ListShiftsParams{
-		Limit:  5,
-		Offset: 5,
+		SortBy:     "id",
+		SortOrder:  "desc",
+		PageSize:   5,
+		PageOffset: 5,
 	}
 
 	shifts, err := testQueries.ListShifts(context.Background(), arg)

@@ -1,29 +1,37 @@
 <template>
-  <!-- TODO auto theme and list chosen -->
-  <v-btn icon @click="toggleTheme">
-    <!-- v-tooltip:bottom="'Toggle Theme'" -->
-    <!-- <v-icon :style="{ -->
-    <!--   color: theme.global.current.value.dark ? 'darkblue' : 'yellow', -->
-    <!-- }"> -->
-    <v-icon icon="mdi-theme-light-dark">
-      <!-- {{ -->
-      <!--   theme.global.current.value.dark -->
-      <!--     ? "mdi-weather-night" -->
-      <!--     : "mdi-white-balance-sunny" -->
-      <!-- }} -->
-    </v-icon>
-  </v-btn>
+  <v-menu location="bottom end">
+    <template #activator="{ props: menuProps }">
+      <v-btn icon v-bind="menuProps">
+        <v-icon :icon="activeOption.icon" />
+      </v-btn>
+    </template>
+
+    <v-list density="compact" min-width="160">
+      <v-list-item
+        v-for="option in options"
+        :key="option.value"
+        :active="appStore.themePreference === option.value"
+        :prepend-icon="option.icon"
+        :title="option.title"
+        @click="appStore.setThemePreference(option.value)"
+      />
+    </v-list>
+  </v-menu>
 </template>
 
 <script lang="ts" setup>
-  import { useTheme } from 'vuetify'
+  import { computed } from 'vue'
   import { useAppStore } from '@/stores/app'
 
   const appStore = useAppStore()
-  const theme = useTheme()
 
-  function toggleTheme () {
-    appStore.toggleTheme()
-    theme.change(appStore.theme)
-  }
+  const options = [
+    { value: 'system', title: 'System', icon: 'mdi-theme-light-dark' },
+    { value: 'light', title: 'Light', icon: 'mdi-white-balance-sunny' },
+    { value: 'dark', title: 'Dark', icon: 'mdi-weather-night' },
+  ]
+
+  const activeOption = computed(
+    () => options.find(o => o.value === appStore.themePreference) ?? options[0],
+  )
 </script>

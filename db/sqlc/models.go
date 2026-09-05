@@ -414,18 +414,22 @@ type AppSetting struct {
 }
 
 type Asset struct {
-	ID        int64     `json:"id"`
-	Name      string    `json:"name"`
-	Code      string    `json:"code"`
-	TypeID    int64     `json:"type_id"`
-	Version   int32     `json:"version"`
-	BoughtAt  time.Time `json:"bought_at"`
-	CreatedAt time.Time `json:"created_at"`
+	ID         int64     `json:"id"`
+	Name       string    `json:"name"`
+	Code       string    `json:"code"`
+	CategoryID int64     `json:"category_id"`
+	Version    int32     `json:"version"`
+	BoughtAt   time.Time `json:"bought_at"`
+	CreatedAt  time.Time `json:"created_at"`
 }
 
-type AssetsType struct {
-	ID   int64  `json:"id"`
-	Type string `json:"type"`
+type AssetCategory struct {
+	ID        int64     `json:"id"`
+	Name      string    `json:"name"`
+	IsActive  bool      `json:"is_active"`
+	Icon      string    `json:"icon"`
+	Color     string    `json:"color"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 type Attribute struct {
@@ -584,23 +588,52 @@ type BranchInvoiceSettlementPayment struct {
 }
 
 type BranchSetting struct {
-	BranchID            int64           `json:"branch_id"`
-	BranchName          string          `json:"branch_name"`
-	TaxRate             float64         `json:"tax_rate"`
-	RoundingMode        string          `json:"rounding_mode"`
-	RoundingCurrency    string          `json:"rounding_currency"`
-	ExchangeRate        int64           `json:"exchange_rate"`
-	ExchangeWindowHours int64           `json:"exchange_window_hours"`
-	MarketName          string          `json:"market_name"`
-	MarketPhone         string          `json:"market_phone"`
-	MarketDescription   string          `json:"market_description"`
-	ReturnPolicy        string          `json:"return_policy"`
-	Website             string          `json:"website"`
-	Instagram           string          `json:"instagram"`
-	SocialPlatforms     json.RawMessage `json:"social_platforms"`
-	SocialHandles       json.RawMessage `json:"social_handles"`
-	UpdatedAt           time.Time       `json:"updated_at"`
-	SearchButtonEnabled bool            `json:"search_button_enabled"`
+	BranchID                           int64           `json:"branch_id"`
+	BranchName                         string          `json:"branch_name"`
+	TaxRate                            float64         `json:"tax_rate"`
+	RoundingMode                       string          `json:"rounding_mode"`
+	RoundingCurrency                   string          `json:"rounding_currency"`
+	ExchangeRate                       int64           `json:"exchange_rate"`
+	ExchangeWindowHours                int64           `json:"exchange_window_hours"`
+	MarketName                         string          `json:"market_name"`
+	MarketPhone                        string          `json:"market_phone"`
+	MarketDescription                  string          `json:"market_description"`
+	ReturnPolicy                       string          `json:"return_policy"`
+	Website                            string          `json:"website"`
+	Instagram                          string          `json:"instagram"`
+	SocialPlatforms                    json.RawMessage `json:"social_platforms"`
+	SocialHandles                      json.RawMessage `json:"social_handles"`
+	UpdatedAt                          time.Time       `json:"updated_at"`
+	SearchButtonEnabled                bool            `json:"search_button_enabled"`
+	CustomItemDiscountsEnabled         bool            `json:"custom_item_discounts_enabled"`
+	CustomItemPricesEnabled            bool            `json:"custom_item_prices_enabled"`
+	PerUnitItemPricesEnabled           bool            `json:"per_unit_item_prices_enabled"`
+	PriceChangeManualOverrideMode      bool            `json:"price_change_manual_override_mode"`
+	InvoiceKeyboardMode                bool            `json:"invoice_keyboard_mode"`
+	ClientRequired                     bool            `json:"client_required"`
+	PageUnlockClients                  bool            `json:"page_unlock_clients"`
+	PageUnlockInventory                bool            `json:"page_unlock_inventory"`
+	PageUnlockTransfers                bool            `json:"page_unlock_transfers"`
+	PageUnlockAttendance               bool            `json:"page_unlock_attendance"`
+	PageUnlockSalespersons             bool            `json:"page_unlock_salespersons"`
+	PrinterSize                        string          `json:"printer_size"`
+	ReceiptWidth                       int64           `json:"receipt_width"`
+	ReceiptHeight                      int64           `json:"receipt_height"`
+	ReceiptEnabled                     bool            `json:"receipt_enabled"`
+	ReceiptFont                        string          `json:"receipt_font"`
+	ReceiptBodyFont                    string          `json:"receipt_body_font"`
+	ReceiptTitleSize                   float64         `json:"receipt_title_size"`
+	ReceiptBodySize                    float64         `json:"receipt_body_size"`
+	ReceiptCutoff                      bool            `json:"receipt_cutoff"`
+	PrinterID                          string          `json:"printer_id"`
+	ReceiptPrinter                     string          `json:"receipt_printer"`
+	ScreenPort                         string          `json:"screen_port"`
+	AkuvoxIp                           string          `json:"akuvox_ip"`
+	AkuvoxUsername                     string          `json:"akuvox_username"`
+	AttendanceEnabled                  bool            `json:"attendance_enabled"`
+	AttendanceDuplicateIntervalSeconds int64           `json:"attendance_duplicate_interval_seconds"`
+	AttendanceCashierHistory           bool            `json:"attendance_cashier_history"`
+	ManagedLocally                     []string        `json:"managed_locally"`
 }
 
 type BranchShift struct {
@@ -654,6 +687,17 @@ type BranchTargetSeries struct {
 	UpdatedAt     time.Time `json:"updated_at"`
 }
 
+type BranchUser struct {
+	ID           int64     `json:"id"`
+	BranchID     int64     `json:"branch_id"`
+	Username     string    `json:"username"`
+	Role         string    `json:"role"`
+	AkuvoxUserID string    `json:"akuvox_user_id"`
+	IsActive     bool      `json:"is_active"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+}
+
 type Cashbox struct {
 	ID        int64     `json:"id"`
 	Name      string    `json:"name"`
@@ -697,13 +741,25 @@ type Color struct {
 }
 
 type Coupon struct {
-	Code         string       `json:"code"`
-	Status       CouponStatus `json:"status"`
-	DiscountType DiscountType `json:"discount_type"`
-	Reason       string       `json:"reason"`
-	ClientID     int64        `json:"client_id"`
-	ValidUntil   time.Time    `json:"valid_until"`
-	CreatedAt    time.Time    `json:"created_at"`
+	Code         string        `json:"code"`
+	Status       CouponStatus  `json:"status"`
+	DiscountType DiscountType  `json:"discount_type"`
+	Reason       string        `json:"reason"`
+	ClientID     int64         `json:"client_id"`
+	ValidUntil   time.Time     `json:"valid_until"`
+	CreatedAt    time.Time     `json:"created_at"`
+	CategoryID   sql.NullInt64 `json:"category_id"`
+}
+
+type CouponCategory struct {
+	ID        int64     `json:"id"`
+	Name      string    `json:"name"`
+	IsActive  bool      `json:"is_active"`
+	Icon      string    `json:"icon"`
+	Color     string    `json:"color"`
+	Scope     string    `json:"scope"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 type Currency struct {

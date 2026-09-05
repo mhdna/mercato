@@ -39,33 +39,6 @@ async function fetchSizes (force = false) {
   return sizes.value
 }
 
-async function fetchPage (resource, { page, itemsPerPage, search = '', sortBy = [] }) {
-  const url = new URL(`${API_BASE}/${resource}`)
-  url.searchParams.set('page_size', itemsPerPage)
-  url.searchParams.set('page_id', (page - 1) * itemsPerPage)
-  if (search.trim()) {
-    url.searchParams.set('search', search.trim())
-  }
-  if (sortBy.length > 0) {
-    url.searchParams.set('sort_by', sortBy[0].key)
-    url.searchParams.set('sort_order', sortBy[0].order)
-  }
-
-  const data = await requestJSON(url.toString())
-  return {
-    items: data?.[resource] ?? [],
-    total: data?.total ?? 0,
-  }
-}
-
-function fetchColorsPage (options) {
-  return fetchPage('colors', options)
-}
-
-function fetchSizesPage (options) {
-  return fetchPage('sizes', options)
-}
-
 async function createColor ({ name, hexValue }) {
   const color = await requestJSON(`${API_BASE}/colors`, {
     method: 'POST',
@@ -128,8 +101,6 @@ export function useColorsAndSizes () {
     sizes,
     fetchColors,
     fetchSizes,
-    fetchColorsPage,
-    fetchSizesPage,
     createColor,
     updateColor,
     deleteColor,

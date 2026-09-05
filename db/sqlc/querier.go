@@ -42,7 +42,7 @@ type Querier interface {
 	// which branch's sales are being summed, only who qualifies by type/search.
 	CountClientsBySpending(ctx context.Context, arg CountClientsBySpendingParams) (int64, error)
 	CountColors(ctx context.Context, search string) (int64, error)
-	CountCoupons(ctx context.Context, search string) (int64, error)
+	CountCoupons(ctx context.Context, arg CountCouponsParams) (int64, error)
 	CountCurrencies(ctx context.Context) (int64, error)
 	CountDashboardExpenses(ctx context.Context, arg CountDashboardExpensesParams) (int64, error)
 	CountDashboardPurchases(ctx context.Context, arg CountDashboardPurchasesParams) (int64, error)
@@ -61,7 +61,7 @@ type Querier interface {
 	CountProductVariants(ctx context.Context) (int64, error)
 	CountProducts(ctx context.Context, arg CountProductsParams) (int64, error)
 	CountPurchasesFiltered(ctx context.Context, search string) (int64, error)
-	CountShifts(ctx context.Context) (int64, error)
+	CountShifts(ctx context.Context, arg CountShiftsParams) (int64, error)
 	CountSizes(ctx context.Context, search string) (int64, error)
 	CountStockMovements(ctx context.Context, arg CountStockMovementsParams) (int64, error)
 	CountSuppliersFiltered(ctx context.Context, search string) (int64, error)
@@ -86,12 +86,14 @@ type Querier interface {
 	CreateBranchShift(ctx context.Context, arg CreateBranchShiftParams) (BranchShift, error)
 	CreateBranchTarget(ctx context.Context, arg CreateBranchTargetParams) (BranchTarget, error)
 	CreateBranchTargetSeries(ctx context.Context, arg CreateBranchTargetSeriesParams) (BranchTargetSeries, error)
+	CreateBranchUser(ctx context.Context, arg CreateBranchUserParams) (BranchUser, error)
 	CreateCashbox(ctx context.Context, arg CreateCashboxParams) (Cashbox, error)
 	CreateCashboxAccount(ctx context.Context, arg CreateCashboxAccountParams) (CashboxAccount, error)
 	CreateCentralLoan(ctx context.Context, arg CreateCentralLoanParams) (Loan, error)
 	CreateClient(ctx context.Context, arg CreateClientParams) (Client, error)
 	CreateColor(ctx context.Context, arg CreateColorParams) (Color, error)
 	CreateCoupon(ctx context.Context, arg CreateCouponParams) (Coupon, error)
+	CreateCouponCategory(ctx context.Context, arg CreateCouponCategoryParams) (CouponCategory, error)
 	CreateCurrency(ctx context.Context, arg CreateCurrencyParams) (Currency, error)
 	CreateDiscountList(ctx context.Context, arg CreateDiscountListParams) (DiscountList, error)
 	CreateDiscountListItem(ctx context.Context, arg CreateDiscountListItemParams) (DiscountListItem, error)
@@ -216,9 +218,12 @@ type Querier interface {
 	DeleteAttributeValues(ctx context.Context, ids []int64) (int64, error)
 	DeleteBranchInvoicePaymentsForInvoice(ctx context.Context, branchInvoiceID int64) error
 	DeleteBranchTargetSeries(ctx context.Context, id int64) (BranchTargetSeries, error)
+	DeleteBranchUser(ctx context.Context, id int64) error
 	DeleteClient(ctx context.Context, id int64) error
 	DeleteColor(ctx context.Context, id int64) error
 	DeleteColors(ctx context.Context, ids []int64) (int64, error)
+	DeleteCouponCategory(ctx context.Context, id int64) error
+	DeleteCoupons(ctx context.Context, codes []string) (int64, error)
 	DeleteCurrencies(ctx context.Context, codes []string) (int64, error)
 	DeleteCurrency(ctx context.Context, code string) error
 	DeleteDiscountList(ctx context.Context, id int64) error
@@ -273,6 +278,7 @@ type Querier interface {
 	GetBranchTarget(ctx context.Context, id int64) (BranchTarget, error)
 	GetBranchTargetBySeriesAndStart(ctx context.Context, arg GetBranchTargetBySeriesAndStartParams) (BranchTarget, error)
 	GetBranchTargetSeries(ctx context.Context, id int64) (BranchTargetSeries, error)
+	GetBranchUser(ctx context.Context, id int64) (BranchUser, error)
 	GetCashbox(ctx context.Context, id int64) (Cashbox, error)
 	GetCashboxAccount(ctx context.Context, id int64) (CashboxAccount, error)
 	GetCashboxAccountBalance(ctx context.Context, arg GetCashboxAccountBalanceParams) (ShiftsAccountsBalance, error)
@@ -280,6 +286,7 @@ type Querier interface {
 	GetClientByPhone(ctx context.Context, phone string) (Client, error)
 	GetClientLink(ctx context.Context, arg GetClientLinkParams) (int64, error)
 	GetCoupon(ctx context.Context, code string) (Coupon, error)
+	GetCouponCategory(ctx context.Context, id int64) (CouponCategory, error)
 	GetCurrency(ctx context.Context, code string) (Currency, error)
 	GetDefaultCurrency(ctx context.Context) (Currency, error)
 	GetDefaultDiscountForProduct(ctx context.Context, productID int64) (int16, error)
@@ -358,6 +365,9 @@ type Querier interface {
 	ListBranchTargetSeriesForBranch(ctx context.Context, branchID int64) ([]BranchTargetSeries, error)
 	ListBranchTargetsForBranch(ctx context.Context, branchID int64) ([]BranchTarget, error)
 	ListBranchTargetsUpdatedSince(ctx context.Context, arg ListBranchTargetsUpdatedSinceParams) ([]BranchTarget, error)
+	ListBranchUsersForBranch(ctx context.Context, branchID int64) ([]BranchUser, error)
+	// Branch-scoped catch-up feed, same contract as ListSalespersonsUpdatedSince.
+	ListBranchUsersUpdatedSince(ctx context.Context, arg ListBranchUsersUpdatedSinceParams) ([]BranchUser, error)
 	ListBranches(ctx context.Context) ([]Branch, error)
 	ListBranchesForDiscountList(ctx context.Context, discountListID int64) ([]ListBranchesForDiscountListRow, error)
 	ListBranchesForPriceList(ctx context.Context, priceListID int64) ([]ListBranchesForPriceListRow, error)
@@ -404,6 +414,7 @@ type Querier interface {
 	ListClientsWithLoyalty(ctx context.Context, arg ListClientsWithLoyaltyParams) ([]ListClientsWithLoyaltyRow, error)
 	ListColors(ctx context.Context) ([]Color, error)
 	ListColorsPage(ctx context.Context, arg ListColorsPageParams) ([]Color, error)
+	ListCouponCategories(ctx context.Context, scope sql.NullString) ([]CouponCategory, error)
 	ListCoupons(ctx context.Context, arg ListCouponsParams) ([]Coupon, error)
 	// page_size = 0 returns every currency (the CurrencySelect picker needs the
 	// whole list); any positive value pages. Order is always by code, so the
@@ -489,7 +500,7 @@ type Querier interface {
 	ListSalespersonsByCashbox(ctx context.Context, cashboxID sql.NullInt64) ([]Salesperson, error)
 	ListSalespersonsForBranch(ctx context.Context, branchID sql.NullInt64) ([]Salesperson, error)
 	ListSalespersonsUpdatedSince(ctx context.Context, arg ListSalespersonsUpdatedSinceParams) ([]Salesperson, error)
-	ListShifts(ctx context.Context, arg ListShiftsParams) ([]Shift, error)
+	ListShifts(ctx context.Context, arg ListShiftsParams) ([]ListShiftsRow, error)
 	ListSizes(ctx context.Context) ([]Size, error)
 	ListSizesPage(ctx context.Context, arg ListSizesPageParams) ([]Size, error)
 	ListStockMovements(ctx context.Context, arg ListStockMovementsParams) ([]ListStockMovementsRow, error)
@@ -506,10 +517,14 @@ type Querier interface {
 	ReceiveInventoryStock(ctx context.Context, arg ReceiveInventoryStockParams) (InventoryStock, error)
 	SetBranchActive(ctx context.Context, arg SetBranchActiveParams) error
 	SetBranchInventory(ctx context.Context, arg SetBranchInventoryParams) error
+	// managed_locally is admin-owned, not branch-reported: a branch's settings
+	// push (UpsertBranchSettings) never touches it. Only the admin UI sets it.
+	SetBranchSettingsManagedLocally(ctx context.Context, arg SetBranchSettingsManagedLocallyParams) (BranchSetting, error)
 	// The sync-facing "delete" -- see 000046_branch_target_soft_delete.up.sql
 	// for why this flips a flag instead of removing the row.
 	SetBranchTargetActive(ctx context.Context, arg SetBranchTargetActiveParams) (BranchTarget, error)
 	SetBranchTargetSeriesActive(ctx context.Context, arg SetBranchTargetSeriesActiveParams) (BranchTargetSeries, error)
+	SetBranchUserActive(ctx context.Context, arg SetBranchUserActiveParams) (BranchUser, error)
 	SetPurchaseStatus(ctx context.Context, arg SetPurchaseStatusParams) (Purchase, error)
 	SetPurchaseTotals(ctx context.Context, arg SetPurchaseTotalsParams) error
 	SetRecurringExpenseActive(ctx context.Context, arg SetRecurringExpenseActiveParams) (RecurringExpense, error)
@@ -537,10 +552,13 @@ type Querier interface {
 	// Only affects future periods -- see CreateGeneratedBranchTarget's note on
 	// generation snapshotting a series' fields, never joining them live.
 	UpdateBranchTargetSeries(ctx context.Context, arg UpdateBranchTargetSeriesParams) (BranchTargetSeries, error)
+	UpdateBranchUser(ctx context.Context, arg UpdateBranchUserParams) (BranchUser, error)
 	UpdateCashbox(ctx context.Context, arg UpdateCashboxParams) (Cashbox, error)
 	UpdateCashboxAccount(ctx context.Context, arg UpdateCashboxAccountParams) (CashboxAccount, error)
 	UpdateClient(ctx context.Context, arg UpdateClientParams) (Client, error)
 	UpdateColor(ctx context.Context, arg UpdateColorParams) (Color, error)
+	UpdateCoupon(ctx context.Context, arg UpdateCouponParams) (Coupon, error)
+	UpdateCouponCategory(ctx context.Context, arg UpdateCouponCategoryParams) (CouponCategory, error)
 	UpdateCurrency(ctx context.Context, arg UpdateCurrencyParams) (Currency, error)
 	UpdateDiscountList(ctx context.Context, arg UpdateDiscountListParams) error
 	UpdateDiscountListItem(ctx context.Context, arg UpdateDiscountListItemParams) error

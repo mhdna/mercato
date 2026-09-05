@@ -114,35 +114,55 @@
     </v-card>
   </v-dialog>
 
-  <div class="d-flex justify-space-between align-center mb-2">
-    <h2 class="text-h6">Transfers</h2>
-    <v-btn color="primary" prepend-icon="mdi-plus" text="Add Transfer" @click="openCreate" />
-  </div>
+  <div class="page-root">
+    <v-card class="transfers-card" flat>
+      <v-card-title class="page-heading d-flex flex-wrap align-center ga-3 px-4 py-3">
+        <v-icon icon="mdi-transfer" />
+        <span>Transfers</span>
+        <v-spacer />
+        <v-btn
+          color="primary"
+          prepend-icon="mdi-plus"
+          text="Add Transfer"
+          variant="flat"
+          @click="openCreate"
+        />
+      </v-card-title>
+      <v-divider />
 
-  <ServerSideTable
-    ref="tableRef"
-    :api-u-r-l="apiURL"
-    :headers="headers"
-    :max-page-size="10"
-    root-key="transfers"
-  >
-    <template #item.status="{ item }">
-      <v-chip :color="statusColor(item.status)" size="small">{{ item.status }}</v-chip>
-    </template>
-    <template #item.actions="{ item }">
-      <v-icon-btn icon="mdi-format-list-bulleted" size="small" variant="text" @click="openItems(item)" />
-      <v-icon-btn
-        v-if="item.status === 'draft'"
-        icon="mdi-pencil"
-        size="small"
-        variant="text"
-        @click="openEdit(item)"
-      />
-    </template>
-  </ServerSideTable>
+      <div class="transfers-content">
+        <div class="pa-4">
+          <ServerSideTable
+            ref="tableRef"
+            :api-u-r-l="apiURL"
+            density="comfortable"
+            flush
+            :headers="headers"
+            :max-page-size="10"
+            root-key="transfers"
+            :show-search-icon="false"
+          >
+            <template #item.status="{ item }">
+              <v-chip :color="statusColor(item.status)" size="small">{{ item.status }}</v-chip>
+            </template>
+            <template #item.actions="{ item }">
+              <v-icon-btn icon="mdi-format-list-bulleted" size="small" variant="text" @click="openItems(item)" />
+              <v-icon-btn
+                v-if="item.status === 'draft'"
+                icon="mdi-pencil"
+                size="small"
+                variant="text"
+                @click="openEdit(item)"
+              />
+            </template>
+          </ServerSideTable>
+        </div>
+      </div>
+    </v-card>
+  </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
   import { useField, useForm } from 'vee-validate'
   import { ref } from 'vue'
   import ServerSideTable from '@/components/Tables/ServerSideTable.vue'
@@ -174,7 +194,7 @@
     { title: 'Items', key: 'item_count', align: 'end' },
     { title: 'Status', key: 'status', align: 'start' },
     { title: 'Created At', key: 'created_at', align: 'end' },
-    { title: 'Actions', key: 'actions', align: 'end', sortable: false },
+    { title: '', key: 'actions', align: 'end', sortable: false, width: 96 },
   ])
 
   function statusColor (s) {
@@ -305,3 +325,26 @@
     }
   }
 </script>
+
+<style scoped>
+/* Fill the layout's flex-column scroll wrapper so the scroll lives inside the
+   table, not the whole page. */
+.page-root {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.transfers-card {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.transfers-content {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+}
+</style>

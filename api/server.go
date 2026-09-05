@@ -84,14 +84,17 @@ func (server *Server) setupRoutes() {
 	authRoutes.GET("/attribute_values", server.listAllAttributeValues)
 	authRoutes.DELETE("/attributes/:id", server.deleteAttributeValue)
 	authRoutes.POST("/attributes/bulk_delete", server.bulkDeleteAttributeValues)
-	// TODO: add updateAsset
 	authRoutes.POST("/assets", server.createAsset)
+	authRoutes.PUT("/assets", server.updateAsset)
 	authRoutes.DELETE("/assets/:id", server.deleteAsset)
+	authRoutes.POST("/assets/bulk_delete", server.bulkDeleteAssets)
 	authRoutes.GET("/assets/:id", server.getAsset)
 	authRoutes.GET("/assets/", server.listAssets)
-	// TODO: add getAssetType
-	authRoutes.POST("/asset_types", server.createAssetType)
-	authRoutes.DELETE("/asset_types/:id", server.deleteAssetType)
+	authRoutes.POST("/asset_categories", server.createAssetCategory)
+	authRoutes.GET("/asset_categories/:id", server.getAssetCategory)
+	authRoutes.GET("/asset_categories", server.listAssetCategories)
+	authRoutes.PUT("/asset_categories", server.updateAssetCategory)
+	authRoutes.DELETE("/asset_categories/:id", server.deleteAssetCategory)
 	authRoutes.POST("/clients", server.createClient)
 	authRoutes.PUT("/clients", server.updateClient)
 	authRoutes.GET("/clients/:id", server.getClient)
@@ -226,9 +229,17 @@ func (server *Server) setupRoutes() {
 	authRoutes.GET("/loan_payments", server.listLoanPayments)
 	authRoutes.DELETE("/loan_payments/:id", server.deleteLoanPayment)
 
+	authRoutes.POST("/coupon_categories", server.createCouponCategory)
+	authRoutes.GET("/coupon_categories/:id", server.getCouponCategory)
+	authRoutes.GET("/coupon_categories", server.listCouponCategories)
+	authRoutes.PUT("/coupon_categories", server.updateCouponCategory)
+	authRoutes.DELETE("/coupon_categories/:id", server.deleteCouponCategory)
+
 	authRoutes.POST("/coupons", server.createCoupon)
+	authRoutes.POST("/coupons/bulk_delete", server.bulkDeleteCoupons)
 	authRoutes.GET("/coupons/:code", server.getCoupon)
 	authRoutes.GET("/coupons", server.listCoupons)
+	authRoutes.PUT("/coupons/:code", server.updateCoupon)
 	authRoutes.PUT("/coupons/:code/deactivate", server.deactivateCoupon)
 
 	authRoutes.POST("/transfers", server.createTransfer)
@@ -272,6 +283,7 @@ func (server *Server) setupRoutes() {
 	authRoutes.GET("/dashboard/expenses", server.listDashboardExpenses)
 	authRoutes.GET("/dashboard/activities", server.listDashboardActivities)
 	authRoutes.GET("/branches/:id/settings", server.getBranchSettings)
+	authRoutes.PUT("/branches/:id/settings/managed_locally", server.putBranchSettingsManagedLocally)
 	authRoutes.POST("/branches/:id/commands", server.createBranchCommand)
 	authRoutes.GET("/branches/:id/commands", server.listBranchCommands)
 
@@ -290,6 +302,12 @@ func (server *Server) setupRoutes() {
 	authRoutes.POST("/branches/:id/salespersons", server.createSalesperson)
 	authRoutes.PUT("/salespersons/:id", server.updateSalesperson)
 	authRoutes.PUT("/salespersons/:id/active", server.setSalespersonActive)
+
+	authRoutes.GET("/branches/:id/branch_users", server.listBranchUsers)
+	authRoutes.POST("/branches/:id/branch_users", server.createBranchUser)
+	authRoutes.PUT("/branch_users/:id", server.updateBranchUser)
+	authRoutes.PUT("/branch_users/:id/pin", server.setBranchUserPin)
+	authRoutes.DELETE("/branch_users/:id", server.deleteBranchUser)
 
 	// adminWS can't sit under authRoutes: authMiddleware only reads the
 	// Authorization header, and a browser WebSocket handshake can't set

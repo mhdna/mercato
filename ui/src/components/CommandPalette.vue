@@ -1,12 +1,15 @@
 <template>
   <v-command-palette
     v-model:search="search"
-    height="495"
-    hotkey="ctrl+k"
+    height="75vh"
+    hotkey="cmd+k"
     :items="items"
+    location="center center"
     :no-data-text="'No commands found'"
+    offset-top="0"
     placeholder="Search commands..."
     @click:item="onItemClick"
+    @update:model-value="onToggle"
   >
     <template #activator="{ props: activatorProps }">
       <v-btn icon="mdi-magnify" variant="text" v-bind="activatorProps" />
@@ -15,12 +18,27 @@
 </template>
 
 <script setup>
-  import { shallowRef } from 'vue'
+  import { nextTick, shallowRef } from 'vue'
   import { useRouter } from 'vue-router'
   import { appendItems, navItems } from '@/data/navItems'
 
   const router = useRouter()
   const search = shallowRef('')
+
+  function onToggle (value) {
+    if (!value) {
+      // VCommandPalette restores focus to the activator button on close,
+      // which leaves it with a lingering focus ring. Drop that focus.
+      nextTick(() => {
+        requestAnimationFrame(() => {
+          const el = document.activeElement
+          if (el instanceof HTMLElement) {
+            el.blur()
+          }
+        })
+      })
+    }
+  }
 
   function buildItems () {
     const items = []

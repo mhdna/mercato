@@ -37,21 +37,7 @@
       <v-divider />
 
       <div class="attr-layout">
-        <v-list
-          v-model:selected="selection"
-          class="attr-sidebar py-0"
-          density="compact"
-          mandatory
-          nav
-          select-strategy="single-leaf"
-        >
-          <v-list-item
-            v-for="t in types"
-            :key="t.id"
-            :title="labelize(t.name)"
-            :value="t.name"
-          />
-        </v-list>
+        <PageSidebar v-model="selectedType" :items="typeItems" />
 
         <v-divider vertical />
 
@@ -60,25 +46,36 @@
             Select an attribute on the left.
           </div>
 
-          <v-data-table-server
-            v-else
-            v-model:items-per-page="itemsPerPage"
-            v-model:page="page"
-            v-model:sort-by="sortBy"
-            class="attribute-table"
-            density="comfortable"
-            :headers="headers"
-            :items="rows"
-            :items-length="total"
-            :items-per-page-options="[14, 25, 50, 100]"
-            :loading="loading"
-            @click:row="openRow"
-            @update:options="loadRows"
-          >
-            <template #item.created_at="{ item }">
-              {{ formatDate(item.created_at) }}
-            </template>
-          </v-data-table-server>
+          <template v-else>
+            <BulkDeleteBar
+              :count="selectedRows.length"
+              :error="selError"
+              :loading="bulkDeleting"
+              @clear="resetSel"
+              @confirm="bulkDeleteRows"
+            />
+            <ServerSideTable
+              ref="tableRef"
+              :api-u-r-l="`${API_BASE}/attributes/`"
+              class="attribute-table"
+              density="comfortable"
+              :external-search="search ?? ''"
+              flush
+              :headers="headers"
+              item-value="id"
+              :query-params="{ attribute: selectedType }"
+              root-key="values"
+              selectable
+              :show-search-icon="false"
+              :sort-keys="['id', 'value', 'created_at']"
+              @row-click="openEdit"
+              @update:selected="v => (selectedRows = v)"
+            >
+              <template #item.created_at="{ item }">
+                {{ formatDate(item.created_at) }}
+              </template>
+            </ServerSideTable>
+          </template>
         </div>
       </div>
     </v-card>
@@ -163,80 +160,54 @@
 
 <script setup lang="ts">
   import { computed, onMounted, ref, watch } from 'vue'
+  import PageSidebar from '@/components/PageSidebar.vue'
+  import BulkDeleteBar from '@/components/Tables/BulkDeleteBar.vue'
+  import ServerSideTable from '@/components/Tables/ServerSideTable.vue'
   import { useAttributes } from '@/composables/useAttributes'
+  import { useBulkDelete } from '@/composables/useBulkDelete'
+  import { API_BASE } from '@/config'
 
   const {
     types,
     fetchTypes,
-    fetchValuesPage,
     createValue,
     updateValue,
     deleteValue,
   } = useAttributes()
 
-  const loading = ref(false)
-  const loadError = ref('')
-  const selection = ref([])
-  const search = ref('')
-  const rows = ref([])
-  const total = ref(0)
-  const page = ref(1)
-  const itemsPerPage = ref(14)
-  const sortBy = ref([{ key: 'created_at', order: 'desc' }])
-  const lastOptions = ref(null)
+  const {
+    selected: selectedRows,
+    deleting: bulkDeleting,
+    error: selError,
+    reset: resetSel,
+    run: runBulk,
+  } = useBulkDelete()
 
-  const selectedType = computed(() => selection.value[0] ?? null)
-
-  async function loadRows (options) {
-    lastOptions.value = options
-    if (!selectedType.value) {
-      rows.value = []
-      total.value = 0
-      return
-    }
-
-    loading.value = true
-    loadError.value = ''
-    try {
-      const result = await fetchValuesPage({
-        ...options,
-        attribute: selectedType.value,
-        search: search.value,
-      })
-      rows.value = result.items
-      total.value = result.total
-    } catch (error) {
-      loadError.value = error.message
-      rows.value = []
-      total.value = 0
-    } finally {
-      loading.value = false
-    }
-  }
-
+  const tableRef = ref(null)
   function reloadRows () {
-    if (lastOptions.value) {
-      loadRows({ ...lastOptions.value, page: page.value })
-    }
+    tableRef.value?.reload()
   }
 
-  function reloadFromFirstPage () {
-    if (page.value !== 1) {
-      page.value = 1
-      return
-    }
-    reloadRows()
+  async function bulkDeleteRows () {
+    try {
+      await runBulk('/attributes/bulk_delete', { ids: selectedRows.value })
+      resetSel()
+      reloadRows()
+    } catch { /* error shown in the bar */ }
   }
 
-  let searchTimer
-  watch(search, () => {
-    clearTimeout(searchTimer)
-    searchTimer = setTimeout(reloadFromFirstPage, 300)
-  })
+  const loadError = ref('')
+  const selectedType = ref(null)
+  const search = ref('')
+
+  const typeItems = computed(() => types.value.map(t => ({
+    value: t.name,
+    title: labelize(t.name),
+  })))
 
   watch(selectedType, () => {
     search.value = ''
-    reloadFromFirstPage()
+    resetSel()
   })
 
   const headers = [
@@ -257,16 +228,13 @@
   }
 
   onMounted(async () => {
-    loading.value = true
     try {
       await fetchTypes(true)
-      if (selection.value.length === 0 && types.value.length > 0) {
-        selection.value = [types.value[0].name]
+      if (selectedType.value == null && types.value.length > 0) {
+        selectedType.value = types.value[0].name
       }
     } catch (error) {
       loadError.value = error.message
-    } finally {
-      loading.value = false
     }
   })
 
@@ -289,10 +257,6 @@
     draftValue.value = item.value
     formError.value = ''
     editDialog.value = true
-  }
-
-  function openRow (_event, { item }) {
-    openEdit(item)
   }
 
   async function saveValue () {
@@ -364,11 +328,6 @@
   display: flex;
   height: 100%;
   overflow: hidden;
-}
-.attr-sidebar {
-  width: 220px;
-  flex: 0 0 220px;
-  overflow-y: auto;
 }
 .attr-content {
   flex: 1 1 auto;

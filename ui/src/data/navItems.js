@@ -51,6 +51,7 @@ export const navItems = [
     icon: 'mdi-store-outline',
     children: [
       { title: 'Branches', icon: 'mdi-store-outline', to: '/branches' },
+      { title: 'Branch Settings', icon: 'mdi-store-cog-outline', to: '/branch-settings' },
     ],
   },
   {
@@ -77,8 +78,7 @@ export const navItems = [
     children: [
       { title: 'Expenses', icon: 'mdi-currency-usd-off', to: '/expenses' },
       { title: 'Loans', icon: 'mdi-hand-coin', to: '/loans' },
-      { title: 'Loan Payments', icon: 'mdi-cash-refund', to: '/loan-payments' },
-      { title: 'Currencies', icon: 'mdi-currency-usd', to: '/currencies' },
+      { title: 'Currencies & Payments', icon: 'mdi-cash-multiple', to: '/currencies' },
       { title: 'Assets', icon: 'mdi-hammer-wrench', to: '/assets' },
     ],
   },

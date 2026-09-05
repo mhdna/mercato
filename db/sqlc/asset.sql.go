@@ -7,31 +7,56 @@ package db
 
 import (
 	"context"
+	"database/sql"
 	"time"
+
+	"github.com/lib/pq"
 )
+
+const countAssets = `-- name: CountAssets :one
+SELECT COUNT(*) FROM assets
+WHERE ($1::bigint IS NULL OR category_id = $1)
+  AND (
+    $2::text = ''
+    OR name ILIKE '%' || $2::text || '%'
+    OR code ILIKE '%' || $2::text || '%'
+  )
+`
+
+type CountAssetsParams struct {
+	CategoryID sql.NullInt64 `json:"category_id"`
+	Search     string        `json:"search"`
+}
+
+func (q *Queries) CountAssets(ctx context.Context, arg CountAssetsParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countAssets, arg.CategoryID, arg.Search)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
 
 const createAsset = `-- name: CreateAsset :one
 INSERT INTO assets (
   name,
   code,
-  type_id,
+  category_id,
   bought_at
-) VALUES ( $1, $2, $3, $4)
-RETURNING id, name, code, type_id, version, bought_at, created_at
+) VALUES ( $1, $2, $3, $4 )
+RETURNING id, name, code, category_id, version, bought_at, created_at
 `
 
 type CreateAssetParams struct {
-	Name     string    `json:"name"`
-	Code     string    `json:"code"`
-	TypeID   int64     `json:"type_id"`
-	BoughtAt time.Time `json:"bought_at"`
+	Name       string    `json:"name"`
+	Code       string    `json:"code"`
+	CategoryID int64     `json:"category_id"`
+	BoughtAt   time.Time `json:"bought_at"`
 }
 
 func (q *Queries) CreateAsset(ctx context.Context, arg CreateAssetParams) (Asset, error) {
 	row := q.db.QueryRowContext(ctx, createAsset,
 		arg.Name,
 		arg.Code,
-		arg.TypeID,
+		arg.CategoryID,
 		arg.BoughtAt,
 	)
 	var i Asset
@@ -39,25 +64,11 @@ func (q *Queries) CreateAsset(ctx context.Context, arg CreateAssetParams) (Asset
 		&i.ID,
 		&i.Name,
 		&i.Code,
-		&i.TypeID,
+		&i.CategoryID,
 		&i.Version,
 		&i.BoughtAt,
 		&i.CreatedAt,
 	)
-	return i, err
-}
-
-const createAssetType = `-- name: CreateAssetType :one
-INSERT INTO assets_types (
-  type
-) VALUES ( $1 )
-RETURNING id, type
-`
-
-func (q *Queries) CreateAssetType(ctx context.Context, type_ string) (AssetsType, error) {
-	row := q.db.QueryRowContext(ctx, createAssetType, type_)
-	var i AssetsType
-	err := row.Scan(&i.ID, &i.Type)
 	return i, err
 }
 
@@ -71,18 +82,21 @@ func (q *Queries) DeleteAsset(ctx context.Context, id int64) error {
 	return err
 }
 
-const deleteAssetType = `-- name: DeleteAssetType :exec
-DELETE FROM assets_types
-WHERE id = $1
+const deleteAssets = `-- name: DeleteAssets :execrows
+DELETE FROM assets
+WHERE id = ANY($1::bigint[])
 `
 
-func (q *Queries) DeleteAssetType(ctx context.Context, id int64) error {
-	_, err := q.db.ExecContext(ctx, deleteAssetType, id)
-	return err
+func (q *Queries) DeleteAssets(ctx context.Context, ids []int64) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteAssets, pq.Array(ids))
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const getAsset = `-- name: GetAsset :one
-SELECT id, name, code, type_id, version, bought_at, created_at FROM assets
+SELECT id, name, code, category_id, version, bought_at, created_at FROM assets
 WHERE id = $1 LIMIT 1
 `
 
@@ -93,7 +107,7 @@ func (q *Queries) GetAsset(ctx context.Context, id int64) (Asset, error) {
 		&i.ID,
 		&i.Name,
 		&i.Code,
-		&i.TypeID,
+		&i.CategoryID,
 		&i.Version,
 		&i.BoughtAt,
 		&i.CreatedAt,
@@ -101,20 +115,48 @@ func (q *Queries) GetAsset(ctx context.Context, id int64) (Asset, error) {
 	return i, err
 }
 
-const listAssets = `-- name: ListAssets :many
-SELECT id, name, code, type_id, version, bought_at, created_at FROM assets
-ORDER BY id
-LIMIT $1
-OFFSET $2
+const listAssetsPage = `-- name: ListAssetsPage :many
+SELECT id, name, code, category_id, version, bought_at, created_at FROM assets
+WHERE ($1::bigint IS NULL OR category_id = $1)
+  AND (
+    $2::text = ''
+    OR name ILIKE '%' || $2::text || '%'
+    OR code ILIKE '%' || $2::text || '%'
+  )
+ORDER BY
+  CASE WHEN $3::text = 'name' AND $4::text = 'asc' THEN name END ASC,
+  CASE WHEN $3::text = 'name' AND $4::text = 'desc' THEN name END DESC,
+  CASE WHEN $3::text = 'code' AND $4::text = 'asc' THEN code END ASC,
+  CASE WHEN $3::text = 'code' AND $4::text = 'desc' THEN code END DESC,
+  CASE WHEN $3::text = 'bought_at' AND $4::text = 'asc' THEN bought_at END ASC,
+  CASE WHEN $3::text = 'bought_at' AND $4::text = 'desc' THEN bought_at END DESC,
+  CASE WHEN $3::text = 'id' AND $4::text = 'asc' THEN id END ASC,
+  CASE WHEN $3::text = 'id' AND $4::text = 'desc' THEN id END DESC,
+  CASE WHEN $3::text = 'created_at' AND $4::text = 'asc' THEN created_at END ASC,
+  created_at DESC,
+  id DESC
+LIMIT $6
+OFFSET $5
 `
 
-type ListAssetsParams struct {
-	Limit  int32 `json:"limit"`
-	Offset int32 `json:"offset"`
+type ListAssetsPageParams struct {
+	CategoryID sql.NullInt64 `json:"category_id"`
+	Search     string        `json:"search"`
+	SortBy     string        `json:"sort_by"`
+	SortOrder  string        `json:"sort_order"`
+	PageOffset int32         `json:"page_offset"`
+	PageSize   int32         `json:"page_size"`
 }
 
-func (q *Queries) ListAssets(ctx context.Context, arg ListAssetsParams) ([]Asset, error) {
-	rows, err := q.db.QueryContext(ctx, listAssets, arg.Limit, arg.Offset)
+func (q *Queries) ListAssetsPage(ctx context.Context, arg ListAssetsPageParams) ([]Asset, error) {
+	rows, err := q.db.QueryContext(ctx, listAssetsPage,
+		arg.CategoryID,
+		arg.Search,
+		arg.SortBy,
+		arg.SortOrder,
+		arg.PageOffset,
+		arg.PageSize,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -126,7 +168,7 @@ func (q *Queries) ListAssets(ctx context.Context, arg ListAssetsParams) ([]Asset
 			&i.ID,
 			&i.Name,
 			&i.Code,
-			&i.TypeID,
+			&i.CategoryID,
 			&i.Version,
 			&i.BoughtAt,
 			&i.CreatedAt,
@@ -144,27 +186,42 @@ func (q *Queries) ListAssets(ctx context.Context, arg ListAssetsParams) ([]Asset
 	return items, nil
 }
 
-const updateAsset = `-- name: UpdateAsset :exec
-UPDATE assets 
+const updateAsset = `-- name: UpdateAsset :one
+UPDATE assets
   SET name = $2,
   code = $3,
-  type_id = $4
+  category_id = $4,
+  bought_at = $5,
+  version = version + 1
 WHERE id = $1
+RETURNING id, name, code, category_id, version, bought_at, created_at
 `
 
 type UpdateAssetParams struct {
-	ID     int64  `json:"id"`
-	Name   string `json:"name"`
-	Code   string `json:"code"`
-	TypeID int64  `json:"type_id"`
+	ID         int64     `json:"id"`
+	Name       string    `json:"name"`
+	Code       string    `json:"code"`
+	CategoryID int64     `json:"category_id"`
+	BoughtAt   time.Time `json:"bought_at"`
 }
 
-func (q *Queries) UpdateAsset(ctx context.Context, arg UpdateAssetParams) error {
-	_, err := q.db.ExecContext(ctx, updateAsset,
+func (q *Queries) UpdateAsset(ctx context.Context, arg UpdateAssetParams) (Asset, error) {
+	row := q.db.QueryRowContext(ctx, updateAsset,
 		arg.ID,
 		arg.Name,
 		arg.Code,
-		arg.TypeID,
+		arg.CategoryID,
+		arg.BoughtAt,
 	)
-	return err
+	var i Asset
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Code,
+		&i.CategoryID,
+		&i.Version,
+		&i.BoughtAt,
+		&i.CreatedAt,
+	)
+	return i, err
 }

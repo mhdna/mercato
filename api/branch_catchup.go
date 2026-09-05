@@ -81,6 +81,15 @@ func (server *Server) branchSyncChanges(ctx *gin.Context) {
 			BranchID:  sql.NullInt64{Int64: branchID, Valid: true},
 			UpdatedAt: since,
 		})
+	case "branch_users":
+		// Branch-specific like salespersons -- each branch's own POS roster.
+		// The PIN is never in this feed; it arrives via a set_branch_user_pin
+		// command instead.
+		branchID := ctx.MustGet(branchIDKey).(int64)
+		items, err = server.store.ListBranchUsersUpdatedSince(ctx, db.ListBranchUsersUpdatedSinceParams{
+			BranchID:  branchID,
+			UpdatedAt: since,
+		})
 	case "expense_categories":
 		// Global like currencies; the query itself restricts to
 		// scope='branch' rows -- central-only categories never leave kashi.

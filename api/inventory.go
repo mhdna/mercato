@@ -154,7 +154,6 @@ func (server *Server) deleteInventory(ctx *gin.Context) {
 // ---------------------------------------------------------------------------
 
 type listInventoryStockRequest struct {
-	ID       int64  `uri:"id" binding:"required,min=1"`
 	Search   string `form:"search"`
 	PageSize int32  `form:"page_size,default=50" binding:"min=1,max=500"`
 	PageID   int32  `form:"page_id,default=0" binding:"min=0"`
@@ -163,18 +162,22 @@ type listInventoryStockRequest struct {
 // listInventoryStock returns the on-hand quantity and moving-average cost
 // of every SKU that has ever been stocked in this inventory.
 func (server *Server) listInventoryStock(ctx *gin.Context) {
-	var req listInventoryStockRequest
-	if err := ctx.ShouldBindUri(&req); err != nil {
+	var uri getInventoryRequest
+	if err := ctx.ShouldBindUri(&uri); err != nil {
 		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
+	// Bind the query separately: the paging fields rely on their `default`
+	// tags, which only apply during form binding. Validating them as part of
+	// the URI bind would reject every request because they're still zero.
+	var req listInventoryStockRequest
 	if err := ctx.ShouldBindQuery(&req); err != nil {
 		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
 	rows, err := server.store.ListInventoryStock(ctx, db.ListInventoryStockParams{
-		InventoryID: req.ID,
+		InventoryID: uri.ID,
 		Search:      req.Search,
 		PageLimit:   req.PageSize,
 		PageOffset:  req.PageID,
@@ -185,7 +188,7 @@ func (server *Server) listInventoryStock(ctx *gin.Context) {
 	}
 
 	total, err := server.store.CountInventoryStock(ctx, db.CountInventoryStockParams{
-		InventoryID: req.ID,
+		InventoryID: uri.ID,
 		Search:      req.Search,
 	})
 	if err != nil {

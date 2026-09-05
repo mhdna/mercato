@@ -48,7 +48,7 @@
             prepend-icon="mdi-filter-variant"
             text="Filters"
             variant="tonal"
-            @click="filterMenu = !filterMenu"
+            @click="filterMenu = true"
           />
         </v-badge>
         <v-btn
@@ -61,86 +61,110 @@
       </v-card-title>
       <v-divider />
 
-      <v-expand-transition>
-        <v-card v-show="filterMenu" class="mx-4 mb-4 pa-4" flat variant="outlined">
-          <div class="d-flex flex-wrap align-center ga-6">
-            <div>
-              <div class="text-caption text-medium-emphasis mb-1">Status</div>
-              <v-btn-toggle
-                v-model="statusFilter"
-                color="primary"
-                density="compact"
-                divided
-                mandatory
-                variant="outlined"
-              >
-                <v-btn value="all">All</v-btn>
-                <v-btn value="active">Active</v-btn>
-                <v-btn value="inactive">Inactive</v-btn>
-              </v-btn-toggle>
-            </div>
+      <v-dialog v-model="filterMenu" max-width="640" scrollable>
+        <v-card>
+          <v-card-title class="d-flex align-center ga-2">
+            <v-icon icon="mdi-filter-variant" size="20" />
+            <span class="text-h6">Filter Products</span>
+            <v-chip
+              v-if="activeFilterCount > 0"
+              class="ms-1"
+              color="primary"
+              size="small"
+              :text="`${activeFilterCount} active`"
+              variant="tonal"
+            />
+            <v-spacer />
+            <v-btn icon="mdi-close" size="small" variant="text" @click="filterMenu = false" />
+          </v-card-title>
+          <v-divider />
+
+          <v-card-text class="py-4">
+            <div class="text-caption text-medium-emphasis mb-1">Status</div>
+            <v-btn-toggle
+              v-model="statusFilter"
+              class="mb-5"
+              color="primary"
+              density="compact"
+              divided
+              mandatory
+              variant="outlined"
+            >
+              <v-btn value="all">All</v-btn>
+              <v-btn value="active">Active</v-btn>
+              <v-btn value="inactive">Inactive</v-btn>
+            </v-btn-toggle>
 
             <v-switch
               v-model="hasVariants"
+              class="mb-2"
               color="primary"
               density="compact"
               hide-details
               label="Has variants"
             />
 
-            <v-text-field
-              v-model="createdFrom"
-              class="date-field"
-              clearable
-              density="compact"
-              hide-details
-              label="Created from"
-              type="date"
-              variant="outlined"
-            />
-            <v-text-field
-              v-model="createdTo"
-              class="date-field"
-              clearable
-              density="compact"
-              hide-details
-              label="Created to"
-              type="date"
-              variant="outlined"
-            />
-          </div>
+            <div class="text-caption text-medium-emphasis mb-1">Created between</div>
+            <div class="d-flex flex-wrap ga-3 mb-5">
+              <v-text-field
+                v-model="createdFrom"
+                class="date-field"
+                clearable
+                density="compact"
+                hide-details
+                label="From"
+                type="date"
+                variant="outlined"
+              />
+              <v-text-field
+                v-model="createdTo"
+                class="date-field"
+                clearable
+                density="compact"
+                hide-details
+                label="To"
+                type="date"
+                variant="outlined"
+              />
+            </div>
 
-          <div class="d-flex flex-wrap ga-3 mt-4">
-            <v-select
-              v-for="t in attributeTypes"
-              :key="t.name"
-              v-model="attrSelections[t.name]"
-              chips
-              class="attr-select"
-              clearable
-              closable-chips
-              density="compact"
-              hide-details
-              item-title="value"
-              item-value="id"
-              :items="valuesByType[t.name] || []"
-              :label="labelize(t.name)"
-              multiple
-              variant="outlined"
-            />
-          </div>
+            <template v-if="attributeTypes.length > 0">
+              <div class="text-caption text-medium-emphasis mb-1">Attributes</div>
+              <div class="d-flex flex-wrap ga-3">
+                <v-select
+                  v-for="t in attributeTypes"
+                  :key="t.name"
+                  v-model="attrSelections[t.name]"
+                  chips
+                  class="attr-select"
+                  clearable
+                  closable-chips
+                  density="compact"
+                  hide-details
+                  item-title="value"
+                  item-value="id"
+                  :items="valuesByType[t.name] || []"
+                  :label="labelize(t.name)"
+                  multiple
+                  variant="outlined"
+                />
+              </div>
+            </template>
+          </v-card-text>
 
-          <div class="d-flex justify-end mt-3">
+          <v-divider />
+          <v-card-actions class="px-4">
             <v-btn
               :disabled="activeFilterCount === 0"
-              size="small"
               text="Clear all"
               variant="text"
               @click="clearFilters"
             />
-          </div>
+            <v-spacer />
+            <v-btn color="primary" text="Done" variant="flat" @click="filterMenu = false" />
+          </v-card-actions>
         </v-card>
-      </v-expand-transition>
+      </v-dialog>
 
       <ProductsTable
         ref="productsTableRef"

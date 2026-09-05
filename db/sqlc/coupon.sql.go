@@ -7,18 +7,31 @@ package db
 
 import (
 	"context"
+	"database/sql"
 	"time"
+
+	"github.com/lib/pq"
 )
 
 const countCoupons = `-- name: CountCoupons :one
 SELECT COUNT(*) FROM coupons
-WHERE BTRIM($1::text) = ''
-   OR code ILIKE '%' || BTRIM($1::text) || '%'
-   OR reason ILIKE '%' || BTRIM($1::text) || '%'
+WHERE (
+    BTRIM($1::text) = ''
+    OR code ILIKE '%' || BTRIM($1::text) || '%'
+    OR reason ILIKE '%' || BTRIM($1::text) || '%'
+  )
+  AND ($2::coupon_status IS NULL OR status = $2)
+  AND ($3::bigint IS NULL OR category_id = $3)
 `
 
-func (q *Queries) CountCoupons(ctx context.Context, search string) (int64, error) {
-	row := q.db.QueryRowContext(ctx, countCoupons, search)
+type CountCouponsParams struct {
+	Search     string           `json:"search"`
+	Status     NullCouponStatus `json:"status"`
+	CategoryID sql.NullInt64    `json:"category_id"`
+}
+
+func (q *Queries) CountCoupons(ctx context.Context, arg CountCouponsParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countCoupons, arg.Search, arg.Status, arg.CategoryID)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -31,19 +44,21 @@ INSERT INTO coupons (
   discount_type,
   reason,
   client_id,
-  valid_until
+  valid_until,
+  category_id
 ) VALUES (
-    $1, $2, $3, $4, $5, $6
-) RETURNING code, status, discount_type, reason, client_id, valid_until, created_at
+    $1, $2, $3, $4, $5, $6, $7
+) RETURNING code, status, discount_type, reason, client_id, valid_until, created_at, category_id
 `
 
 type CreateCouponParams struct {
-	Code         string       `json:"code"`
-	Status       CouponStatus `json:"status"`
-	DiscountType DiscountType `json:"discount_type"`
-	Reason       string       `json:"reason"`
-	ClientID     int64        `json:"client_id"`
-	ValidUntil   time.Time    `json:"valid_until"`
+	Code         string        `json:"code"`
+	Status       CouponStatus  `json:"status"`
+	DiscountType DiscountType  `json:"discount_type"`
+	Reason       string        `json:"reason"`
+	ClientID     int64         `json:"client_id"`
+	ValidUntil   time.Time     `json:"valid_until"`
+	CategoryID   sql.NullInt64 `json:"category_id"`
 }
 
 func (q *Queries) CreateCoupon(ctx context.Context, arg CreateCouponParams) (Coupon, error) {
@@ -54,6 +69,7 @@ func (q *Queries) CreateCoupon(ctx context.Context, arg CreateCouponParams) (Cou
 		arg.Reason,
 		arg.ClientID,
 		arg.ValidUntil,
+		arg.CategoryID,
 	)
 	var i Coupon
 	err := row.Scan(
@@ -64,6 +80,7 @@ func (q *Queries) CreateCoupon(ctx context.Context, arg CreateCouponParams) (Cou
 		&i.ClientID,
 		&i.ValidUntil,
 		&i.CreatedAt,
+		&i.CategoryID,
 	)
 	return i, err
 }
@@ -79,8 +96,21 @@ func (q *Queries) DeactivateCoupon(ctx context.Context, code string) error {
 	return err
 }
 
+const deleteCoupons = `-- name: DeleteCoupons :execrows
+DELETE FROM coupons
+WHERE code = ANY($1::text[])
+`
+
+func (q *Queries) DeleteCoupons(ctx context.Context, codes []string) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteCoupons, pq.Array(codes))
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const getCoupon = `-- name: GetCoupon :one
-SELECT code, status, discount_type, reason, client_id, valid_until, created_at FROM coupons
+SELECT code, status, discount_type, reason, client_id, valid_until, created_at, category_id FROM coupons
 WHERE code = $1 LIMIT 1
 `
 
@@ -95,28 +125,41 @@ func (q *Queries) GetCoupon(ctx context.Context, code string) (Coupon, error) {
 		&i.ClientID,
 		&i.ValidUntil,
 		&i.CreatedAt,
+		&i.CategoryID,
 	)
 	return i, err
 }
 
 const listCoupons = `-- name: ListCoupons :many
-SELECT code, status, discount_type, reason, client_id, valid_until, created_at FROM coupons
-WHERE BTRIM($1::text) = ''
-   OR code ILIKE '%' || BTRIM($1::text) || '%'
-   OR reason ILIKE '%' || BTRIM($1::text) || '%'
+SELECT code, status, discount_type, reason, client_id, valid_until, created_at, category_id FROM coupons
+WHERE (
+    BTRIM($1::text) = ''
+    OR code ILIKE '%' || BTRIM($1::text) || '%'
+    OR reason ILIKE '%' || BTRIM($1::text) || '%'
+  )
+  AND ($2::coupon_status IS NULL OR status = $2)
+  AND ($3::bigint IS NULL OR category_id = $3)
 ORDER BY code
-LIMIT $3
-OFFSET $2
+LIMIT $5
+OFFSET $4
 `
 
 type ListCouponsParams struct {
-	Search     string `json:"search"`
-	PageOffset int32  `json:"page_offset"`
-	PageSize   int32  `json:"page_size"`
+	Search     string           `json:"search"`
+	Status     NullCouponStatus `json:"status"`
+	CategoryID sql.NullInt64    `json:"category_id"`
+	PageOffset int32            `json:"page_offset"`
+	PageSize   int32            `json:"page_size"`
 }
 
 func (q *Queries) ListCoupons(ctx context.Context, arg ListCouponsParams) ([]Coupon, error) {
-	rows, err := q.db.QueryContext(ctx, listCoupons, arg.Search, arg.PageOffset, arg.PageSize)
+	rows, err := q.db.QueryContext(ctx, listCoupons,
+		arg.Search,
+		arg.Status,
+		arg.CategoryID,
+		arg.PageOffset,
+		arg.PageSize,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -132,6 +175,7 @@ func (q *Queries) ListCoupons(ctx context.Context, arg ListCouponsParams) ([]Cou
 			&i.ClientID,
 			&i.ValidUntil,
 			&i.CreatedAt,
+			&i.CategoryID,
 		); err != nil {
 			return nil, err
 		}
@@ -144,4 +188,50 @@ func (q *Queries) ListCoupons(ctx context.Context, arg ListCouponsParams) ([]Cou
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateCoupon = `-- name: UpdateCoupon :one
+UPDATE coupons
+SET status = $2,
+    discount_type = $3,
+    reason = $4,
+    client_id = $5,
+    valid_until = $6,
+    category_id = $7
+WHERE code = $1
+RETURNING code, status, discount_type, reason, client_id, valid_until, created_at, category_id
+`
+
+type UpdateCouponParams struct {
+	Code         string        `json:"code"`
+	Status       CouponStatus  `json:"status"`
+	DiscountType DiscountType  `json:"discount_type"`
+	Reason       string        `json:"reason"`
+	ClientID     int64         `json:"client_id"`
+	ValidUntil   time.Time     `json:"valid_until"`
+	CategoryID   sql.NullInt64 `json:"category_id"`
+}
+
+func (q *Queries) UpdateCoupon(ctx context.Context, arg UpdateCouponParams) (Coupon, error) {
+	row := q.db.QueryRowContext(ctx, updateCoupon,
+		arg.Code,
+		arg.Status,
+		arg.DiscountType,
+		arg.Reason,
+		arg.ClientID,
+		arg.ValidUntil,
+		arg.CategoryID,
+	)
+	var i Coupon
+	err := row.Scan(
+		&i.Code,
+		&i.Status,
+		&i.DiscountType,
+		&i.Reason,
+		&i.ClientID,
+		&i.ValidUntil,
+		&i.CreatedAt,
+		&i.CategoryID,
+	)
+	return i, err
 }

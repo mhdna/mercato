@@ -27,10 +27,12 @@ func (server *Server) listBarcodes(ctx *gin.Context) {
 		return
 	}
 
+	// page_id is a row offset, matching every other list endpoint (and the
+	// UI's ServerSideTable, which sends (page-1)*page_size).
 	variants, err := server.store.ListVariantsForBarcodes(ctx, db.ListVariantsForBarcodesParams{
 		Search:     req.Search,
 		PageLimit:  req.PageSize,
-		PageOffset: req.PageID * req.PageSize,
+		PageOffset: req.PageID,
 	})
 	if err != nil {
 		server.writeError(ctx, http.StatusInternalServerError, err)

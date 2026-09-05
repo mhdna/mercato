@@ -8,10 +8,12 @@ package db
 import (
 	"context"
 	"encoding/json"
+
+	"github.com/lib/pq"
 )
 
 const getBranchSettings = `-- name: GetBranchSettings :one
-SELECT branch_id, branch_name, tax_rate, rounding_mode, rounding_currency, exchange_rate, exchange_window_hours, market_name, market_phone, market_description, return_policy, website, instagram, social_platforms, social_handles, updated_at, search_button_enabled FROM branch_settings WHERE branch_id = $1
+SELECT branch_id, branch_name, tax_rate, rounding_mode, rounding_currency, exchange_rate, exchange_window_hours, market_name, market_phone, market_description, return_policy, website, instagram, social_platforms, social_handles, updated_at, search_button_enabled, custom_item_discounts_enabled, custom_item_prices_enabled, per_unit_item_prices_enabled, price_change_manual_override_mode, invoice_keyboard_mode, client_required, page_unlock_clients, page_unlock_inventory, page_unlock_transfers, page_unlock_attendance, page_unlock_salespersons, printer_size, receipt_width, receipt_height, receipt_enabled, receipt_font, receipt_body_font, receipt_title_size, receipt_body_size, receipt_cutoff, printer_id, receipt_printer, screen_port, akuvox_ip, akuvox_username, attendance_enabled, attendance_duplicate_interval_seconds, attendance_cashier_history, managed_locally FROM branch_settings WHERE branch_id = $1
 `
 
 func (q *Queries) GetBranchSettings(ctx context.Context, branchID int64) (BranchSetting, error) {
@@ -35,6 +37,103 @@ func (q *Queries) GetBranchSettings(ctx context.Context, branchID int64) (Branch
 		&i.SocialHandles,
 		&i.UpdatedAt,
 		&i.SearchButtonEnabled,
+		&i.CustomItemDiscountsEnabled,
+		&i.CustomItemPricesEnabled,
+		&i.PerUnitItemPricesEnabled,
+		&i.PriceChangeManualOverrideMode,
+		&i.InvoiceKeyboardMode,
+		&i.ClientRequired,
+		&i.PageUnlockClients,
+		&i.PageUnlockInventory,
+		&i.PageUnlockTransfers,
+		&i.PageUnlockAttendance,
+		&i.PageUnlockSalespersons,
+		&i.PrinterSize,
+		&i.ReceiptWidth,
+		&i.ReceiptHeight,
+		&i.ReceiptEnabled,
+		&i.ReceiptFont,
+		&i.ReceiptBodyFont,
+		&i.ReceiptTitleSize,
+		&i.ReceiptBodySize,
+		&i.ReceiptCutoff,
+		&i.PrinterID,
+		&i.ReceiptPrinter,
+		&i.ScreenPort,
+		&i.AkuvoxIp,
+		&i.AkuvoxUsername,
+		&i.AttendanceEnabled,
+		&i.AttendanceDuplicateIntervalSeconds,
+		&i.AttendanceCashierHistory,
+		pq.Array(&i.ManagedLocally),
+	)
+	return i, err
+}
+
+const setBranchSettingsManagedLocally = `-- name: SetBranchSettingsManagedLocally :one
+UPDATE branch_settings
+SET managed_locally = $2
+WHERE branch_id = $1
+RETURNING branch_id, branch_name, tax_rate, rounding_mode, rounding_currency, exchange_rate, exchange_window_hours, market_name, market_phone, market_description, return_policy, website, instagram, social_platforms, social_handles, updated_at, search_button_enabled, custom_item_discounts_enabled, custom_item_prices_enabled, per_unit_item_prices_enabled, price_change_manual_override_mode, invoice_keyboard_mode, client_required, page_unlock_clients, page_unlock_inventory, page_unlock_transfers, page_unlock_attendance, page_unlock_salespersons, printer_size, receipt_width, receipt_height, receipt_enabled, receipt_font, receipt_body_font, receipt_title_size, receipt_body_size, receipt_cutoff, printer_id, receipt_printer, screen_port, akuvox_ip, akuvox_username, attendance_enabled, attendance_duplicate_interval_seconds, attendance_cashier_history, managed_locally
+`
+
+type SetBranchSettingsManagedLocallyParams struct {
+	BranchID       int64    `json:"branch_id"`
+	ManagedLocally []string `json:"managed_locally"`
+}
+
+// managed_locally is admin-owned, not branch-reported: a branch's settings
+// push (UpsertBranchSettings) never touches it. Only the admin UI sets it.
+func (q *Queries) SetBranchSettingsManagedLocally(ctx context.Context, arg SetBranchSettingsManagedLocallyParams) (BranchSetting, error) {
+	row := q.db.QueryRowContext(ctx, setBranchSettingsManagedLocally, arg.BranchID, pq.Array(arg.ManagedLocally))
+	var i BranchSetting
+	err := row.Scan(
+		&i.BranchID,
+		&i.BranchName,
+		&i.TaxRate,
+		&i.RoundingMode,
+		&i.RoundingCurrency,
+		&i.ExchangeRate,
+		&i.ExchangeWindowHours,
+		&i.MarketName,
+		&i.MarketPhone,
+		&i.MarketDescription,
+		&i.ReturnPolicy,
+		&i.Website,
+		&i.Instagram,
+		&i.SocialPlatforms,
+		&i.SocialHandles,
+		&i.UpdatedAt,
+		&i.SearchButtonEnabled,
+		&i.CustomItemDiscountsEnabled,
+		&i.CustomItemPricesEnabled,
+		&i.PerUnitItemPricesEnabled,
+		&i.PriceChangeManualOverrideMode,
+		&i.InvoiceKeyboardMode,
+		&i.ClientRequired,
+		&i.PageUnlockClients,
+		&i.PageUnlockInventory,
+		&i.PageUnlockTransfers,
+		&i.PageUnlockAttendance,
+		&i.PageUnlockSalespersons,
+		&i.PrinterSize,
+		&i.ReceiptWidth,
+		&i.ReceiptHeight,
+		&i.ReceiptEnabled,
+		&i.ReceiptFont,
+		&i.ReceiptBodyFont,
+		&i.ReceiptTitleSize,
+		&i.ReceiptBodySize,
+		&i.ReceiptCutoff,
+		&i.PrinterID,
+		&i.ReceiptPrinter,
+		&i.ScreenPort,
+		&i.AkuvoxIp,
+		&i.AkuvoxUsername,
+		&i.AttendanceEnabled,
+		&i.AttendanceDuplicateIntervalSeconds,
+		&i.AttendanceCashierHistory,
+		pq.Array(&i.ManagedLocally),
 	)
 	return i, err
 }
@@ -57,9 +156,40 @@ INSERT INTO branch_settings (
   social_platforms,
   social_handles,
   search_button_enabled,
+  custom_item_discounts_enabled,
+  custom_item_prices_enabled,
+  per_unit_item_prices_enabled,
+  price_change_manual_override_mode,
+  invoice_keyboard_mode,
+  client_required,
+  page_unlock_clients,
+  page_unlock_inventory,
+  page_unlock_transfers,
+  page_unlock_attendance,
+  page_unlock_salespersons,
+  printer_size,
+  receipt_width,
+  receipt_height,
+  receipt_enabled,
+  receipt_font,
+  receipt_body_font,
+  receipt_title_size,
+  receipt_body_size,
+  receipt_cutoff,
+  printer_id,
+  receipt_printer,
+  screen_port,
+  akuvox_ip,
+  akuvox_username,
+  attendance_enabled,
+  attendance_duplicate_interval_seconds,
+  attendance_cashier_history,
   updated_at
 ) VALUES (
-  $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, now()
+  $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,
+  $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27,
+  $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39,
+  $40, $41, $42, $43, $44, now()
 )
 ON CONFLICT (branch_id) DO UPDATE SET
   branch_name = EXCLUDED.branch_name,
@@ -77,27 +207,83 @@ ON CONFLICT (branch_id) DO UPDATE SET
   social_platforms = EXCLUDED.social_platforms,
   social_handles = EXCLUDED.social_handles,
   search_button_enabled = EXCLUDED.search_button_enabled,
+  custom_item_discounts_enabled = EXCLUDED.custom_item_discounts_enabled,
+  custom_item_prices_enabled = EXCLUDED.custom_item_prices_enabled,
+  per_unit_item_prices_enabled = EXCLUDED.per_unit_item_prices_enabled,
+  price_change_manual_override_mode = EXCLUDED.price_change_manual_override_mode,
+  invoice_keyboard_mode = EXCLUDED.invoice_keyboard_mode,
+  client_required = EXCLUDED.client_required,
+  page_unlock_clients = EXCLUDED.page_unlock_clients,
+  page_unlock_inventory = EXCLUDED.page_unlock_inventory,
+  page_unlock_transfers = EXCLUDED.page_unlock_transfers,
+  page_unlock_attendance = EXCLUDED.page_unlock_attendance,
+  page_unlock_salespersons = EXCLUDED.page_unlock_salespersons,
+  printer_size = EXCLUDED.printer_size,
+  receipt_width = EXCLUDED.receipt_width,
+  receipt_height = EXCLUDED.receipt_height,
+  receipt_enabled = EXCLUDED.receipt_enabled,
+  receipt_font = EXCLUDED.receipt_font,
+  receipt_body_font = EXCLUDED.receipt_body_font,
+  receipt_title_size = EXCLUDED.receipt_title_size,
+  receipt_body_size = EXCLUDED.receipt_body_size,
+  receipt_cutoff = EXCLUDED.receipt_cutoff,
+  printer_id = EXCLUDED.printer_id,
+  receipt_printer = EXCLUDED.receipt_printer,
+  screen_port = EXCLUDED.screen_port,
+  akuvox_ip = EXCLUDED.akuvox_ip,
+  akuvox_username = EXCLUDED.akuvox_username,
+  attendance_enabled = EXCLUDED.attendance_enabled,
+  attendance_duplicate_interval_seconds = EXCLUDED.attendance_duplicate_interval_seconds,
+  attendance_cashier_history = EXCLUDED.attendance_cashier_history,
   updated_at = now()
-RETURNING branch_id, branch_name, tax_rate, rounding_mode, rounding_currency, exchange_rate, exchange_window_hours, market_name, market_phone, market_description, return_policy, website, instagram, social_platforms, social_handles, updated_at, search_button_enabled
+RETURNING branch_id, branch_name, tax_rate, rounding_mode, rounding_currency, exchange_rate, exchange_window_hours, market_name, market_phone, market_description, return_policy, website, instagram, social_platforms, social_handles, updated_at, search_button_enabled, custom_item_discounts_enabled, custom_item_prices_enabled, per_unit_item_prices_enabled, price_change_manual_override_mode, invoice_keyboard_mode, client_required, page_unlock_clients, page_unlock_inventory, page_unlock_transfers, page_unlock_attendance, page_unlock_salespersons, printer_size, receipt_width, receipt_height, receipt_enabled, receipt_font, receipt_body_font, receipt_title_size, receipt_body_size, receipt_cutoff, printer_id, receipt_printer, screen_port, akuvox_ip, akuvox_username, attendance_enabled, attendance_duplicate_interval_seconds, attendance_cashier_history, managed_locally
 `
 
 type UpsertBranchSettingsParams struct {
-	BranchID            int64           `json:"branch_id"`
-	BranchName          string          `json:"branch_name"`
-	TaxRate             float64         `json:"tax_rate"`
-	RoundingMode        string          `json:"rounding_mode"`
-	RoundingCurrency    string          `json:"rounding_currency"`
-	ExchangeRate        int64           `json:"exchange_rate"`
-	ExchangeWindowHours int64           `json:"exchange_window_hours"`
-	MarketName          string          `json:"market_name"`
-	MarketPhone         string          `json:"market_phone"`
-	MarketDescription   string          `json:"market_description"`
-	ReturnPolicy        string          `json:"return_policy"`
-	Website             string          `json:"website"`
-	Instagram           string          `json:"instagram"`
-	SocialPlatforms     json.RawMessage `json:"social_platforms"`
-	SocialHandles       json.RawMessage `json:"social_handles"`
-	SearchButtonEnabled bool            `json:"search_button_enabled"`
+	BranchID                           int64           `json:"branch_id"`
+	BranchName                         string          `json:"branch_name"`
+	TaxRate                            float64         `json:"tax_rate"`
+	RoundingMode                       string          `json:"rounding_mode"`
+	RoundingCurrency                   string          `json:"rounding_currency"`
+	ExchangeRate                       int64           `json:"exchange_rate"`
+	ExchangeWindowHours                int64           `json:"exchange_window_hours"`
+	MarketName                         string          `json:"market_name"`
+	MarketPhone                        string          `json:"market_phone"`
+	MarketDescription                  string          `json:"market_description"`
+	ReturnPolicy                       string          `json:"return_policy"`
+	Website                            string          `json:"website"`
+	Instagram                          string          `json:"instagram"`
+	SocialPlatforms                    json.RawMessage `json:"social_platforms"`
+	SocialHandles                      json.RawMessage `json:"social_handles"`
+	SearchButtonEnabled                bool            `json:"search_button_enabled"`
+	CustomItemDiscountsEnabled         bool            `json:"custom_item_discounts_enabled"`
+	CustomItemPricesEnabled            bool            `json:"custom_item_prices_enabled"`
+	PerUnitItemPricesEnabled           bool            `json:"per_unit_item_prices_enabled"`
+	PriceChangeManualOverrideMode      bool            `json:"price_change_manual_override_mode"`
+	InvoiceKeyboardMode                bool            `json:"invoice_keyboard_mode"`
+	ClientRequired                     bool            `json:"client_required"`
+	PageUnlockClients                  bool            `json:"page_unlock_clients"`
+	PageUnlockInventory                bool            `json:"page_unlock_inventory"`
+	PageUnlockTransfers                bool            `json:"page_unlock_transfers"`
+	PageUnlockAttendance               bool            `json:"page_unlock_attendance"`
+	PageUnlockSalespersons             bool            `json:"page_unlock_salespersons"`
+	PrinterSize                        string          `json:"printer_size"`
+	ReceiptWidth                       int64           `json:"receipt_width"`
+	ReceiptHeight                      int64           `json:"receipt_height"`
+	ReceiptEnabled                     bool            `json:"receipt_enabled"`
+	ReceiptFont                        string          `json:"receipt_font"`
+	ReceiptBodyFont                    string          `json:"receipt_body_font"`
+	ReceiptTitleSize                   float64         `json:"receipt_title_size"`
+	ReceiptBodySize                    float64         `json:"receipt_body_size"`
+	ReceiptCutoff                      bool            `json:"receipt_cutoff"`
+	PrinterID                          string          `json:"printer_id"`
+	ReceiptPrinter                     string          `json:"receipt_printer"`
+	ScreenPort                         string          `json:"screen_port"`
+	AkuvoxIp                           string          `json:"akuvox_ip"`
+	AkuvoxUsername                     string          `json:"akuvox_username"`
+	AttendanceEnabled                  bool            `json:"attendance_enabled"`
+	AttendanceDuplicateIntervalSeconds int64           `json:"attendance_duplicate_interval_seconds"`
+	AttendanceCashierHistory           bool            `json:"attendance_cashier_history"`
 }
 
 func (q *Queries) UpsertBranchSettings(ctx context.Context, arg UpsertBranchSettingsParams) (BranchSetting, error) {
@@ -118,6 +304,34 @@ func (q *Queries) UpsertBranchSettings(ctx context.Context, arg UpsertBranchSett
 		arg.SocialPlatforms,
 		arg.SocialHandles,
 		arg.SearchButtonEnabled,
+		arg.CustomItemDiscountsEnabled,
+		arg.CustomItemPricesEnabled,
+		arg.PerUnitItemPricesEnabled,
+		arg.PriceChangeManualOverrideMode,
+		arg.InvoiceKeyboardMode,
+		arg.ClientRequired,
+		arg.PageUnlockClients,
+		arg.PageUnlockInventory,
+		arg.PageUnlockTransfers,
+		arg.PageUnlockAttendance,
+		arg.PageUnlockSalespersons,
+		arg.PrinterSize,
+		arg.ReceiptWidth,
+		arg.ReceiptHeight,
+		arg.ReceiptEnabled,
+		arg.ReceiptFont,
+		arg.ReceiptBodyFont,
+		arg.ReceiptTitleSize,
+		arg.ReceiptBodySize,
+		arg.ReceiptCutoff,
+		arg.PrinterID,
+		arg.ReceiptPrinter,
+		arg.ScreenPort,
+		arg.AkuvoxIp,
+		arg.AkuvoxUsername,
+		arg.AttendanceEnabled,
+		arg.AttendanceDuplicateIntervalSeconds,
+		arg.AttendanceCashierHistory,
 	)
 	var i BranchSetting
 	err := row.Scan(
@@ -138,6 +352,35 @@ func (q *Queries) UpsertBranchSettings(ctx context.Context, arg UpsertBranchSett
 		&i.SocialHandles,
 		&i.UpdatedAt,
 		&i.SearchButtonEnabled,
+		&i.CustomItemDiscountsEnabled,
+		&i.CustomItemPricesEnabled,
+		&i.PerUnitItemPricesEnabled,
+		&i.PriceChangeManualOverrideMode,
+		&i.InvoiceKeyboardMode,
+		&i.ClientRequired,
+		&i.PageUnlockClients,
+		&i.PageUnlockInventory,
+		&i.PageUnlockTransfers,
+		&i.PageUnlockAttendance,
+		&i.PageUnlockSalespersons,
+		&i.PrinterSize,
+		&i.ReceiptWidth,
+		&i.ReceiptHeight,
+		&i.ReceiptEnabled,
+		&i.ReceiptFont,
+		&i.ReceiptBodyFont,
+		&i.ReceiptTitleSize,
+		&i.ReceiptBodySize,
+		&i.ReceiptCutoff,
+		&i.PrinterID,
+		&i.ReceiptPrinter,
+		&i.ScreenPort,
+		&i.AkuvoxIp,
+		&i.AkuvoxUsername,
+		&i.AttendanceEnabled,
+		&i.AttendanceDuplicateIntervalSeconds,
+		&i.AttendanceCashierHistory,
+		pq.Array(&i.ManagedLocally),
 	)
 	return i, err
 }

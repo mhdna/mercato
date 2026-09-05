@@ -14,18 +14,6 @@ async function requestJSON (url, options) {
 }
 
 export function useBarcodes () {
-  async function listVariants ({ page = 0, pageSize = 25, search = '' } = {}) {
-    const params = new URLSearchParams({
-      page_id: String(page),
-      page_size: String(pageSize),
-    })
-    if (search) {
-      params.set('search', search)
-    }
-    const data = await requestJSON(`${API_BASE}/barcodes?${params}`)
-    return { variants: data?.variants ?? [], total: data?.total ?? 0 }
-  }
-
   // Assigns fresh unique EAN-13 barcodes to selected variants that don't
   // already have a valid one. Returns { updated, skipped }.
   async function assignBarcodes (variantIds) {
@@ -50,5 +38,5 @@ export function useBarcodes () {
     return res.blob()
   }
 
-  return { listVariants, assignBarcodes, printLabels }
+  return { assignBarcodes, printLabels }
 }

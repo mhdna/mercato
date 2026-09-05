@@ -18,7 +18,7 @@
 
       <template #default="{ items }">
         <v-container class="pa-2" fluid>
-          <v-row dense>
+          <v-row density="compact">
             <v-col v-for="item in items" :key="item.title" cols="auto" md="4">
               <v-card border class="pb-3" flat>
                 <v-img :src="item.raw.img" />

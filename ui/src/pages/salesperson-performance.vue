@@ -24,7 +24,7 @@
             @click="clearFilters"
           />
         </div>
-        <v-row dense>
+        <v-row density="compact">
           <v-col cols="12" lg="3" sm="6">
             <v-select
               v-model="branchId"
@@ -130,7 +130,7 @@
       <template #append><v-btn size="small" text="Retry" variant="text" @click="loadData" /></template>
     </v-alert>
 
-    <v-row class="mb-3" dense>
+    <v-row class="mb-3" density="compact">
       <v-col v-for="summary in summaries" :key="summary.label" cols="12" sm="4">
         <v-card class="h-100" rounded="lg">
           <v-card-text>
@@ -230,7 +230,7 @@
         </v-card-title>
         <v-divider />
         <v-card-text class="adjustments-dialog-content">
-          <v-row class="mb-3" dense>
+          <v-row class="mb-3" density="compact">
             <v-col cols="12" sm="6">
               <v-card color="warning" variant="tonal">
                 <v-card-text>

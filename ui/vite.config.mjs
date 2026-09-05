@@ -22,9 +22,14 @@ export default defineConfig({
     }),
     Vuetify({
       autoImport: true,
-      styles: {
-        configFile: 'src/styles/settings.scss',
-      },
+      // `styles: true` ships Vuetify's precompiled CSS. Pointing `styles` at a
+      // configFile makes the plugin recompile every component's SASS in dev,
+      // and the emitted sourcemaps reference bare `VBtn.sass` / `VCode.sass`
+      // paths the browser then 404s on. We have no SASS variable overrides
+      // (settings.scss only held a plain `.card-title` rule, now in
+      // global.scss), so the configFile bought us nothing. Re-add it here if
+      // real `@use 'vuetify/settings' with (...)` overrides are needed.
+      styles: true,
     }),
     Components(),
     Fonts({

@@ -1,100 +1,106 @@
 <template>
   <div class="page-root">
-    <div class="d-flex flex-wrap align-center ga-3 mb-4">
-      <h2 class="text-h6">Barcodes</h2>
-      <v-spacer />
-      <v-text-field
-        v-model="search"
-        clearable
-        density="compact"
-        hide-details
-        label="Search product / code / barcode"
-        prepend-inner-icon="mdi-magnify"
-        style="max-width: 320px"
-        variant="outlined"
-        @update:model-value="debouncedReload"
-      />
-      <v-btn
-        :disabled="selected.length === 0 || assigning"
-        :loading="assigning"
-        prepend-icon="mdi-barcode"
-        text="Generate barcodes"
-        variant="tonal"
-        @click="generate"
-      />
-      <v-btn
-        color="primary"
-        :disabled="selected.length === 0"
-        prepend-icon="mdi-printer"
-        text="Print PDF"
-        variant="flat"
-        @click="printDialog = true"
-      />
-    </div>
+    <v-card class="barcodes-card" flat>
+      <v-card-title class="page-heading d-flex flex-wrap align-center ga-3 px-4 py-3">
+        <v-icon icon="mdi-barcode" />
+        <span>Barcodes</span>
+        <v-spacer />
+        <v-text-field
+          v-model="search"
+          class="table-search"
+          clearable
+          density="compact"
+          hide-details
+          label="Search product / code / barcode"
+          prepend-inner-icon="mdi-magnify"
+          variant="outlined"
+        />
+        <v-btn
+          :disabled="selected.length === 0 || assigning"
+          :loading="assigning"
+          prepend-icon="mdi-barcode"
+          text="Generate barcodes"
+          variant="tonal"
+          @click="generate"
+        />
+        <v-btn
+          color="primary"
+          :disabled="selected.length === 0"
+          prepend-icon="mdi-printer"
+          text="Print PDF"
+          variant="flat"
+          @click="printDialog = true"
+        />
+      </v-card-title>
+      <v-divider />
 
-    <v-alert
-      v-if="message"
-      class="mb-3"
-      closable
-      density="compact"
-      :type="messageType"
-      variant="tonal"
-      @click:close="message = ''"
-    >
-      {{ message }}
-    </v-alert>
-
-    <v-card flat>
-      <v-data-table-server
-        v-model="selected"
-        density="compact"
-        :headers="headers"
-        item-value="id"
-        :items="rows"
-        :items-length="total"
-        :items-per-page="pageSize"
-        :items-per-page-options="[14, 25, 50, 100]"
-        :loading="loading"
-        :page="page + 1"
-        show-select
-        @update:options="onOptions"
-      >
-        <template #item.product="{ item }">
-          <div class="text-body-2">{{ item.product_name }}</div>
-          <div class="text-caption text-medium-emphasis">{{ item.product_code }}</div>
-        </template>
-        <template #item.variant="{ item }">
-          <span v-if="item.color_name || item.size_name">
-            {{ [item.color_name, item.size_name].filter(Boolean).join(' / ') }}
-          </span>
-          <span v-else class="text-medium-emphasis">—</span>
-        </template>
-        <template #item.barcode="{ item }">
-          <span class="bc-mono">{{ item.barcode }}</span>
-          <v-chip
-            v-if="!isEan13(item.barcode)"
-            class="ms-2"
-            color="warning"
-            size="x-small"
-            text="no barcode"
-          />
-        </template>
-        <template #item.price="{ item }">
-          {{ item.price ? formatMoney(item.price) : '—' }}
-        </template>
-        <template #item.qty="{ item }">
-          <v-text-field
-            v-model.number="qtyById[item.id]"
-            class="bc-qty"
+      <div class="barcodes-content">
+        <div class="pa-4">
+          <v-alert
+            v-if="message"
+            class="mb-3"
+            closable
             density="compact"
-            hide-details
-            min="1"
-            style="width: 72px"
-            type="number"
-            variant="outlined"
-          />
-        </template>
-      </v-data-table-server>
+            :type="messageType"
+            variant="tonal"
+            @click:close="message = ''"
+          >
+            {{ message }}
+          </v-alert>
+
+          <ServerSideTable
+            ref="tableRef"
+            :api-u-r-l="apiURL"
+            class="barcodes-table"
+            density="comfortable"
+            :external-search="search ?? ''"
+            flush
+            :headers="headers"
+            item-value="id"
+            root-key="variants"
+            selectable
+            :show-search-icon="false"
+            @loaded="onLoaded"
+            @update:selected="selected = $event"
+          >
+            <template #item.product="{ item }">
+              <div class="text-body-2">{{ item.product_name }}</div>
+              <div class="text-caption text-medium-emphasis">{{ item.product_code }}</div>
+            </template>
+            <template #item.variant="{ item }">
+              <span v-if="item.color_name || item.size_name">
+                {{ [item.color_name, item.size_name].filter(Boolean).join(' / ') }}
+              </span>
+              <span v-else class="text-medium-emphasis">—</span>
+            </template>
+            <template #item.barcode="{ item }">
+              <span class="bc-mono">{{ item.barcode }}</span>
+              <v-chip
+                v-if="!isEan13(item.barcode)"
+                class="ms-2"
+                color="warning"
+                size="x-small"
+                text="no barcode"
+              />
+            </template>
+            <template #item.price="{ item }">
+              {{ item.price ? formatMoney(item.price) : '—' }}
+            </template>
+            <template #item.qty="{ item }">
+              <v-text-field
+                v-model.number="qtyById[item.id]"
+                class="bc-qty"
+                density="compact"
+                hide-details
+                min="1"
+                style="width: 72px"
+                type="number"
+                variant="solo-filled"
+              />
+            </template>
+          </ServerSideTable>
+        </div>
+      </div>
     </v-card>
 
     <!-- Print options -->
@@ -172,15 +178,18 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
   import { onMounted, reactive, ref } from 'vue'
+  import ServerSideTable from '@/components/Tables/ServerSideTable.vue'
   import { useBarcodes } from '@/composables/useBarcodes'
+  import { API_BASE } from '@/config'
   import { useSettingsStore } from '@/stores/settings'
   import { formatMoney } from '@/utils/money'
 
-  const { listVariants, assignBarcodes, printLabels } = useBarcodes()
+  const { assignBarcodes, printLabels } = useBarcodes()
   const settings = useSettingsStore()
 
+  const apiURL = `${API_BASE}/barcodes`
   const headers = [
     { title: 'Product', key: 'product', sortable: false },
     { title: 'Variant', key: 'variant', sortable: false },
@@ -197,13 +206,8 @@
     { title: 'Size', value: 'size' },
   ]
 
-  const rows = ref([])
-  const total = ref(0)
-  const loading = ref(false)
-  const page = ref(0)
-  const pageSize = ref(14)
+  const tableRef = ref(null)
   const search = ref('')
-
   const selected = ref([])
   const qtyById = reactive({})
 
@@ -223,45 +227,10 @@
     return typeof v === 'string' && /^\d{13}$/.test(v)
   }
 
-  let searchTimer
-  function debouncedReload () {
-    clearTimeout(searchTimer)
-    searchTimer = setTimeout(() => {
-      page.value = 0
-      reload()
-    }, 300)
-  }
-
-  async function reload () {
-    loading.value = true
-    try {
-      const { variants, total: t } = await listVariants({
-        page: page.value,
-        pageSize: pageSize.value,
-        search: search.value || '',
-      })
-      rows.value = variants
-      total.value = t
-      for (const v of variants) {
-        if (qtyById[v.id] == null) {
-          qtyById[v.id] = 1
-        }
-      }
-    } catch (error) {
-      message.value = error.message
-      messageType.value = 'error'
-    } finally {
-      loading.value = false
-    }
-  }
-
-  function onOptions ({ page: p, itemsPerPage }) {
-    const nextPage = (p ?? 1) - 1
-    const changed = nextPage !== page.value || itemsPerPage !== pageSize.value
-    page.value = nextPage
-    pageSize.value = itemsPerPage
-    if (changed) {
-      reload()
+  // Seed a default print quantity of 1 for every freshly loaded row.
+  function onLoaded (items) {
+    for (const v of items) {
+      if (qtyById[v.id] == null) qtyById[v.id] = 1
     }
   }
 
@@ -275,7 +244,7 @@
         ? `Generated ${n} barcode${n === 1 ? '' : 's'}.`
         : 'All selected items already had a barcode.'
       messageType.value = 'success'
-      await reload()
+      tableRef.value?.reload()
     } catch (error) {
       message.value = error.message
       messageType.value = 'error'
@@ -309,18 +278,50 @@
     await settings.init()
     labelWidth.value = settings.barcodeLabelWidth
     labelHeight.value = settings.barcodeLabelHeight
-    reload()
   })
 </script>
 
 <style scoped>
+/* Fill the layout's flex-column scroll wrapper so the scroll lives inside the
+   table, not the whole page. */
 .page-root {
-  flex: 0 0 auto;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.barcodes-card {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.barcodes-content {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+}
+.table-search {
+  flex: 0 1 320px;
 }
 .bc-mono {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 .bc-qty :deep(input) {
+  appearance: textfield;
+  min-height: 30px;
+  padding: 2px 6px;
   text-align: center;
+}
+
+.bc-qty :deep(.v-field) {
+  --v-input-control-height: 30px;
+}
+
+.bc-qty :deep(input::-webkit-inner-spin-button),
+.bc-qty :deep(input::-webkit-outer-spin-button) {
+  margin: 0;
+  appearance: none;
 }
 </style>

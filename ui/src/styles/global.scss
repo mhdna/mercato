@@ -21,13 +21,16 @@ code,
   scrollbar-color: rgba(128, 128, 128, 0.65) transparent;
 }
 
+// Theme-switch colour fade. The navigation drawer, lists and list items are
+// deliberately left out: Vuetify renders an active nav item as a stack of
+// sub-elements (root text colour, prepend icon, __overlay highlight, dividers,
+// badges) that don't all inherit this transition, so animating them makes the
+// drawer flicker through a half-light/half-dark state while toggling. Without a
+// transition the drawer just switches instantly and stays visually coherent.
 .v-application,
 .v-card,
 .v-sheet,
 .v-app-bar,
-.v-navigation-drawer,
-.v-list,
-.v-list-item,
 .v-table,
 .v-btn {
   transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
@@ -67,4 +70,14 @@ code,
 
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(128, 128, 128, 0.9);
+}
+
+// Compact, bold card headers. Previously lived in src/styles/settings.scss, but
+// that file was only wired up as vite-plugin-vuetify's `styles.configFile`,
+// which made the plugin compile Vuetify's SASS per-component in dev and emit
+// sourcemaps pointing at bare `VBtn.sass` / `VCode.sass` paths — the browser
+// then 404s every one of them. Plain CSS belongs here instead.
+.card-title {
+  padding: 8px 8px;
+  font-weight: bold;
 }

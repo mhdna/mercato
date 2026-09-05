@@ -18,7 +18,7 @@
         </div>
         <template v-else-if="itemsDetails">
           <v-sheet class="pa-0" rounded="lg">
-            <v-row dense>
+            <v-row density="compact">
               <v-col cols="6" md="4">
                 <span class="text-caption">Branch</span>
                 <div>{{ branchName(itemsDetails.invoice?.branch_id) }}</div>

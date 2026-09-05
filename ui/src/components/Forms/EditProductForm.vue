@@ -25,7 +25,7 @@
       </v-alert>
 
       <template v-else>
-        <v-row dense>
+        <v-row density="compact">
           <v-col cols="12" sm="6">
             <v-text-field
               v-model="form.code"
@@ -64,7 +64,7 @@
         />
 
         <div class="text-overline text-medium-emphasis mt-2 mb-1">Attributes</div>
-        <v-row dense>
+        <v-row density="compact">
           <v-col v-for="field in attributeFields" :key="field.key" cols="12" sm="6">
             <v-combobox
               v-model="form.attributes[field.key]"

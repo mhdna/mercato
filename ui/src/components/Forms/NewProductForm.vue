@@ -1,6 +1,6 @@
 <template>
   <form class="new-product-form" @submit.prevent="submit">
-    <v-row dense>
+    <v-row density="compact">
       <v-col cols="12" sm="6">
         <v-text-field
           v-model="code.value.value"
@@ -32,7 +32,7 @@
     />
 
     <div class="text-overline text-medium-emphasis mt-1 mb-1">Attributes</div>
-    <v-row dense>
+    <v-row density="compact">
       <v-col v-for="field in attributeFields" :key="field.key" cols="12" sm="6">
         <v-combobox
           v-model="field.model.value.value"
@@ -47,7 +47,7 @@
     </v-row>
 
     <div class="text-overline text-medium-emphasis mt-3 mb-1">Variants</div>
-    <v-row dense>
+    <v-row density="compact">
       <v-col cols="12" sm="6">
         <v-autocomplete
           v-model="colorIds.value.value"

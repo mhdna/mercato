@@ -53,6 +53,14 @@
           </v-alert>
 
           <v-card-actions class="px-0">
+            <v-btn
+              v-if="editingId"
+              color="error"
+              prepend-icon="mdi-delete"
+              text="Delete"
+              variant="text"
+              @click="deleteFromEdit"
+            />
             <v-spacer />
             <v-btn text="Cancel" @click="closeDialog" />
             <v-btn color="primary" :loading="submitting" :text="editingId ? 'Save' : 'Add Inventory'" type="submit" />
@@ -75,30 +83,54 @@
     </v-card>
   </v-dialog>
 
-  <div class="d-flex justify-space-between align-center mb-2">
-    <h2 class="text-h6">Inventory</h2>
-    <v-btn color="primary" prepend-icon="mdi-plus" text="Add Inventory" @click="openCreate" />
-  </div>
+  <div class="page-root">
+    <v-card class="inventory-card" flat>
+      <v-card-title class="page-heading d-flex flex-wrap align-center ga-3 px-4 py-3">
+        <v-icon icon="mdi-warehouse" />
+        <span>Inventory</span>
+        <v-spacer />
+        <v-btn
+          color="primary"
+          prepend-icon="mdi-plus"
+          text="Add Inventory"
+          variant="flat"
+          @click="openCreate"
+        />
+      </v-card-title>
+      <v-divider />
 
-  <ServerSideTable
-    ref="tableRef"
-    :api-u-r-l="apiURL"
-    :headers="headers"
-    :max-page-size="10"
-    root-key="inventories"
-  >
-    <template #item.actions="{ item }">
-      <v-icon-btn icon="mdi-warehouse" size="small" variant="text" @click="openStock(item)" />
-      <v-icon-btn icon="mdi-pencil" size="small" variant="text" @click="openEdit(item)" />
-      <v-icon-btn
-        color="error"
-        icon="mdi-delete"
-        size="small"
-        variant="text"
-        @click="openDelete(item)"
-      />
-    </template>
-  </ServerSideTable>
+      <div class="inventory-content">
+        <div class="pa-4">
+          <BulkDeleteBar
+            :count="selectedRows.length"
+            :error="selError"
+            :loading="bulkDeleting"
+            @clear="clearSelection"
+            @confirm="bulkDeleteRows"
+          />
+
+          <ServerSideTable
+            ref="tableRef"
+            :api-u-r-l="apiURL"
+            class="inventory-table"
+            density="comfortable"
+            flush
+            :headers="headers"
+            :max-page-size="10"
+            root-key="inventories"
+            selectable
+            :show-search-icon="false"
+            @row-click="openEdit"
+            @update:selected="selectedRows = $event"
+          >
+            <template #item.actions="{ item }">
+              <v-icon-btn icon="mdi-warehouse" size="small" variant="text" @click.stop="openStock(item)" />
+            </template>
+          </ServerSideTable>
+        </div>
+      </div>
+    </v-card>
+  </div>
 
   <v-dialog v-model="stockDialog" max-width="820">
     <v-card class="px-4">
@@ -164,14 +196,37 @@
   </v-dialog>
 </template>
 
-<script setup>
+<script setup lang="ts">
   import { useField, useForm } from 'vee-validate'
   import { ref } from 'vue'
+  import BulkDeleteBar from '@/components/Tables/BulkDeleteBar.vue'
   import ServerSideTable from '@/components/Tables/ServerSideTable.vue'
+  import { useBulkDelete } from '@/composables/useBulkDelete'
   import { useInventories } from '@/composables/useInventories'
   import { API_BASE } from '@/config'
 
   const { createInventory, updateInventory, deleteInventory, fetchStock, createAdjustment } = useInventories()
+
+  const {
+    selected: selectedRows,
+    deleting: bulkDeleting,
+    error: selError,
+    reset: resetSel,
+    run: runBulk,
+  } = useBulkDelete()
+
+  function clearSelection () {
+    resetSel()
+    tableRef.value?.clearSelection?.()
+  }
+
+  async function bulkDeleteRows () {
+    try {
+      await runBulk('/inventories/bulk_delete', { ids: selectedRows.value })
+      clearSelection()
+      tableRef.value?.reload()
+    } catch { /* error shown in the bar */ }
+  }
 
   const apiURL = `${API_BASE}/inventories/`
   const headers = ref([
@@ -180,7 +235,7 @@
     { title: 'Type', key: 'type', align: 'start' },
     { title: 'Code', key: 'code', align: 'start' },
     { title: 'Created At', key: 'created_at', align: 'end' },
-    { title: 'Actions', key: 'actions', align: 'end', sortable: false },
+    { title: '', key: 'actions', align: 'end', sortable: false, width: 56 },
   ])
 
   const tableRef = ref(null)
@@ -264,6 +319,14 @@
     deleteDialog.value = true
   }
 
+  // Delete from inside the edit dialog: hand off to the confirm dialog.
+  function deleteFromEdit () {
+    if (!editingId.value) return
+    const item = { id: editingId.value, name: name.value.value }
+    dialog.value = false
+    openDelete(item)
+  }
+
   async function confirmDelete () {
     deleting.value = true
     deleteError.value = ''
@@ -332,3 +395,29 @@
     }
   }
 </script>
+
+<style scoped>
+/* Fill the layout's flex-column scroll wrapper so the scroll lives inside the
+   table, not the whole page. */
+.page-root {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.inventory-card {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.inventory-content {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+}
+:deep(.inventory-table tbody tr) {
+  cursor: pointer;
+}
+</style>

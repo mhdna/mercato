@@ -27,6 +27,7 @@ declare module 'vue-router/auto-routes' {
     '/barcode-printing': RouteRecordInfo<'/barcode-printing', '/barcode-printing', Record<never, never>, Record<never, never>>,
     '/barcodes': RouteRecordInfo<'/barcodes', '/barcodes', Record<never, never>, Record<never, never>>,
     '/branch-invoices': RouteRecordInfo<'/branch-invoices', '/branch-invoices', Record<never, never>, Record<never, never>>,
+    '/branch-settings': RouteRecordInfo<'/branch-settings', '/branch-settings', Record<never, never>, Record<never, never>>,
     '/branches': RouteRecordInfo<'/branches', '/branches', Record<never, never>, Record<never, never>>,
     '/calendar': RouteRecordInfo<'/calendar', '/calendar', Record<never, never>, Record<never, never>>,
     '/client-page': RouteRecordInfo<'/client-page', '/client-page', Record<never, never>, Record<never, never>>,
@@ -69,7 +70,6 @@ declare module 'vue-router/auto-routes' {
     '/home': RouteRecordInfo<'/home', '/home', Record<never, never>, Record<never, never>>,
     '/inventory': RouteRecordInfo<'/inventory', '/inventory', Record<never, never>, Record<never, never>>,
     '/inventory-analysis': RouteRecordInfo<'/inventory-analysis', '/inventory-analysis', Record<never, never>, Record<never, never>>,
-    '/loan-payments': RouteRecordInfo<'/loan-payments', '/loan-payments', Record<never, never>, Record<never, never>>,
     '/loans': RouteRecordInfo<'/loans', '/loans', Record<never, never>, Record<never, never>>,
     '/Login': RouteRecordInfo<'/Login', '/Login', Record<never, never>, Record<never, never>>,
     '/logs': RouteRecordInfo<'/logs', '/logs', Record<never, never>, Record<never, never>>,
@@ -141,6 +141,10 @@ declare module 'vue-router/auto-routes' {
     }
     'src/pages/branch-invoices.vue': {
       routes: '/branch-invoices'
+      views: never
+    }
+    'src/pages/branch-settings.vue': {
+      routes: '/branch-settings'
       views: never
     }
     'src/pages/branches.vue': {
@@ -309,10 +313,6 @@ declare module 'vue-router/auto-routes' {
     }
     'src/pages/inventory-analysis.vue': {
       routes: '/inventory-analysis'
-      views: never
-    }
-    'src/pages/loan-payments.vue': {
-      routes: '/loan-payments'
       views: never
     }
     'src/pages/loans.vue': {

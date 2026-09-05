@@ -4,7 +4,7 @@
       <v-img
         alt="GB Cloud"
         class="unsupported-device__logo mx-auto"
-        src="/app-icon.png"
+        :src="gbLogo"
       />
 
       <h1 class="text-h4 font-weight-bold mt-6">Desktop only</h1>
@@ -14,6 +14,10 @@
     </section>
   </v-main>
 </template>
+
+<script lang="ts" setup>
+  import gbLogo from '@/assets/gb-logo.png'
+</script>
 
 <style scoped>
 .unsupported-device {

@@ -86,6 +86,7 @@
 
             <v-alert
               v-else-if="!settingsForm"
+              class="bs-empty-alert"
               type="info"
               variant="tonal"
             >
@@ -1228,6 +1229,11 @@
   flex: 1 1 auto;
   min-height: 0;
   display: flex;
+}
+/* v-alert defaults to flex: 1 1; keep the empty-state notice at its natural height
+   instead of stretching to fill the detail pane. */
+.bs-empty-alert {
+  flex: 0 0 auto;
 }
 .bs-section-tabs {
   flex: 0 0 168px;

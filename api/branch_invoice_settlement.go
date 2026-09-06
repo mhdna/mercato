@@ -89,6 +89,19 @@ func (server *Server) createBranchInvoiceSettlement(ctx *gin.Context) {
 		return
 	}
 
+	// A settlement for an already-closed shift is recorded for the audit
+	// trail but deliberately not surfaced -- kashi does not care about
+	// post-close edits to a closed shift's invoices.
+	if result.Frozen {
+		server.writeJSON(ctx, http.StatusOK, envelope{
+			"settlement":      result.Settlement,
+			"payments":        result.Payments,
+			"invoice_updated": false,
+			"status":          result.Status,
+		})
+		return
+	}
+
 	// Only the genuinely-new-insert path reaches here. The toast names the
 	// sale by its branch invoice code when that sale is on the cloud,
 	// falling back to the raw client_ref otherwise; Amount is the new grand
@@ -116,6 +129,7 @@ func (server *Server) createBranchInvoiceSettlement(ctx *gin.Context) {
 		"settlement":      result.Settlement,
 		"payments":        result.Payments,
 		"invoice_updated": result.InvoiceUpdated,
+		"status":          result.Status,
 	})
 }
 

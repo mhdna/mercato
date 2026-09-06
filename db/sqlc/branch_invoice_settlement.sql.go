@@ -11,6 +11,28 @@ import (
 	"time"
 )
 
+const branchShiftIsClosed = `-- name: BranchShiftIsClosed :one
+SELECT EXISTS (
+  SELECT 1 FROM branch_shifts
+  WHERE branch_id = $1 AND branch_shift_id = $2
+) AS closed
+`
+
+type BranchShiftIsClosedParams struct {
+	BranchID      int64 `json:"branch_id"`
+	BranchShiftID int64 `json:"branch_shift_id"`
+}
+
+// A branch_shifts row exists only once kashi-pos has reported that shift's
+// close, so its mere presence is the "this shift is closed" signal --
+// closed_at itself can be NULL for an older till build that omitted it.
+func (q *Queries) BranchShiftIsClosed(ctx context.Context, arg BranchShiftIsClosedParams) (bool, error) {
+	row := q.db.QueryRowContext(ctx, branchShiftIsClosed, arg.BranchID, arg.BranchShiftID)
+	var closed bool
+	err := row.Scan(&closed)
+	return closed, err
+}
+
 const countBranchInvoiceSettlements = `-- name: CountBranchInvoiceSettlements :one
 SELECT COUNT(*) FROM branch_invoice_settlements
 WHERE $1::bigint IS NULL OR branch_id = $1
@@ -29,11 +51,12 @@ INSERT INTO branch_invoice_settlements (
   client_ref,
   sale_client_ref,
   grand_total,
-  occurred_at
+  occurred_at,
+  status
 ) VALUES (
-  $1, $2, $3, $4, $5
+  $1, $2, $3, $4, $5, $6
 )
-RETURNING id, branch_id, client_ref, sale_client_ref, grand_total, occurred_at, received_at
+RETURNING id, branch_id, client_ref, sale_client_ref, grand_total, occurred_at, received_at, status
 `
 
 type CreateBranchInvoiceSettlementParams struct {
@@ -42,6 +65,7 @@ type CreateBranchInvoiceSettlementParams struct {
 	SaleClientRef string    `json:"sale_client_ref"`
 	GrandTotal    int64     `json:"grand_total"`
 	OccurredAt    time.Time `json:"occurred_at"`
+	Status        string    `json:"status"`
 }
 
 func (q *Queries) CreateBranchInvoiceSettlement(ctx context.Context, arg CreateBranchInvoiceSettlementParams) (BranchInvoiceSettlement, error) {
@@ -51,6 +75,7 @@ func (q *Queries) CreateBranchInvoiceSettlement(ctx context.Context, arg CreateB
 		arg.SaleClientRef,
 		arg.GrandTotal,
 		arg.OccurredAt,
+		arg.Status,
 	)
 	var i BranchInvoiceSettlement
 	err := row.Scan(
@@ -61,6 +86,7 @@ func (q *Queries) CreateBranchInvoiceSettlement(ctx context.Context, arg CreateB
 		&i.GrandTotal,
 		&i.OccurredAt,
 		&i.ReceivedAt,
+		&i.Status,
 	)
 	return i, err
 }
@@ -105,7 +131,7 @@ func (q *Queries) DeleteBranchInvoicePaymentsForInvoice(ctx context.Context, bra
 }
 
 const getBranchInvoiceSettlementByClientRef = `-- name: GetBranchInvoiceSettlementByClientRef :one
-SELECT id, branch_id, client_ref, sale_client_ref, grand_total, occurred_at, received_at FROM branch_invoice_settlements
+SELECT id, branch_id, client_ref, sale_client_ref, grand_total, occurred_at, received_at, status FROM branch_invoice_settlements
 WHERE branch_id = $1 AND client_ref = $2
 LIMIT 1
 `
@@ -126,6 +152,7 @@ func (q *Queries) GetBranchInvoiceSettlementByClientRef(ctx context.Context, arg
 		&i.GrandTotal,
 		&i.OccurredAt,
 		&i.ReceivedAt,
+		&i.Status,
 	)
 	return i, err
 }
@@ -165,7 +192,7 @@ func (q *Queries) ListBranchInvoiceSettlementPayments(ctx context.Context, branc
 }
 
 const listBranchInvoiceSettlements = `-- name: ListBranchInvoiceSettlements :many
-SELECT id, branch_id, client_ref, sale_client_ref, grand_total, occurred_at, received_at FROM branch_invoice_settlements
+SELECT id, branch_id, client_ref, sale_client_ref, grand_total, occurred_at, received_at, status FROM branch_invoice_settlements
 WHERE $3::bigint IS NULL OR branch_id = $3
 ORDER BY id DESC
 LIMIT $1 OFFSET $2
@@ -194,6 +221,7 @@ func (q *Queries) ListBranchInvoiceSettlements(ctx context.Context, arg ListBran
 			&i.GrandTotal,
 			&i.OccurredAt,
 			&i.ReceivedAt,
+			&i.Status,
 		); err != nil {
 			return nil, err
 		}

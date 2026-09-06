@@ -4,11 +4,21 @@ INSERT INTO branch_invoice_settlements (
   client_ref,
   sale_client_ref,
   grand_total,
-  occurred_at
+  occurred_at,
+  status
 ) VALUES (
-  $1, $2, $3, $4, $5
+  $1, $2, $3, $4, $5, $6
 )
 RETURNING *;
+
+-- name: BranchShiftIsClosed :one
+-- A branch_shifts row exists only once kashi-pos has reported that shift's
+-- close, so its mere presence is the "this shift is closed" signal --
+-- closed_at itself can be NULL for an older till build that omitted it.
+SELECT EXISTS (
+  SELECT 1 FROM branch_shifts
+  WHERE branch_id = $1 AND branch_shift_id = $2
+) AS closed;
 
 -- name: GetBranchInvoiceSettlementByClientRef :one
 SELECT * FROM branch_invoice_settlements

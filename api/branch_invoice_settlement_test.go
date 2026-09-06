@@ -85,6 +85,39 @@ func TestCreateBranchInvoiceSettlement_UnknownSaleStillStored(t *testing.T) {
 	require.JSONEq(t, `false`, string(body["invoice_updated"]))
 }
 
+// A settlement whose sale belongs to an already-closed shift is stored but
+// frozen: no payment replay, and none of the "settlement changed"
+// notification path runs (GetDefaultCurrency / the label lookup are only
+// reached on the non-frozen path).
+func TestCreateBranchInvoiceSettlement_ClosedShift_FrozenNoNotify(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	store := mockdb.NewMockStore(ctrl)
+	stubBranchAuth(store)
+
+	store.EXPECT().GetBranchInvoiceSettlementByClientRef(gomock.Any(), gomock.Any()).
+		Return(db.BranchInvoiceSettlement{}, sql.ErrNoRows)
+	store.EXPECT().ApplyBranchSettlementTx(gomock.Any(), gomock.Any()).
+		Return(db.ApplyBranchSettlementTxResult{
+			Settlement:     db.BranchInvoiceSettlement{ID: 9, Status: db.SettlementStatusIgnoredShiftClosed},
+			InvoiceUpdated: false,
+			Status:         db.SettlementStatusIgnoredShiftClosed,
+			Frozen:         true,
+		}, nil)
+	store.EXPECT().GetDefaultCurrency(gomock.Any()).Times(0)
+	store.EXPECT().GetBranchInvoiceByClientRef(gomock.Any(), gomock.Any()).Times(0)
+
+	server := newTestServer(t, store)
+	recorder := httptest.NewRecorder()
+	server.router.ServeHTTP(recorder, newBranchRequest(t, http.MethodPost, "/branch/invoice_settlements", settlementBody()))
+
+	require.Equal(t, http.StatusOK, recorder.Code)
+	var body map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &body))
+	require.JSONEq(t, `false`, string(body["invoice_updated"]))
+	require.JSONEq(t, `"ignored_shift_closed"`, string(body["status"]))
+}
+
 func TestCreateBranchInvoiceSettlement_IdempotentReplay(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()

@@ -24,6 +24,7 @@ type Store interface {
 	ApplyBranchSettlementTx(ctx context.Context, arg ApplyBranchSettlementTxParams) (ApplyBranchSettlementTxResult, error)
 	FireRecurringExpenseTx(ctx context.Context, recurring RecurringExpense) (Expense, error)
 	DeleteBranchTargetSeriesTx(ctx context.Context, seriesID int64) (BranchTargetSeries, error)
+	BatchSetEmployeeSalaries(ctx context.Context, args []UpdateEmployeeSalaryParams) ([]Employee, error)
 }
 
 // provides all the functions to execute SQL queries

@@ -167,6 +167,15 @@ func (q *Queries) CreateBranchAttendanceEvent(ctx context.Context, arg CreateBra
 	return i, err
 }
 
+const deleteBranchAttendanceEvent = `-- name: DeleteBranchAttendanceEvent :exec
+DELETE FROM branch_attendance_events WHERE id = $1
+`
+
+func (q *Queries) DeleteBranchAttendanceEvent(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, deleteBranchAttendanceEvent, id)
+	return err
+}
+
 const getBranchAttendanceChangeByClientRef = `-- name: GetBranchAttendanceChangeByClientRef :one
 SELECT id, branch_id, client_ref, kind, salesperson_name, attendance_date, original_time, requested_time, requested_type, action, status, note, actor, occurred_at, received_at FROM branch_attendance_changes
 WHERE branch_id = $1 AND client_ref = $2
@@ -196,6 +205,30 @@ func (q *Queries) GetBranchAttendanceChangeByClientRef(ctx context.Context, arg 
 		&i.Note,
 		&i.Actor,
 		&i.OccurredAt,
+		&i.ReceivedAt,
+	)
+	return i, err
+}
+
+const getBranchAttendanceEvent = `-- name: GetBranchAttendanceEvent :one
+SELECT id, branch_id, client_ref, salesperson_name, attendance_user_id, event_date, event_time, event_at, type, status, received_at FROM branch_attendance_events
+WHERE id = $1 LIMIT 1
+`
+
+func (q *Queries) GetBranchAttendanceEvent(ctx context.Context, id int64) (BranchAttendanceEvent, error) {
+	row := q.db.QueryRowContext(ctx, getBranchAttendanceEvent, id)
+	var i BranchAttendanceEvent
+	err := row.Scan(
+		&i.ID,
+		&i.BranchID,
+		&i.ClientRef,
+		&i.SalespersonName,
+		&i.AttendanceUserID,
+		&i.EventDate,
+		&i.EventTime,
+		&i.EventAt,
+		&i.Type,
+		&i.Status,
 		&i.ReceivedAt,
 	)
 	return i, err
@@ -329,4 +362,56 @@ func (q *Queries) ListBranchAttendanceEvents(ctx context.Context, arg ListBranch
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateBranchAttendanceEvent = `-- name: UpdateBranchAttendanceEvent :one
+UPDATE branch_attendance_events
+SET salesperson_name = $2,
+    attendance_user_id = $3,
+    event_date = $4,
+    event_time = $5,
+    event_at = $6,
+    type = $7,
+    status = $8
+WHERE id = $1
+RETURNING id, branch_id, client_ref, salesperson_name, attendance_user_id, event_date, event_time, event_at, type, status, received_at
+`
+
+type UpdateBranchAttendanceEventParams struct {
+	ID               int64  `json:"id"`
+	SalespersonName  string `json:"salesperson_name"`
+	AttendanceUserID string `json:"attendance_user_id"`
+	EventDate        string `json:"event_date"`
+	EventTime        string `json:"event_time"`
+	EventAt          string `json:"event_at"`
+	Type             string `json:"type"`
+	Status           string `json:"status"`
+}
+
+func (q *Queries) UpdateBranchAttendanceEvent(ctx context.Context, arg UpdateBranchAttendanceEventParams) (BranchAttendanceEvent, error) {
+	row := q.db.QueryRowContext(ctx, updateBranchAttendanceEvent,
+		arg.ID,
+		arg.SalespersonName,
+		arg.AttendanceUserID,
+		arg.EventDate,
+		arg.EventTime,
+		arg.EventAt,
+		arg.Type,
+		arg.Status,
+	)
+	var i BranchAttendanceEvent
+	err := row.Scan(
+		&i.ID,
+		&i.BranchID,
+		&i.ClientRef,
+		&i.SalespersonName,
+		&i.AttendanceUserID,
+		&i.EventDate,
+		&i.EventTime,
+		&i.EventAt,
+		&i.Type,
+		&i.Status,
+		&i.ReceivedAt,
+	)
+	return i, err
 }

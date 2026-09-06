@@ -276,6 +276,9 @@ func (server *Server) setupRoutes() {
 	authRoutes.GET("/branch_invoice_settlements", server.listBranchInvoiceSettlements)
 	authRoutes.GET("/branch_attendance_changes", server.listBranchAttendanceChanges)
 	authRoutes.GET("/branch_attendance_events", server.listBranchAttendanceEvents)
+	authRoutes.POST("/branch_attendance_events/import", server.importBranchAttendanceEventsCSV)
+	authRoutes.PUT("/branch_attendance_events/:id", server.updateBranchAttendanceEvent)
+	authRoutes.DELETE("/branch_attendance_events/:id", server.deleteBranchAttendanceEvent)
 
 	authRoutes.GET("/dashboard/summary", server.getDashboardSummary)
 	authRoutes.GET("/dashboard/sales", server.listDashboardSales)
@@ -302,6 +305,13 @@ func (server *Server) setupRoutes() {
 	authRoutes.POST("/branches/:id/salespersons", server.createSalesperson)
 	authRoutes.PUT("/salespersons/:id", server.updateSalesperson)
 	authRoutes.PUT("/salespersons/:id/active", server.setSalespersonActive)
+
+	authRoutes.GET("/employees", server.listEmployees)
+	authRoutes.POST("/employees", server.createEmployee)
+	authRoutes.PUT("/employees/salaries", server.batchUpdateEmployeeSalaries)
+	authRoutes.GET("/employees/:id", server.getEmployee)
+	authRoutes.PUT("/employees/:id", server.updateEmployee)
+	authRoutes.DELETE("/employees/:id", server.deleteEmployee)
 
 	authRoutes.GET("/branches/:id/branch_users", server.listBranchUsers)
 	authRoutes.POST("/branches/:id/branch_users", server.createBranchUser)

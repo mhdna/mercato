@@ -19,6 +19,25 @@ SELECT * FROM branch_attendance_events
 WHERE branch_id = $1 AND client_ref = $2
 LIMIT 1;
 
+-- name: GetBranchAttendanceEvent :one
+SELECT * FROM branch_attendance_events
+WHERE id = $1 LIMIT 1;
+
+-- name: UpdateBranchAttendanceEvent :one
+UPDATE branch_attendance_events
+SET salesperson_name = $2,
+    attendance_user_id = $3,
+    event_date = $4,
+    event_time = $5,
+    event_at = $6,
+    type = $7,
+    status = $8
+WHERE id = $1
+RETURNING *;
+
+-- name: DeleteBranchAttendanceEvent :exec
+DELETE FROM branch_attendance_events WHERE id = $1;
+
 -- name: ListBranchAttendanceEvents :many
 SELECT * FROM branch_attendance_events
 WHERE sqlc.narg(branch_id)::bigint IS NULL OR branch_id = sqlc.narg(branch_id)

@@ -1,8 +1,13 @@
 package api
 
 import (
+	"crypto/sha256"
 	"database/sql"
+	"encoding/csv"
+	"encoding/hex"
+	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -288,4 +293,227 @@ func (server *Server) listBranchAttendanceEvents(ctx *gin.Context) {
 	}
 
 	server.writeJSON(ctx, http.StatusOK, envelope{"branch_attendance_events": events, "total": total})
+}
+
+// --- Admin-side attendance editing ---------------------------------------
+//
+// The punch stream is normally append-only and device-authoritative, but an
+// admin sometimes has to fix a mislabelled or duplicated row by hand, and
+// branches without a biometric device need a way in at all -- hence the
+// CSV import below. These endpoints sit under authRoutes (a human operator
+// token), never the per-branch key.
+
+type attendanceEventIDRequest struct {
+	ID int64 `uri:"id" binding:"required,min=1"`
+}
+
+type updateBranchAttendanceEventRequest struct {
+	SalespersonName  string `json:"salesperson_name"`
+	AttendanceUserID string `json:"attendance_user_id"`
+	EventDate        string `json:"event_date" binding:"required"`
+	EventTime        string `json:"event_time"`
+	EventAt          string `json:"event_at"`
+	Type             string `json:"type"`
+	Status           string `json:"status"`
+}
+
+func (server *Server) updateBranchAttendanceEvent(ctx *gin.Context) {
+	var uri attendanceEventIDRequest
+	if err := ctx.ShouldBindUri(&uri); err != nil {
+		server.writeError(ctx, http.StatusBadRequest, err)
+		return
+	}
+	var req updateBranchAttendanceEventRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		server.writeError(ctx, http.StatusBadRequest, err)
+		return
+	}
+
+	if _, err := server.store.GetBranchAttendanceEvent(ctx, uri.ID); err != nil {
+		if err == sql.ErrNoRows {
+			server.writeError(ctx, http.StatusNotFound, err)
+			return
+		}
+		server.writeError(ctx, http.StatusInternalServerError, err)
+		return
+	}
+
+	event, err := server.store.UpdateBranchAttendanceEvent(ctx, db.UpdateBranchAttendanceEventParams{
+		ID:               uri.ID,
+		SalespersonName:  req.SalespersonName,
+		AttendanceUserID: req.AttendanceUserID,
+		EventDate:        req.EventDate,
+		EventTime:        req.EventTime,
+		EventAt:          req.EventAt,
+		Type:             req.Type,
+		Status:           req.Status,
+	})
+	if err != nil {
+		server.writeError(ctx, http.StatusInternalServerError, err)
+		return
+	}
+	server.writeJSON(ctx, http.StatusOK, envelope{"branch_attendance_event": event})
+}
+
+func (server *Server) deleteBranchAttendanceEvent(ctx *gin.Context) {
+	var uri attendanceEventIDRequest
+	if err := ctx.ShouldBindUri(&uri); err != nil {
+		server.writeError(ctx, http.StatusBadRequest, err)
+		return
+	}
+
+	if _, err := server.store.GetBranchAttendanceEvent(ctx, uri.ID); err != nil {
+		if err == sql.ErrNoRows {
+			server.writeError(ctx, http.StatusNotFound, err)
+			return
+		}
+		server.writeError(ctx, http.StatusInternalServerError, err)
+		return
+	}
+
+	if err := server.store.DeleteBranchAttendanceEvent(ctx, uri.ID); err != nil {
+		server.writeError(ctx, http.StatusInternalServerError, err)
+		return
+	}
+	server.writeJSON(ctx, http.StatusOK, envelope{"message": "attendance event deleted"})
+}
+
+// importBranchAttendanceEventsCSV ingests a manual attendance export for a
+// branch that has no biometric device wired to the sync pipeline. The
+// upload is multipart: a branch_id field plus a `file` whose first row is
+// the header `date,time,name,type,status,user_id` (only date is required
+// per row). Each row's client_ref is derived from its content
+// ("csv-<branchID>-<sha256(row)[:16]>") so re-uploading the same file is
+// idempotent, exactly like a replayed device batch.
+func (server *Server) importBranchAttendanceEventsCSV(ctx *gin.Context) {
+	branchID, err := strconv.ParseInt(ctx.PostForm("branch_id"), 10, 64)
+	if err != nil || branchID <= 0 {
+		server.writeError(ctx, http.StatusBadRequest, fmt.Errorf("valid branch_id is required"))
+		return
+	}
+	if _, err := server.store.GetBranch(ctx, branchID); err != nil {
+		if err == sql.ErrNoRows {
+			server.writeError(ctx, http.StatusNotFound, fmt.Errorf("branch not found"))
+			return
+		}
+		server.writeError(ctx, http.StatusInternalServerError, err)
+		return
+	}
+
+	fileHeader, err := ctx.FormFile("file")
+	if err != nil {
+		server.writeError(ctx, http.StatusBadRequest, fmt.Errorf("a CSV file is required"))
+		return
+	}
+	file, err := fileHeader.Open()
+	if err != nil {
+		server.writeError(ctx, http.StatusInternalServerError, err)
+		return
+	}
+	defer file.Close()
+
+	reader := csv.NewReader(file)
+	reader.FieldsPerRecord = -1
+	reader.TrimLeadingSpace = true
+
+	rows, err := reader.ReadAll()
+	if err != nil {
+		server.writeError(ctx, http.StatusBadRequest, fmt.Errorf("could not parse CSV: %w", err))
+		return
+	}
+	if len(rows) < 2 {
+		server.writeError(ctx, http.StatusBadRequest, fmt.Errorf("CSV has no data rows"))
+		return
+	}
+
+	col := attendanceCSVColumns(rows[0])
+
+	inserted, skipped := 0, 0
+	for _, row := range rows[1:] {
+		if isBlankRow(row) {
+			continue
+		}
+		date := col.get(row, "date")
+		if date == "" {
+			server.writeError(ctx, http.StatusBadRequest, fmt.Errorf("row missing a date: %v", row))
+			return
+		}
+
+		ref := "csv-" + strconv.FormatInt(branchID, 10) + "-" + shortHash(strings.Join(row, "\x1f"))
+
+		if _, err := server.store.GetBranchAttendanceEventByClientRef(ctx, db.GetBranchAttendanceEventByClientRefParams{
+			BranchID:  branchID,
+			ClientRef: ref,
+		}); err == nil {
+			skipped++
+			continue
+		} else if err != sql.ErrNoRows {
+			server.writeError(ctx, http.StatusInternalServerError, err)
+			return
+		}
+
+		eventTime := col.get(row, "time")
+		if _, err := server.store.CreateBranchAttendanceEvent(ctx, db.CreateBranchAttendanceEventParams{
+			BranchID:         branchID,
+			ClientRef:        ref,
+			SalespersonName:  col.get(row, "name"),
+			AttendanceUserID: col.get(row, "user_id"),
+			EventDate:        date,
+			EventTime:        eventTime,
+			EventAt:          strings.TrimSpace(date + " " + eventTime),
+			Type:             col.get(row, "type"),
+			Status:           col.get(row, "status"),
+		}); err != nil {
+			if isUniqueViolation(err) {
+				skipped++
+				continue
+			}
+			server.writeError(ctx, http.StatusInternalServerError, err)
+			return
+		}
+		inserted++
+	}
+
+	if inserted > 0 {
+		server.adminHub.broadcastAll(adminWSMessage{
+			Type:     "branch_attendance_events",
+			BranchID: branchID,
+			Amount:   int64(inserted),
+		})
+	}
+	server.writeJSON(ctx, http.StatusOK, envelope{"inserted": inserted, "skipped": skipped})
+}
+
+// attendanceCSVColumnIndex maps a canonical column name to its position in
+// the uploaded header row, so column order in the file doesn't matter.
+type attendanceCSVColumnIndex map[string]int
+
+func attendanceCSVColumns(header []string) attendanceCSVColumnIndex {
+	idx := attendanceCSVColumnIndex{}
+	for i, name := range header {
+		idx[strings.ToLower(strings.TrimSpace(name))] = i
+	}
+	return idx
+}
+
+func (c attendanceCSVColumnIndex) get(row []string, name string) string {
+	i, ok := c[name]
+	if !ok || i >= len(row) {
+		return ""
+	}
+	return strings.TrimSpace(row[i])
+}
+
+func isBlankRow(row []string) bool {
+	for _, cell := range row {
+		if strings.TrimSpace(cell) != "" {
+			return false
+		}
+	}
+	return true
+}
+
+func shortHash(s string) string {
+	sum := sha256.Sum256([]byte(s))
+	return hex.EncodeToString(sum[:])[:16]
 }

@@ -23,6 +23,10 @@ type Querier interface {
 	AddPurchaseItem(ctx context.Context, arg AddPurchaseItemParams) (PurchaseItem, error)
 	AddPurchasedProduct(ctx context.Context, arg AddPurchasedProductParams) (ProductSupplier, error)
 	AddPurchasedProductCost(ctx context.Context, arg AddPurchasedProductCostParams) (ProductSupplierCost, error)
+	// A branch_shifts row exists only once kashi-pos has reported that shift's
+	// close, so its mere presence is the "this shift is closed" signal --
+	// closed_at itself can be NULL for an older till build that omitted it.
+	BranchShiftIsClosed(ctx context.Context, arg BranchShiftIsClosedParams) (bool, error)
 	CloseShift(ctx context.Context, id int64) error
 	CompleteBranchCommand(ctx context.Context, arg CompleteBranchCommandParams) (BranchCommand, error)
 	CountAssets(ctx context.Context, arg CountAssetsParams) (int64, error)
@@ -49,6 +53,7 @@ type Querier interface {
 	CountDashboardSales(ctx context.Context, arg CountDashboardSalesParams) (int64, error)
 	CountDiscountListItemsWithProduct(ctx context.Context, arg CountDiscountListItemsWithProductParams) (int64, error)
 	CountDiscountLists(ctx context.Context) (int64, error)
+	CountEmployees(ctx context.Context, arg CountEmployeesParams) (int64, error)
 	CountExpenses(ctx context.Context, arg CountExpensesParams) (int64, error)
 	CountInventories(ctx context.Context) (int64, error)
 	CountInventoryStock(ctx context.Context, arg CountInventoryStockParams) (int64, error)
@@ -97,6 +102,7 @@ type Querier interface {
 	CreateCurrency(ctx context.Context, arg CreateCurrencyParams) (Currency, error)
 	CreateDiscountList(ctx context.Context, arg CreateDiscountListParams) (DiscountList, error)
 	CreateDiscountListItem(ctx context.Context, arg CreateDiscountListItemParams) (DiscountListItem, error)
+	CreateEmployee(ctx context.Context, arg CreateEmployeeParams) (Employee, error)
 	CreateEntryItem(ctx context.Context, arg CreateEntryItemParams) (Entry, error)
 	CreateExpense(ctx context.Context, arg CreateExpenseParams) (Expense, error)
 	CreateExpenseCategory(ctx context.Context, arg CreateExpenseCategoryParams) (ExpenseCategory, error)
@@ -216,6 +222,7 @@ type Querier interface {
 	DeleteAssets(ctx context.Context, ids []int64) (int64, error)
 	DeleteAttributeValue(ctx context.Context, id int64) error
 	DeleteAttributeValues(ctx context.Context, ids []int64) (int64, error)
+	DeleteBranchAttendanceEvent(ctx context.Context, id int64) error
 	DeleteBranchInvoicePaymentsForInvoice(ctx context.Context, branchInvoiceID int64) error
 	DeleteBranchTargetSeries(ctx context.Context, id int64) (BranchTargetSeries, error)
 	DeleteBranchUser(ctx context.Context, id int64) error
@@ -231,6 +238,7 @@ type Querier interface {
 	DeleteDiscountListBranchesForList(ctx context.Context, discountListID int64) error
 	DeleteDiscountListItem(ctx context.Context, arg DeleteDiscountListItemParams) error
 	DeleteDiscountListItems(ctx context.Context, arg DeleteDiscountListItemsParams) (int64, error)
+	DeleteEmployee(ctx context.Context, id int64) error
 	DeleteExpense(ctx context.Context, id int64) error
 	DeleteExpenseCategory(ctx context.Context, id int64) error
 	DeleteExpenses(ctx context.Context, ids []int64) (int64, error)
@@ -262,6 +270,7 @@ type Querier interface {
 	GetAttributeValue(ctx context.Context, id int64) (AttributesValue, error)
 	GetBranch(ctx context.Context, id int64) (Branch, error)
 	GetBranchAttendanceChangeByClientRef(ctx context.Context, arg GetBranchAttendanceChangeByClientRefParams) (BranchAttendanceChange, error)
+	GetBranchAttendanceEvent(ctx context.Context, id int64) (BranchAttendanceEvent, error)
 	GetBranchAttendanceEventByClientRef(ctx context.Context, arg GetBranchAttendanceEventByClientRefParams) (BranchAttendanceEvent, error)
 	GetBranchByCode(ctx context.Context, code string) (Branch, error)
 	GetBranchCommand(ctx context.Context, id int64) (BranchCommand, error)
@@ -294,6 +303,7 @@ type Querier interface {
 	GetDefaultPriceForProduct(ctx context.Context, productID int64) (int64, error)
 	GetDiscountList(ctx context.Context, id int64) (DiscountList, error)
 	GetDiscountListBranch(ctx context.Context, branchID int64) (DiscountListBranch, error)
+	GetEmployee(ctx context.Context, id int64) (Employee, error)
 	GetEntry(ctx context.Context, id int64) (Entry, error)
 	GetExpense(ctx context.Context, id int64) (Expense, error)
 	GetExpenseCategory(ctx context.Context, id int64) (ExpenseCategory, error)
@@ -438,6 +448,7 @@ type Querier interface {
 	ListDiscountListItemsWithProduct(ctx context.Context, arg ListDiscountListItemsWithProductParams) ([]ListDiscountListItemsWithProductRow, error)
 	ListDiscountLists(ctx context.Context, arg ListDiscountListsParams) ([]DiscountList, error)
 	ListDueRecurringExpenses(ctx context.Context, nextDueAt time.Time) ([]RecurringExpense, error)
+	ListEmployees(ctx context.Context, arg ListEmployeesParams) ([]Employee, error)
 	ListEntries(ctx context.Context, arg ListEntriesParams) ([]Entry, error)
 	ListExpenseCategories(ctx context.Context, scope sql.NullString) ([]ExpenseCategory, error)
 	// Only branch-scoped categories are synced down to kashi-pos.
@@ -546,6 +557,7 @@ type Querier interface {
 	UpdateAssetCategory(ctx context.Context, arg UpdateAssetCategoryParams) (AssetCategory, error)
 	UpdateAttributeValue(ctx context.Context, arg UpdateAttributeValueParams) (AttributesValue, error)
 	UpdateBranchAPIKeyHash(ctx context.Context, arg UpdateBranchAPIKeyHashParams) error
+	UpdateBranchAttendanceEvent(ctx context.Context, arg UpdateBranchAttendanceEventParams) (BranchAttendanceEvent, error)
 	UpdateBranchLastSeenAt(ctx context.Context, id int64) error
 	UpdateBranchSalespersonName(ctx context.Context, arg UpdateBranchSalespersonNameParams) (Salesperson, error)
 	UpdateBranchTarget(ctx context.Context, arg UpdateBranchTargetParams) (BranchTarget, error)
@@ -562,6 +574,8 @@ type Querier interface {
 	UpdateCurrency(ctx context.Context, arg UpdateCurrencyParams) (Currency, error)
 	UpdateDiscountList(ctx context.Context, arg UpdateDiscountListParams) error
 	UpdateDiscountListItem(ctx context.Context, arg UpdateDiscountListItemParams) error
+	UpdateEmployee(ctx context.Context, arg UpdateEmployeeParams) (Employee, error)
+	UpdateEmployeeSalary(ctx context.Context, arg UpdateEmployeeSalaryParams) (Employee, error)
 	UpdateExpense(ctx context.Context, arg UpdateExpenseParams) (Expense, error)
 	UpdateExpenseCategory(ctx context.Context, arg UpdateExpenseCategoryParams) (ExpenseCategory, error)
 	UpdateInventory(ctx context.Context, arg UpdateInventoryParams) error

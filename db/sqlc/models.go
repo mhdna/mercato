@@ -578,6 +578,7 @@ type BranchInvoiceSettlement struct {
 	GrandTotal    int64     `json:"grand_total"`
 	OccurredAt    time.Time `json:"occurred_at"`
 	ReceivedAt    time.Time `json:"received_at"`
+	Status        string    `json:"status"`
 }
 
 type BranchInvoiceSettlementPayment struct {
@@ -794,6 +795,22 @@ type DiscountListItem struct {
 	DiscountListID int64 `json:"discount_list_id"`
 	ProductID      int64 `json:"product_id"`
 	Discount       int16 `json:"discount"`
+}
+
+type Employee struct {
+	ID                     int64         `json:"id"`
+	BranchID               sql.NullInt64 `json:"branch_id"`
+	Name                   string        `json:"name"`
+	Role                   string        `json:"role"`
+	Status                 string        `json:"status"`
+	HiredOn                sql.NullTime  `json:"hired_on"`
+	BaseSalaryCents        int64         `json:"base_salary_cents"`
+	CommissionCents        int64         `json:"commission_cents"`
+	LateDeductionRateCents int64         `json:"late_deduction_rate_cents"`
+	LateDeductionUnit      string        `json:"late_deduction_unit"`
+	LateUnitsCenti         int64         `json:"late_units_centi"`
+	CreatedAt              time.Time     `json:"created_at"`
+	UpdatedAt              time.Time     `json:"updated_at"`
 }
 
 type Entry struct {

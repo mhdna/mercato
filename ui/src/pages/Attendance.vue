@@ -1,12 +1,13 @@
 <template>
-  <div class="pa-4">
-    <v-card flat>
-      <v-card-title class="d-flex flex-wrap align-center ga-3 px-2 py-3">
+  <div class="page-root">
+    <v-card class="attendance-card" flat>
+      <v-card-title class="page-heading d-flex flex-wrap align-center ga-3 px-4 py-3">
         <v-icon icon="mdi-clock-check-outline" />
         <span>Attendance</span>
+        <v-spacer />
         <v-select
           v-model="branchId"
-          class="flex-grow-0"
+          class="attendance-branch"
           clearable
           density="compact"
           hide-details
@@ -14,13 +15,10 @@
           item-value="id"
           :items="branches"
           label="Branch"
-          style="max-width: 220px"
           variant="outlined"
         />
-        <v-spacer />
         <v-btn
           prepend-icon="mdi-refresh"
-          size="small"
           text="Sync from POS"
           variant="text"
           @click="reload"
@@ -28,7 +26,6 @@
         <v-btn
           color="primary"
           prepend-icon="mdi-file-delimited-outline"
-          size="small"
           text="Import CSV"
           variant="flat"
           @click="fileInput?.click()"
@@ -45,7 +42,7 @@
 
       <v-alert
         v-if="message"
-        class="ma-2"
+        class="notice ma-4 mb-0"
         closable
         density="compact"
         :type="messageType"
@@ -55,15 +52,17 @@
         {{ message }}
       </v-alert>
 
-      <p v-if="!branchId" class="text-medium-emphasis text-caption pa-4">
+      <v-alert v-if="!branchId" class="notice ma-4" type="info" variant="tonal">
         Attendance punches sync from kashi-pos automatically. Pick a branch to review them,
         or import a CSV (<code>date,time,name,type,status,user_id</code>) for a branch with no device.
-      </p>
+      </v-alert>
 
       <ServerSideTable
         v-else
         ref="tableRef"
         :api-u-r-l="apiURL"
+        density="comfortable"
+        flush
         :headers="headers"
         hover
         item-value="id"
@@ -243,3 +242,26 @@
     }
   }
 </script>
+
+<style scoped>
+.page-root {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  flex-direction: column;
+}
+.attendance-card {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  flex-direction: column;
+}
+.attendance-branch {
+  flex: 0 1 220px;
+}
+/* v-alert defaults to flex: 1 1; keep notices at their natural height
+   instead of stretching to fill the card. */
+.notice {
+  flex: 0 0 auto;
+}
+</style>

@@ -1,89 +1,87 @@
 <template>
-  <div class="pa-2" style="width: 100%">
-    <div class="d-flex flex-wrap align-center ga-2 mb-2">
-      <v-icon icon="mdi-account-cash" />
-      <span class="text-subtitle-2">Employees &amp; Payroll</span>
-      <v-text-field
-        v-model="search"
-        class="flex-grow-0"
-        clearable
-        density="compact"
-        hide-details
-        label="Search name or role"
-        prepend-inner-icon="mdi-magnify"
-        style="max-width: 260px"
-        variant="outlined"
-        @update:model-value="debouncedReload"
-      />
-      <v-select
-        v-model="branchFilter"
-        class="flex-grow-0"
-        clearable
-        density="compact"
-        hide-details
-        item-title="name"
-        item-value="id"
-        :items="branches"
-        label="Branch"
-        style="max-width: 200px"
-        variant="outlined"
-        @update:model-value="reload"
-      />
-      <v-spacer />
-      <template v-if="editing">
-        <v-btn size="small" text="Cancel" variant="text" @click="cancelEdit" />
-        <v-btn
-          color="primary"
-          :disabled="!dirtyCount"
-          :loading="saving"
-          prepend-icon="mdi-content-save-all"
-          size="small"
-          :text="`Save all${dirtyCount ? ` (${dirtyCount})` : ''}`"
-          variant="flat"
-          @click="saveAll"
-        />
-      </template>
-      <template v-else>
-        <v-btn
-          prepend-icon="mdi-pencil"
-          size="small"
-          text="Edit salaries"
+  <div class="page-root">
+    <v-card class="employees-card" flat>
+      <v-card-title class="page-heading d-flex flex-wrap align-center ga-3 px-4 py-3">
+        <v-icon icon="mdi-account-cash" />
+        <span>Employees &amp; Payroll</span>
+        <v-spacer />
+        <v-text-field
+          v-model="search"
+          class="employees-search"
+          clearable
+          density="compact"
+          hide-details
+          label="Search name or role"
+          prepend-inner-icon="mdi-magnify"
           variant="outlined"
-          @click="startEdit"
+          @update:model-value="debouncedReload"
         />
-        <v-btn
-          color="primary"
-          prepend-icon="mdi-plus"
-          size="small"
-          text="Add employee"
-          variant="flat"
-          @click="openCreate"
+        <v-select
+          v-model="branchFilter"
+          class="employees-branch"
+          clearable
+          density="compact"
+          hide-details
+          item-title="name"
+          item-value="id"
+          :items="branches"
+          label="Branch"
+          variant="outlined"
+          @update:model-value="reload"
         />
-      </template>
-    </div>
+        <template v-if="editing">
+          <v-btn text="Cancel" variant="text" @click="cancelEdit" />
+          <v-btn
+            color="primary"
+            :disabled="!dirtyCount"
+            :loading="saving"
+            prepend-icon="mdi-content-save-all"
+            :text="`Save all${dirtyCount ? ` (${dirtyCount})` : ''}`"
+            variant="flat"
+            @click="saveAll"
+          />
+        </template>
+        <template v-else>
+          <v-btn
+            prepend-icon="mdi-pencil"
+            text="Edit salaries"
+            variant="outlined"
+            @click="startEdit"
+          />
+          <v-btn
+            color="primary"
+            prepend-icon="mdi-plus"
+            text="Add employee"
+            variant="flat"
+            @click="openCreate"
+          />
+        </template>
+      </v-card-title>
+      <v-divider />
 
-    <v-alert
-      v-if="error"
-      class="mb-2"
-      closable
-      density="compact"
-      type="error"
-      variant="tonal"
-      @click:close="error = ''"
-    >
-      {{ error }}
-    </v-alert>
+      <v-alert
+        v-if="error"
+        class="notice ma-4 mb-0"
+        closable
+        density="compact"
+        type="error"
+        variant="tonal"
+        @click:close="error = ''"
+      >
+        {{ error }}
+      </v-alert>
 
-    <v-data-table
-      class="text-caption text-center"
-      density="compact"
-      :headers="headers"
-      hide-default-footer
-      hover
-      :items="rows"
-      :items-per-page="-1"
-      :loading="loading"
-    >
+      <div class="employees-content">
+        <v-data-table
+          class="text-caption text-center"
+          density="compact"
+          :headers="headers"
+          hide-default-footer
+          hover
+          :items="rows"
+          :items-per-page="-1"
+          :loading="loading"
+        >
       <template #item="{ item }">
         <tr class="text-no-wrap text-center">
           <td class="text-start">{{ item.name }}</td>
@@ -188,7 +186,9 @@
           </td>
         </tr>
       </template>
-    </v-data-table>
+        </v-data-table>
+      </div>
+    </v-card>
 
     <!-- add / edit employee -->
     <v-dialog v-model="dialog" max-width="520">
@@ -526,3 +526,36 @@
     }
   }
 </script>
+
+<style scoped>
+.page-root {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  flex-direction: column;
+}
+.employees-card {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  flex-direction: column;
+}
+/* The payroll table renders every row at once (:items-per-page="-1"), so
+   it scrolls inside the card rather than the whole page. */
+.employees-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+.employees-search {
+  flex: 0 1 260px;
+}
+.employees-branch {
+  flex: 0 1 200px;
+}
+/* v-alert defaults to flex: 1 1; keep the error notice at its natural
+   height instead of stretching to fill the card. */
+.notice {
+  flex: 0 0 auto;
+}
+</style>

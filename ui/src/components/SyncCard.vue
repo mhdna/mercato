@@ -31,8 +31,8 @@
               />
               <span class="activity-item__text">{{ item.text }}</span>
             </span>
-            <span v-if="activeItems.length === 0" key="status">{{ statusText }}</span>
           </TransitionGroup>
+          <span class="status" :class="{ 'status--dim': activeItems.length > 0 }">{{ statusText }}</span>
         </div>
       </v-card>
     </template>
@@ -81,6 +81,11 @@
   const menu = ref(false)
   const loaded = ref(false)
   const recentInvoices = ref([])
+  // Wall-clock time of the last branch activity of ANY kind seen on the
+  // socket -- invoices, but also visitor counts, attendance, shift closes,
+  // none of which touch recentInvoices. "synced ... ago" is measured against
+  // whichever is more recent, this or the newest invoice.
+  const lastActivityAt = ref(0)
   // Ticks once a minute purely to force relativeTime()/statusText to
   // re-evaluate -- received_at/last_seen_at themselves only change on refresh.
   const now = ref(Date.now())
@@ -173,8 +178,9 @@
     return `${invoiceKindLabel(invoice)} ${invoice.branch_invoice_code}`
   }
 
-  function relativeTime (isoString) {
-    const then = new Date(isoString).getTime()
+  // Accepts an ISO string or epoch ms.
+  function relativeTime (value) {
+    const then = new Date(value).getTime()
     const diffSeconds = Math.max(0, Math.round((now.value - then) / 1000))
 
     if (diffSeconds < 45) return 'just now'
@@ -186,12 +192,19 @@
     return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`
   }
 
+  // Most recent proof of sync: newest invoice's received_at vs. the last
+  // live activity ping, in ms. 0 means nothing has synced this session.
+  const lastSyncMs = computed(() => {
+    const latest = recentInvoices.value[0]
+    const invoiceMs = latest ? new Date(latest.received_at).getTime() : 0
+    return Math.max(invoiceMs, lastActivityAt.value)
+  })
+
   const statusText = computed(() => {
     if (serverDown.value) return 'not syncing'
     if (!loaded.value) return 'syncing...'
-    const latest = recentInvoices.value[0]
-    if (!latest) return 'no sync yet'
-    return `synced ${relativeTime(latest.received_at)}`
+    if (!lastSyncMs.value) return 'no sync yet'
+    return `synced ${relativeTime(lastSyncMs.value)}`
   })
 
   onMounted(() => {
@@ -204,6 +217,12 @@
     unsubscribe = onMessage(message => {
       if (message.type === 'branch_invoice_created') {
         refresh()
+      }
+      if (isBranchActivityMessage(message)) {
+        // Any activity means data is flowing right now -- keep "synced ..."
+        // honest even when the branch is only sending visitor counts.
+        lastActivityAt.value = Date.now()
+        now.value = Date.now()
       }
       if (settingsStore.activityDisplayMode === 'appbar' && isBranchActivityMessage(message)) {
         pushActivity(message)
@@ -230,13 +249,29 @@
 
 .ticker {
   position: relative;
+  display: flex;
+  align-items: center;
   overflow: hidden;
   white-space: nowrap;
+  min-width: 140px; /* room for "synced 59 mins ago" when the reel is empty */
   max-width: min(44vw, 520px);
 }
 
 .reel {
   gap: 6px;
+}
+
+/* The "synced ... ago" line lives under the reel, pinned to the same left
+   edge. It fades out when messages are showing and fades back in as the
+   last pill collapses -- a crossfade in place, no layout swap. */
+.status {
+  position: absolute;
+  left: 0;
+  transition: opacity 0.24s ease;
+}
+
+.status--dim {
+  opacity: 0;
 }
 
 /* Each message is a self-contained pill -- no pseudo-element separators

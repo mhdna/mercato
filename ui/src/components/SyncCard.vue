@@ -16,7 +16,7 @@
           :size="mobile ? 20 : undefined"
         />
         <div v-if="!mobile" class="text-body-2 ticker">
-          <TransitionGroup class="d-flex align-center" name="ticker" tag="div">
+          <TransitionGroup class="d-flex align-center reel" name="ticker" tag="div">
             <span
               v-for="item in activeItems"
               :key="`activity-${item.id}`"
@@ -29,7 +29,7 @@
                 :icon="item.trendIcon"
                 size="14"
               />
-              {{ item.text }}
+              <span class="activity-item__text">{{ item.text }}</span>
             </span>
             <span v-if="activeItems.length === 0" key="status">{{ statusText }}</span>
           </TransitionGroup>
@@ -235,27 +235,40 @@
   max-width: min(44vw, 520px);
 }
 
+.reel {
+  gap: 6px;
+}
+
+/* Each message is a self-contained pill -- no pseudo-element separators
+   between siblings, so removing one only reflows by that pill's own width
+   and the survivors' FLIP shift is a single clean amount. */
 .activity-item {
-  display: inline-block;
-  max-width: 210px;
+  display: inline-flex;
+  align-items: center;
+  max-width: 220px;
+  padding: 1px 8px;
+  border-radius: 6px;
+  background: rgba(var(--v-theme-on-surface), 0.06);
+}
+
+.activity-item__text {
   overflow: hidden;
   text-overflow: ellipsis;
-  vertical-align: middle;
 }
 
-/* Thin dot between adjacent messages in the reel. */
-.activity-item + .activity-item::before {
-  content: "·";
-  margin: 0 6px;
-  opacity: 0.5;
-}
-
-/* Newest message fades in from the right, the oldest fades out to the left,
-   and the survivors glide across via the FLIP-driven ticker-move. Keeping
-   the motion horizontal and short is what makes the reel read as smooth. */
+/* Newest fades in from the right, the oldest (always the one that leaves)
+   fades out and collapses to zero width in place while the survivors glide
+   over via the FLIP-driven ticker-move. Animating the leaver's own
+   max-width/padding/margin -- rather than yanking it out with
+   position:absolute -- is what keeps the exit smooth. */
 .ticker-enter-active,
 .ticker-leave-active {
-  transition: opacity 0.24s ease, transform 0.24s ease;
+  transition:
+    opacity 0.24s ease,
+    transform 0.24s ease,
+    max-width 0.24s ease,
+    padding 0.24s ease,
+    margin 0.24s ease;
 }
 
 .ticker-enter-from {
@@ -264,14 +277,11 @@
 }
 
 .ticker-leave-to {
-  transform: translateX(-10px);
+  max-width: 0;
+  padding-left: 0;
+  padding-right: 0;
+  margin-left: -6px;
   opacity: 0;
-}
-
-/* Out of flow while leaving so the siblings' FLIP shift is animated, not
-   snapped. */
-.ticker-leave-active {
-  position: absolute;
 }
 
 .ticker-move {

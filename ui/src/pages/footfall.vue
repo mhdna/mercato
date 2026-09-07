@@ -572,17 +572,16 @@
 .ff-notice {
   flex: 0 0 auto;
 }
-/* Cards in the same v-row share the row's height (v-row stretches its
-   columns); the chart then fills whatever vertical space is left after the
-   header, so two cards with different header heights still line up. */
+/* v-row stretches its columns, so height:100% makes every card's bordered
+   box the same height as the tallest in its row. The chart keeps a FIXED
+   height -- a flex-grown height feeds back into echarts' autoresize and the
+   card grows without bound. */
 .chart-card {
   padding: 12px 14px 4px;
   margin-bottom: 8px;
   border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
   border-radius: 10px;
   height: 100%;
-  display: flex;
-  flex-direction: column;
 }
 .chart-card__title {
   font-size: 0.9rem;
@@ -595,8 +594,7 @@
   margin-bottom: 4px;
 }
 .chart {
-  flex: 1 1 auto;
-  min-height: 260px;
+  height: 280px;
   width: 100%;
 }
 .table-scroll {

@@ -20,14 +20,14 @@
             <span
               v-for="item in activeItems"
               :key="`activity-${item.id}`"
-              class="activity-item d-inline-flex align-center"
+              class="activity-item"
             >
               <v-icon
                 v-if="item.trendIcon"
                 class="me-1"
                 :color="item.color"
                 :icon="item.trendIcon"
-                size="16"
+                size="14"
               />
               {{ item.text }}
             </span>
@@ -124,7 +124,7 @@
     if (!described) return
     const item = {
       id: ++itemSeq,
-      text: described.text,
+      text: described.shortText ?? described.text,
       color: described.color,
       trendIcon: described.trendIcon,
     }
@@ -232,38 +232,49 @@
   position: relative;
   overflow: hidden;
   white-space: nowrap;
-  max-width: min(52vw, 640px);
+  max-width: min(44vw, 520px);
+}
+
+.activity-item {
+  display: inline-block;
+  max-width: 210px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: middle;
 }
 
 /* Thin dot between adjacent messages in the reel. */
 .activity-item + .activity-item::before {
   content: "·";
-  margin: 0 8px;
+  margin: 0 6px;
   opacity: 0.5;
 }
 
-/* A message slides up as it ages out, the next slides in from below, and the
-   surviving siblings ease across to fill the gap (ticker-move). */
+/* Newest message fades in from the right, the oldest fades out to the left,
+   and the survivors glide across via the FLIP-driven ticker-move. Keeping
+   the motion horizontal and short is what makes the reel read as smooth. */
 .ticker-enter-active,
 .ticker-leave-active {
-  transition: transform 0.35s ease, opacity 0.35s ease;
+  transition: opacity 0.24s ease, transform 0.24s ease;
 }
 
 .ticker-enter-from {
-  transform: translateY(100%);
+  transform: translateX(10px);
   opacity: 0;
 }
 
 .ticker-leave-to {
-  transform: translateY(-100%);
+  transform: translateX(-10px);
   opacity: 0;
 }
 
+/* Out of flow while leaving so the siblings' FLIP shift is animated, not
+   snapped. */
 .ticker-leave-active {
   position: absolute;
 }
 
 .ticker-move {
-  transition: transform 0.35s ease;
+  transition: transform 0.24s cubic-bezier(0.4, 0, 0.2, 1);
 }
 </style>

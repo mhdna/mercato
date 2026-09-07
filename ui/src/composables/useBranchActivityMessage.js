@@ -81,9 +81,11 @@ function attendanceChangeIcon (kind) {
 }
 
 // describeBranchActivity turns one admin-socket message into the shape both
-// the toast (BranchActivityToast) and the app-bar ticker (SyncCard) render:
+// the toast (BranchActivityToast) and the app-bar reel (SyncCard) render:
 //
-//   text      one-line summary, branch name included
+//   text      full one-line summary, branch name + detail -- for the toast
+//   shortText trimmed version for the app-bar reel, where up to three sit
+//             side by side: branch + the essential figure, nothing more
 //   color     'success' | 'error' | 'warning' | 'info'
 //   trendIcon triangle up/down, for the money types
 //   icon      leading mdi glyph
@@ -99,8 +101,11 @@ export function describeBranchActivity (message, branchName) {
     case 'branch_expense_created':
     case 'branch_loan_created': {
       const kind = invoiceKindWord(message)
+      const money = `${formatMoney(message.amount)} ${message.currency_code ?? ''}`.trim()
       return {
-        text: `${branch}: ${formatMoney(message.amount)} ${message.currency_code ?? ''} ${kind}`.replace(/\s+/g, ' ').trim(),
+        text: `${branch}: ${money} ${kind}`.replace(/\s+/g, ' ').trim(),
+        // Kind is already carried by the icon + colour, so the reel drops it.
+        shortText: `${branch}: ${money}`,
         color: amountColor(message.amount),
         trendIcon: message.amount < 0 ? 'mdi-triangle-down' : 'mdi-triangle',
         icon: invoiceIcon(message),
@@ -119,6 +124,7 @@ export function describeBranchActivity (message, branchName) {
       const who = message.label ? ` by ${message.label}` : ''
       return {
         text: `${branch}: shift closed${who} (${detail})`,
+        shortText: `${branch}: shift ${detail}`,
         color: balanced ? 'success' : amountColor(message.amount),
         trendIcon: message.amount < 0 ? 'mdi-triangle-down' : 'mdi-triangle',
         icon: 'mdi-cash-register',
@@ -130,6 +136,7 @@ export function describeBranchActivity (message, branchName) {
     case 'branch_settlement_changed': {
       return {
         text: `${branch}: settlement changed${message.label ? ` on ${message.label}` : ''}`,
+        shortText: `${branch}: settlement`,
         color: 'info',
         icon: 'mdi-cash-edit',
         money: false,
@@ -139,6 +146,7 @@ export function describeBranchActivity (message, branchName) {
     case 'branch_attendance_event': {
       return {
         text: `${branch}: attendance${message.label ? ` — ${message.label}` : ''}`,
+        shortText: `${branch}: attendance`,
         color: 'info',
         icon: 'mdi-fingerprint',
         money: false,
@@ -149,6 +157,7 @@ export function describeBranchActivity (message, branchName) {
       const n = message.amount ?? 0
       return {
         text: `${branch}: ${n} attendance event${n === 1 ? '' : 's'}`,
+        shortText: `${branch}: ${n} attendance`,
         color: 'info',
         icon: 'mdi-fingerprint',
         money: false,
@@ -161,8 +170,14 @@ export function describeBranchActivity (message, branchName) {
         approved: 'time change approved',
         rejected: 'time change rejected',
       }[message.kind] ?? 'attendance change'
+      const shortVerb = {
+        complaint: 'time change asked',
+        approved: 'time change ok',
+        rejected: 'time change no',
+      }[message.kind] ?? 'attendance change'
       return {
         text: `${branch}: ${verb}${message.label ? ` — ${message.label}` : ''}`,
+        shortText: `${branch}: ${shortVerb}`,
         color: message.kind === 'rejected' ? 'warning' : 'info',
         icon: attendanceChangeIcon(message.kind),
         money: false,
@@ -177,6 +192,7 @@ export function describeBranchActivity (message, branchName) {
       const soFar = message.amount ?? 0
       return {
         text: `${branch}: customer ${word} — ${soFar} ${word} today`,
+        shortText: `${branch}: ${soFar} ${word}`,
         color: 'info',
         icon: isOut ? 'mdi-account-arrow-left' : 'mdi-account-arrow-right',
         money: false,

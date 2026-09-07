@@ -28,25 +28,25 @@ import (
 // ever horizontally scaled.
 type branchHub struct {
 	mu    sync.RWMutex
-	conns map[int64]*websocket.Conn
+	conns map[int64]*wsConn
 }
 
 func newBranchHub() *branchHub {
-	return &branchHub{conns: make(map[int64]*websocket.Conn)}
+	return &branchHub{conns: make(map[int64]*wsConn)}
 }
 
-func (h *branchHub) add(branchID int64, conn *websocket.Conn) {
+func (h *branchHub) add(branchID int64, conn *wsConn) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if existing, ok := h.conns[branchID]; ok {
 		// A branch reconnecting (e.g. after a network blip) shouldn't leave
 		// the old socket open and leaking — replace it, closing the old one.
-		existing.Close()
+		existing.close()
 	}
 	h.conns[branchID] = conn
 }
 
-func (h *branchHub) remove(branchID int64, conn *websocket.Conn) {
+func (h *branchHub) remove(branchID int64, conn *wsConn) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if h.conns[branchID] == conn {
@@ -94,7 +94,7 @@ func (h *branchHub) notify(branchID int64, message branchWSMessage) {
 	if !ok {
 		return
 	}
-	if err := conn.WriteJSON(message); err != nil {
+	if err := conn.writeJSON(message); err != nil {
 		log.Printf("branch hub: notify branch %d failed: %v", branchID, err)
 	}
 }
@@ -108,7 +108,7 @@ func (h *branchHub) broadcastAll(message branchWSMessage) {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	for branchID, conn := range h.conns {
-		if err := conn.WriteJSON(message); err != nil {
+		if err := conn.writeJSON(message); err != nil {
 			log.Printf("branch hub: notify branch %d failed: %v", branchID, err)
 		}
 	}
@@ -137,10 +137,11 @@ func (server *Server) branchWS(ctx *gin.Context) {
 	}
 	defer conn.Close()
 
-	server.branchHub.add(branchID, conn)
+	wrapped := newWSConn(conn)
+	server.branchHub.add(branchID, wrapped)
 	server.adminHub.broadcastAll(adminWSMessage{Type: "branch_connection_changed", BranchIDs: server.branchHub.connectedBranchIDs()})
 	defer func() {
-		server.branchHub.remove(branchID, conn)
+		server.branchHub.remove(branchID, wrapped)
 		server.adminHub.broadcastAll(adminWSMessage{Type: "branch_connection_changed", BranchIDs: server.branchHub.connectedBranchIDs()})
 	}()
 

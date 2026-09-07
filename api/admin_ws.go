@@ -28,20 +28,20 @@ import (
 // truth for anything that matters.
 type adminHub struct {
 	mu    sync.RWMutex
-	conns map[*websocket.Conn]bool
+	conns map[*wsConn]bool
 }
 
 func newAdminHub() *adminHub {
-	return &adminHub{conns: make(map[*websocket.Conn]bool)}
+	return &adminHub{conns: make(map[*wsConn]bool)}
 }
 
-func (h *adminHub) add(conn *websocket.Conn) {
+func (h *adminHub) add(conn *wsConn) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.conns[conn] = true
 }
 
-func (h *adminHub) remove(conn *websocket.Conn) {
+func (h *adminHub) remove(conn *wsConn) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	delete(h.conns, conn)
@@ -92,7 +92,7 @@ func (h *adminHub) broadcastAll(message adminWSMessage) {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	for conn := range h.conns {
-		if err := conn.WriteJSON(message); err != nil {
+		if err := conn.writeJSON(message); err != nil {
 			log.Printf("admin hub: broadcast failed: %v", err)
 		}
 	}
@@ -126,8 +126,9 @@ func (server *Server) adminWS(ctx *gin.Context) {
 	}
 	defer conn.Close()
 
-	server.adminHub.add(conn)
-	defer server.adminHub.remove(conn)
+	wrapped := newWSConn(conn)
+	server.adminHub.add(wrapped)
+	defer server.adminHub.remove(wrapped)
 
 	for {
 		if _, _, err := conn.ReadMessage(); err != nil {

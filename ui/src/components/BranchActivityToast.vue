@@ -50,9 +50,12 @@
   const { ensureConnected, onMessage } = useAdminSocket()
   const settingsStore = useSettingsStore()
 
+  // Sliding window of the most recent MAX_VISIBLE toasts, newest nearest the
+  // corner. A fresh toast appears immediately and bumps the oldest out --
+  // no queue that spaces them apart -- while each still self-dismisses after
+  // activityMessageSeconds so the row drains once activity stops.
   const MAX_VISIBLE = 3
-  const queue = ref([])
-  const activeItems = ref([]) // oldest first; newest renders nearest the corner
+  const activeItems = ref([]) // oldest first
   const itemTimers = new Map()
   let itemSeq = 0
   let unsubscribe = null
@@ -67,20 +70,11 @@
     return 'text-yellow'
   }
 
-  function scheduleRemoval (id) {
-    itemTimers.set(id, setTimeout(() => removeItem(id), settingsStore.activityMessageSeconds * 1000))
-  }
-
   function removeItem (id) {
     clearTimeout(itemTimers.get(id))
     itemTimers.delete(id)
     const i = activeItems.value.findIndex(it => it.id === id)
     if (i !== -1) activeItems.value.splice(i, 1)
-    if (queue.value.length > 0 && activeItems.value.length < MAX_VISIBLE) {
-      const next = queue.value.shift()
-      activeItems.value.push(next)
-      scheduleRemoval(next.id)
-    }
   }
 
   function pushToast (message) {
@@ -99,11 +93,10 @@
       kindWord: described.kindWord,
       colorClass: amountColorClass(message.amount),
     }
-    if (activeItems.value.length < MAX_VISIBLE) {
-      activeItems.value.push(item)
-      scheduleRemoval(item.id)
-    } else {
-      queue.value.push(item)
+    activeItems.value.push(item)
+    itemTimers.set(item.id, setTimeout(() => removeItem(item.id), settingsStore.activityMessageSeconds * 1000))
+    while (activeItems.value.length > MAX_VISIBLE) {
+      removeItem(activeItems.value[0].id)
     }
   }
 

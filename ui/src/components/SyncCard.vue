@@ -11,9 +11,9 @@
       >
         <v-icon
           :class="{ 'me-2': !mobile }"
-          :size="mobile ? 20 : undefined"
           :color="activeItems.length > 0 ? activeItems[0].color : wsIconColor"
           icon="mdi-cloud"
+          :size="mobile ? 20 : undefined"
         />
         <div v-if="!mobile" class="text-body-2 ticker">
           <TransitionGroup class="d-flex align-center" name="ticker" tag="div">
@@ -99,33 +99,24 @@
   const wsIconColor = computed(() => (serverDown.value ? undefined : 'success'))
 
   // 'appbar' mode: branch activity (sales/returns/expenses) rides on the
-  // card's line for a few seconds at a time. Up to MAX_VISIBLE messages show
-  // side by side, newest on the right; a burst beyond that queues and slots
-  // in as older ones expire, so nothing is lost, just delayed. Once every
-  // message has aged out, the card falls back to the normal "synced ... ago"
-  // text. In 'notification' mode (the default), BranchActivityToast owns
-  // this instead and neither list is ever fed -- see the onMessage handler.
+  // card's line. It's a sliding window of the most recent MAX_VISIBLE
+  // messages, newest on the right -- a fresh message shows immediately and
+  // bumps the oldest one out rather than waiting in a queue, so a burst
+  // scrolls straight through. Each message also carries its own
+  // activityMessageSeconds lifetime, so once activity stops the window
+  // drains over that long and the card falls back to "synced ... ago". In
+  // 'notification' mode (the default) BranchActivityToast owns this instead
+  // and activeItems is never fed -- see the onMessage handler.
   const MAX_VISIBLE = 3
-  const activityQueue = ref([])
   const activeItems = ref([]) // [{ id, text, color, trendIcon }], oldest first
   const itemTimers = new Map()
   let itemSeq = 0
 
-  function scheduleRemoval (id) {
-    itemTimers.set(id, setTimeout(() => removeItem(id), settingsStore.activityMessageSeconds * 1000))
-  }
-
-  function removeItem (id) {
+  function dropItem (id) {
     clearTimeout(itemTimers.get(id))
     itemTimers.delete(id)
     const i = activeItems.value.findIndex(it => it.id === id)
     if (i !== -1) activeItems.value.splice(i, 1)
-    // Pull the next queued message into the freed slot, if any.
-    if (activityQueue.value.length > 0 && activeItems.value.length < MAX_VISIBLE) {
-      const next = activityQueue.value.shift()
-      activeItems.value.push(next)
-      scheduleRemoval(next.id)
-    }
   }
 
   function pushActivity (message) {
@@ -137,11 +128,12 @@
       color: described.color,
       trendIcon: described.trendIcon,
     }
-    if (activeItems.value.length < MAX_VISIBLE) {
-      activeItems.value.push(item)
-      scheduleRemoval(item.id)
-    } else {
-      activityQueue.value.push(item)
+    activeItems.value.push(item)
+    itemTimers.set(item.id, setTimeout(() => dropItem(item.id), settingsStore.activityMessageSeconds * 1000))
+    // Newer message arrived while the window was full -- evict the oldest
+    // now, no waiting.
+    while (activeItems.value.length > MAX_VISIBLE) {
+      dropItem(activeItems.value[0].id)
     }
   }
 

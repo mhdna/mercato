@@ -41,7 +41,7 @@
     </div>
 
     <v-alert v-else-if="rows.length === 0" class="ff-notice mx-4" type="info" variant="tonal">
-      No visitor counts in this range. Branches send these from the nav-drawer people counter in the POS.
+      No visitor counts in this range.
     </v-alert>
 
     <v-container v-else class="pa-4 pt-2" fluid>

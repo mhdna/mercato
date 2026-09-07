@@ -7,7 +7,7 @@
     </div>
 
     <v-alert v-else-if="branchCards.length === 0" type="info" variant="tonal">
-      No visitor counts reported yet. Branches send these from the nav-drawer people counter in the POS.
+      No visitor counts reported yet.
     </v-alert>
 
     <div v-else class="visitors-grid">

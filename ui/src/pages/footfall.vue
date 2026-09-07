@@ -32,7 +32,7 @@
       </v-select>
     </div>
 
-    <v-alert v-if="error" class="mx-4 mb-2" density="compact" type="error" variant="tonal">
+    <v-alert v-if="error" class="ff-notice mx-4 mb-2" density="compact" type="error" variant="tonal">
       {{ error }}
     </v-alert>
 
@@ -40,7 +40,7 @@
       <v-progress-circular color="primary" indeterminate />
     </div>
 
-    <v-alert v-else-if="rows.length === 0" class="mx-4" type="info" variant="tonal">
+    <v-alert v-else-if="rows.length === 0" class="ff-notice mx-4" type="info" variant="tonal">
       No visitor counts in this range. Branches send these from the nav-drawer people counter in the POS.
     </v-alert>
 
@@ -216,13 +216,17 @@
     return { from: ymd(start), to: ymd(today), prevFrom: ymd(prevStart) }
   })
 
+  function fetchWindow () {
+    const { prevFrom, to } = windowBounds.value
+    return listVisitorStats({ from: prevFrom, to })
+  }
+
   async function load () {
     loading.value = true
     error.value = ''
     try {
       await fetchBranches()
-      const { prevFrom, to } = windowBounds.value
-      allDays.value = await listVisitorStats({ from: prevFrom, to })
+      allDays.value = await fetchWindow()
     } catch (error_) {
       error.value = error_.message
     } finally {
@@ -230,11 +234,53 @@
     }
   }
 
-  // Coalesce a burst of live presses into one refetch.
+  // Background refetch -- no full-page spinner, and it keeps the last good
+  // data on failure. Reconciles the optimistic updates below against the
+  // server (other branches, out-of-order or missed pushes).
+  const refreshing = ref(false)
+  async function backgroundRefresh () {
+    if (refreshing.value) return
+    refreshing.value = true
+    try {
+      allDays.value = await fetchWindow()
+      error.value = ''
+    } catch { /* keep showing the last successful fetch */ } finally {
+      refreshing.value = false
+    }
+  }
+
+  // Apply a live counter press to the in-memory rollup immediately, so the
+  // charts and KPIs move the instant a customer is counted instead of
+  // waiting for the debounced refetch. message.amount is the authoritative
+  // running gross tally for that branch/day/direction, so set (clamped
+  // upward) rather than blindly increment -- a duplicate push is then a
+  // no-op.
+  function applyLiveEvent (message) {
+    const day = message.label
+    const branchId = Number(message.branch_id)
+    if (!day || !branchId) return
+    const key = message.kind === 'out' ? 'out_count' : 'in_count'
+    const n = Number(message.amount) || 0
+    const row = allDays.value.find(r => r.branch_id === branchId && r.day === day)
+    if (row) {
+      row[key] = Math.max(row[key] ?? 0, n)
+    } else {
+      allDays.value = [
+        ...allDays.value,
+        { branch_id: branchId, day, in_count: key === 'in_count' ? n : 0, out_count: key === 'out_count' ? n : 0 },
+      ]
+    }
+  }
+
+  // Trailing debounce that can't be starved: once a refetch is pending it
+  // stays pending (~4s out) no matter how many more presses arrive.
   let refreshTimer = null
   function scheduleRefresh () {
-    clearTimeout(refreshTimer)
-    refreshTimer = setTimeout(load, 2000)
+    if (refreshTimer) return
+    refreshTimer = setTimeout(() => {
+      refreshTimer = null
+      backgroundRefresh()
+    }, 4000)
   }
   let unsubscribe = null
 
@@ -242,7 +288,9 @@
     load()
     ensureConnected()
     unsubscribe = onMessage(message => {
-      if (message.type === 'branch_visitor_event') scheduleRefresh()
+      if (message.type !== 'branch_visitor_event') return
+      applyLiveEvent(message)
+      scheduleRefresh()
     })
   })
   onUnmounted(() => {
@@ -519,11 +567,22 @@
 </script>
 
 <style scoped>
+/* v-alert defaults to flex: 1 1 inside a flex column, which stretched the
+   empty / error notice to the whole page -- pin it to its content height. */
+.ff-notice {
+  flex: 0 0 auto;
+}
+/* Cards in the same v-row share the row's height (v-row stretches its
+   columns); the chart then fills whatever vertical space is left after the
+   header, so two cards with different header heights still line up. */
 .chart-card {
   padding: 12px 14px 4px;
   margin-bottom: 8px;
   border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
   border-radius: 10px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 .chart-card__title {
   font-size: 0.9rem;
@@ -536,7 +595,8 @@
   margin-bottom: 4px;
 }
 .chart {
-  height: 280px;
+  flex: 1 1 auto;
+  min-height: 260px;
   width: 100%;
 }
 .table-scroll {

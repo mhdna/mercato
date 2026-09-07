@@ -3,7 +3,8 @@
     <template #activator="{ props }">
       <v-card
         v-bind="props"
-        class="d-flex align-center py-1 px-2"
+        class="d-flex align-center"
+        :class="mobile ? 'icon-pill' : 'py-1 px-2'"
         rounded="xl"
         style="cursor: pointer"
         variant="tonal"
@@ -15,7 +16,7 @@
           icon="mdi-circle"
           size="16"
         />
-        <span class="ms-1 text-body-2">
+        <span v-if="!mobile" class="ms-1 text-body-2">
           <template v-if="serverDown">Server is down, we'll be back soon.</template>
           <template v-else>
             {{ connectedBranchIds.length }} {{ connectedBranchIds.length === 1 ? 'device' : 'devices' }} online
@@ -47,11 +48,13 @@
 
 <script setup>
   import { computed, onMounted, onUnmounted, ref } from 'vue'
+  import { useDisplay } from 'vuetify'
   import { useAdminSocket } from '@/composables/useAdminSocket'
   import { useBranches } from '@/composables/useBranches'
 
   const { branches, fetchBranches, fetchConnectedBranches } = useBranches()
   const { status, ensureConnected, onMessage } = useAdminSocket()
+  const { mobile } = useDisplay()
 
   const menu = ref(false)
   const connectedBranchIds = ref([])
@@ -96,5 +99,13 @@
   .status-dot--outlined {
     border: 1px solid rgba(var(--v-border-color), 0.4);
     border-radius: 50%;
+  }
+
+  /* On mobile the pill collapses to just the status dot -- fix it to the same
+     square SyncCard's icon-only pill uses so the two sit level. */
+  .icon-pill {
+    width: 34px;
+    height: 34px;
+    justify-content: center;
   }
 </style>

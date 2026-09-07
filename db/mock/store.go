@@ -4247,6 +4247,21 @@ func (mr *MockStoreMockRecorder) ListBranchInvoicesPage(arg0, arg1 interface{}) 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListBranchInvoicesPage", reflect.TypeOf((*MockStore)(nil).ListBranchInvoicesPage), arg0, arg1)
 }
 
+// ListBranchSalesDaysRange mocks base method.
+func (m *MockStore) ListBranchSalesDaysRange(arg0 context.Context, arg1 db.ListBranchSalesDaysRangeParams) ([]db.ListBranchSalesDaysRangeRow, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListBranchSalesDaysRange", arg0, arg1)
+	ret0, _ := ret[0].([]db.ListBranchSalesDaysRangeRow)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListBranchSalesDaysRange indicates an expected call of ListBranchSalesDaysRange.
+func (mr *MockStoreMockRecorder) ListBranchSalesDaysRange(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListBranchSalesDaysRange", reflect.TypeOf((*MockStore)(nil).ListBranchSalesDaysRange), arg0, arg1)
+}
+
 // ListBranchShifts mocks base method.
 func (m *MockStore) ListBranchShifts(arg0 context.Context, arg1 db.ListBranchShiftsParams) ([]db.BranchShift, error) {
 	m.ctrl.T.Helper()

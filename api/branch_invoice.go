@@ -2,6 +2,7 @@ package api
 
 import (
 	"database/sql"
+	"errors"
 	"net/http"
 	"time"
 
@@ -171,4 +172,64 @@ func (server *Server) dailyIncome(ctx *gin.Context) {
 	}
 
 	server.writeJSON(ctx, http.StatusOK, envelope{"year": req.Year, "days": entries})
+}
+
+type listBranchSalesStatsRequest struct {
+	From     string `form:"from" binding:"required,datetime=2006-01-02"`
+	To       string `form:"to" binding:"required,datetime=2006-01-02"`
+	BranchID int64  `form:"branch_id"`
+}
+
+type branchSalesDayEntry struct {
+	BranchID     int64  `json:"branch_id"`
+	Day          string `json:"day"`
+	InvoiceCount int64  `json:"invoice_count"`
+	Revenue      int64  `json:"revenue"`
+}
+
+// listBranchSalesStats is the sales-side companion to listBranchVisitorStats
+// (branch_visitor.go): the same (branch, day) shape over the same date-range
+// contract, so the Footfall page can put walk-ins next to sales for one
+// window -- conversion rate, average ticket -- without a second date scheme.
+func (server *Server) listBranchSalesStats(ctx *gin.Context) {
+	var req listBranchSalesStatsRequest
+	if err := ctx.ShouldBindQuery(&req); err != nil {
+		server.writeError(ctx, http.StatusBadRequest, err)
+		return
+	}
+	if req.From > req.To {
+		server.writeError(ctx, http.StatusBadRequest, errors.New("from date is after to date"))
+		return
+	}
+
+	// The binding tag already guaranteed the layout parses.
+	from, _ := time.Parse("2006-01-02", req.From)
+	to, _ := time.Parse("2006-01-02", req.To)
+
+	var branchID sql.NullInt64
+	if req.BranchID > 0 {
+		branchID = sql.NullInt64{Int64: req.BranchID, Valid: true}
+	}
+
+	rows, err := server.store.ListBranchSalesDaysRange(ctx, db.ListBranchSalesDaysRangeParams{
+		FromDay:  from,
+		ToDay:    to,
+		BranchID: branchID,
+	})
+	if err != nil {
+		server.writeError(ctx, http.StatusInternalServerError, err)
+		return
+	}
+
+	entries := make([]branchSalesDayEntry, len(rows))
+	for i, row := range rows {
+		entries[i] = branchSalesDayEntry{
+			BranchID:     row.BranchID,
+			Day:          row.Day.Format("2006-01-02"),
+			InvoiceCount: row.InvoiceCount,
+			Revenue:      row.Revenue,
+		}
+	}
+
+	server.writeJSON(ctx, http.StatusOK, envelope{"sales_days": entries})
 }

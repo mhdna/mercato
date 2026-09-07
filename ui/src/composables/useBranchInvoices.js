@@ -55,5 +55,20 @@ export function useBranchInvoices () {
     return data?.command ?? null
   }
 
-  return { listBranchInvoiceItems, listRecentBranchInvoices, requestRemoteReturn }
+  // listSalesStats returns { branch_id, day, invoice_count, revenue } rollup
+  // rows (sales only, revenue in cents) over an inclusive YYYY-MM-DD range,
+  // unpaginated -- the sales-side mirror of useBranchVisitors' listVisitorStats,
+  // so the Footfall page can line walk-ins up against sales for one window.
+  async function listSalesStats ({ from, to, branchId } = {}) {
+    const url = new URL(`${API_BASE}/branch_sales_stats`, window.location.origin)
+    url.searchParams.set('from', from)
+    url.searchParams.set('to', to)
+    if (branchId) {
+      url.searchParams.set('branch_id', String(branchId))
+    }
+    const data = await requestJSON(url.toString())
+    return data?.sales_days ?? []
+  }
+
+  return { listBranchInvoiceItems, listRecentBranchInvoices, requestRemoteReturn, listSalesStats }
 }

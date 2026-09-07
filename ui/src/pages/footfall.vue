@@ -67,21 +67,61 @@
         </v-col>
       </v-row>
 
-      <!-- Trend + weekday -->
+      <!-- Daily heatmap + weekday -->
       <v-row>
         <v-col cols="12" md="8">
           <v-card class="chart-card" variant="flat">
             <div class="chart-card__title">Daily footfall — customers in</div>
-            <div v-if="tooManyBranchesForTrend" class="chart-card__subtitle">
-              {{ activeBranchIds.length }} branches selected — showing the combined total. Narrow the branch filter to compare individual lines.
+            <div class="ff-heat-wrap">
+              <table class="ff-heat" @mouseleave="heatHoverCol = null">
+                <thead>
+                  <tr>
+                    <th class="ff-heat__daycol">Day</th>
+                    <th
+                      v-for="(m, mi) in heatMonths"
+                      :key="m"
+                      :class="{ 'ff-heat__col-hover': heatHoverCol === mi }"
+                      @mouseenter="heatHoverCol = mi"
+                    >
+                      {{ monthLabel(m) }}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="d in 31" :key="d">
+                    <td class="ff-heat__daycol">{{ d }}</td>
+                    <td
+                      v-for="(m, mi) in heatMonths"
+                      :key="m"
+                      :class="{ 'ff-heat__col-hover': heatHoverCol === mi }"
+                      :style="d <= heatDaysInMonth[mi] ? heatCellStyle(heatGrid[mi][d - 1]) : {}"
+                      @mouseenter="heatHoverCol = mi"
+                    >
+                      {{ d <= heatDaysInMonth[mi] && heatGrid[mi][d - 1] != null ? heatGrid[mi][d - 1].toLocaleString() : '' }}
+                    </td>
+                  </tr>
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td class="ff-heat__daycol ff-heat__foot">Total</td>
+                    <td
+                      v-for="(m, mi) in heatMonths"
+                      :key="m"
+                      class="ff-heat__foot"
+                      :class="{ 'ff-heat__col-hover': heatHoverCol === mi }"
+                      @mouseenter="heatHoverCol = mi"
+                    >
+                      {{ (heatMonthTotals[mi] ?? 0).toLocaleString() }}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
             </div>
-            <v-chart autoresize class="chart" :option="trendOption" />
           </v-card>
         </v-col>
         <v-col cols="12" md="4">
           <v-card class="chart-card" variant="flat">
             <div class="chart-card__title">Average by weekday</div>
-            <div class="chart-card__subtitle">Mean customers in per day of week over the range</div>
             <v-chart autoresize class="chart" :option="weekdayOption" />
           </v-card>
         </v-col>
@@ -181,11 +221,6 @@
     { title: 'Last 6 months', value: 6 },
     { title: 'Last 12 months', value: 12 },
   ]
-  // Above this many branches the per-branch trend lines stop being
-  // readable (echarts would cycle its palette); fall back to one combined
-  // line instead of inventing colours.
-  const MAX_TREND_BRANCHES = 6
-
   const rangeMonths = ref(6)
   const selectedBranchIds = ref([]) // empty = all
 
@@ -414,57 +449,51 @@
     ]
   })
 
-  // --- charts -----------------------------------------------------------
-  const tooManyBranchesForTrend = computed(() => activeBranchIds.value.length > MAX_TREND_BRANCHES)
-
-  const trendOption = computed(() => {
-    const xs = days.value
-    const byDayBranch = {}
+  // --- daily heatmap --------------------------------------------------
+  // Day-of-month (rows 1-31) x window month (columns), each cell the total
+  // customers in on that date across the active branches -- the same
+  // month x day grid the Daily income table uses, tinted orange.
+  const heatHoverCol = ref(null)
+  const heatMonths = computed(() => months.value)
+  const heatDaysInMonth = computed(() =>
+    heatMonths.value.map(key => {
+      const [y, m] = key.split('-').map(Number)
+      return new Date(y, m, 0).getDate() // day 0 of next month = last day of this one
+    }),
+  )
+  // grid[monthIndex][day-1]: number, or null for days with no row at all
+  // (nothing counted / future) so those cells stay blank and uncoloured.
+  const heatGrid = computed(() => {
+    const grid = heatMonths.value.map(() => Array.from({ length: 31 }, () => null))
+    const idx = new Map(heatMonths.value.map((m, i) => [m, i]))
     for (const r of rows.value) {
-      byDayBranch[r.branch_id] ??= {}
-      byDayBranch[r.branch_id][r.day] = r.in_count
+      const mi = idx.get(r.day.slice(0, 7))
+      if (mi == null) continue
+      const d = Number(r.day.slice(8, 10)) - 1
+      grid[mi][d] = (grid[mi][d] ?? 0) + r.in_count
     }
-
-    let series
-    if (tooManyBranchesForTrend.value) {
-      const byDay = {}
-      for (const r of rows.value) byDay[r.day] = (byDay[r.day] ?? 0) + r.in_count
-      series = [{
-        name: 'All selected branches',
-        type: 'line',
-        smooth: true,
-        showSymbol: false,
-        lineStyle: { width: 2 },
-        itemStyle: { color: primary.value },
-        areaStyle: { opacity: 0.08 },
-        data: xs.map(d => byDay[d] ?? 0),
-      }]
-    } else {
-      series = activeBranchIds.value.map(id => ({
-        name: branchName(id),
-        type: 'line',
-        smooth: true,
-        showSymbol: false,
-        lineStyle: { width: 2 },
-        data: xs.map(d => byDayBranch[id]?.[d] ?? 0),
-      }))
-    }
-
-    return {
-      grid: { top: series.length > 1 ? 34 : 20, right: 12, bottom: 28, left: 44 },
-      tooltip: { trigger: 'axis', appendTo: 'body' },
-      legend: series.length > 1 ? { ...legendBase.value, data: series.map(s => s.name) } : undefined,
-      xAxis: {
-        type: 'category',
-        boundaryGap: false,
-        data: xs.map(d => d.slice(5)),
-        ...catAxis.value,
-      },
-      yAxis: { type: 'value', minInterval: 1, ...valAxis.value },
-      series,
-    }
+    return grid
   })
+  const heatMonthTotals = computed(() =>
+    heatGrid.value.map(col => col.reduce((t, v) => t + (v ?? 0), 0)),
+  )
+  const heatMax = computed(() => {
+    const vals = heatGrid.value.flat().filter(v => v != null)
+    return vals.length > 0 ? Math.max(...vals) : 1
+  })
+  function heatCellStyle (v) {
+    if (v == null) return {}
+    const t = v / heatMax.value
+    // Match HeatmapTable's 0.08 floor + 0.85 ramp, on a fixed orange since
+    // there's no orange theme token.
+    const alpha = 0.08 + t * 0.85
+    return {
+      backgroundColor: `rgba(255, 140, 0, ${alpha})`,
+      color: t > 0.55 ? '#fff' : 'inherit',
+    }
+  }
 
+  // --- charts -----------------------------------------------------------
   const weekdayOption = computed(() => {
     const LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
     const totals = Array.from({ length: 7 }, () => 0)
@@ -600,5 +629,58 @@
 .table-scroll {
   overflow-x: auto;
   padding-bottom: 8px;
+}
+
+/* Daily footfall heatmap -- month x day grid, orange heat, sticky day
+   column + header so the grid scrolls under them (mirrors HeatmapTable). */
+.ff-heat-wrap {
+  max-height: 300px;
+  overflow: auto;
+  margin-bottom: 8px;
+}
+.ff-heat {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 12px;
+}
+.ff-heat th,
+.ff-heat td {
+  padding: 4px 10px;
+  text-align: center;
+  white-space: nowrap;
+  border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+}
+.ff-heat thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  text-align: center;
+  font-weight: 500;
+  background: rgb(var(--v-theme-surface));
+}
+.ff-heat__daycol {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  font-weight: 500;
+  background: rgb(var(--v-theme-surface));
+}
+.ff-heat thead .ff-heat__daycol {
+  z-index: 3;
+}
+.ff-heat__col-hover {
+  background-image: linear-gradient(rgba(255, 140, 0, 0.16), rgba(255, 140, 0, 0.16));
+}
+.ff-heat tfoot td {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  font-weight: 600;
+  border-bottom: none;
+  border-top: 2px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  background: rgb(var(--v-theme-surface));
+}
+.ff-heat tfoot .ff-heat__daycol {
+  z-index: 3;
 }
 </style>

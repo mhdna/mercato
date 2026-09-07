@@ -3,29 +3,36 @@
     <template #activator="{ props }">
       <v-card
         v-bind="props"
-        class="d-flex align-center py-1 px-2 me-2"
+        class="d-flex align-center me-2"
+        :class="mobile ? 'icon-pill' : 'py-1 px-2'"
         rounded="xl"
         style="cursor: pointer"
         variant="tonal"
       >
         <v-icon
-          class="me-2"
-          :color="currentActivity ? currentActivity.color : wsIconColor"
+          :class="{ 'me-2': !mobile }"
+          :size="mobile ? 20 : undefined"
+          :color="activeItems.length > 0 ? activeItems[0].color : wsIconColor"
           icon="mdi-cloud"
         />
-        <div class="text-body-2 ticker">
-          <Transition mode="out-in" name="ticker">
-            <span :key="displayKey">
+        <div v-if="!mobile" class="text-body-2 ticker">
+          <TransitionGroup class="d-flex align-center" name="ticker" tag="div">
+            <span
+              v-for="item in activeItems"
+              :key="`activity-${item.id}`"
+              class="activity-item d-inline-flex align-center"
+            >
               <v-icon
-                v-if="currentActivity && currentActivity.trendIcon"
+                v-if="item.trendIcon"
                 class="me-1"
-                :color="currentActivity.color"
-                :icon="currentActivity.trendIcon"
+                :color="item.color"
+                :icon="item.trendIcon"
                 size="16"
               />
-              {{ displayText }}
+              {{ item.text }}
             </span>
-          </Transition>
+            <span v-if="activeItems.length === 0" key="status">{{ statusText }}</span>
+          </TransitionGroup>
         </div>
       </v-card>
     </template>
@@ -58,6 +65,7 @@
 
 <script setup>
   import { computed, onMounted, onUnmounted, ref } from 'vue'
+  import { useDisplay } from 'vuetify'
   import { useAdminSocket } from '@/composables/useAdminSocket'
   import { describeBranchActivity, isBranchActivityMessage } from '@/composables/useBranchActivityMessage'
   import { useBranches } from '@/composables/useBranches'
@@ -68,6 +76,7 @@
   const { listRecentBranchInvoices } = useBranchInvoices()
   const { status: wsStatus, ensureConnected, onMessage } = useAdminSocket()
   const settingsStore = useSettingsStore()
+  const { mobile } = useDisplay()
 
   const menu = ref(false)
   const loaded = ref(false)
@@ -89,47 +98,50 @@
   const serverDown = computed(() => wsStatus.value !== 'open')
   const wsIconColor = computed(() => (serverDown.value ? undefined : 'success'))
 
-  // 'appbar' mode: branch activity (sales/returns/expenses) takes over the
-  // card's single line for a few seconds at a time, one message at a time
-  // -- queued rather than shown all at once, so a burst of simultaneous
-  // branch activity doesn't get lost, just delayed. Once the queue drains,
-  // the card falls back to the normal "synced ... ago" text. In
-  // 'notification' mode (the default), BranchActivityToast owns this
-  // instead and this queue is never fed -- see the onMessage handler below.
+  // 'appbar' mode: branch activity (sales/returns/expenses) rides on the
+  // card's line for a few seconds at a time. Up to MAX_VISIBLE messages show
+  // side by side, newest on the right; a burst beyond that queues and slots
+  // in as older ones expire, so nothing is lost, just delayed. Once every
+  // message has aged out, the card falls back to the normal "synced ... ago"
+  // text. In 'notification' mode (the default), BranchActivityToast owns
+  // this instead and neither list is ever fed -- see the onMessage handler.
+  const MAX_VISIBLE = 3
   const activityQueue = ref([])
-  const currentActivity = ref(null)
-  // Bumped on every cycle (including the final flip back to statusText) so
-  // the ticker <Transition> below always sees a fresh :key and replays its
-  // slide animation -- without this, statusText's own passive updates
-  // (relative time ticking every 30s) would either wrongly replay the
-  // transition or, if keyed by text, fail to replay on a repeated amount.
-  const activitySeq = ref(0)
-  let activityTimer = null
+  const activeItems = ref([]) // [{ id, text, color, trendIcon }], oldest first
+  const itemTimers = new Map()
+  let itemSeq = 0
 
-  const displayText = computed(() => (currentActivity.value ? currentActivity.value.text : statusText.value))
-  const displayKey = computed(() => (currentActivity.value ? `activity-${activitySeq.value}` : 'status'))
+  function scheduleRemoval (id) {
+    itemTimers.set(id, setTimeout(() => removeItem(id), settingsStore.activityMessageSeconds * 1000))
+  }
 
-  function advanceActivity () {
-    activitySeq.value++
-    if (activityQueue.value.length === 0) {
-      currentActivity.value = null
-      activityTimer = null
-      return
+  function removeItem (id) {
+    clearTimeout(itemTimers.get(id))
+    itemTimers.delete(id)
+    const i = activeItems.value.findIndex(it => it.id === id)
+    if (i !== -1) activeItems.value.splice(i, 1)
+    // Pull the next queued message into the freed slot, if any.
+    if (activityQueue.value.length > 0 && activeItems.value.length < MAX_VISIBLE) {
+      const next = activityQueue.value.shift()
+      activeItems.value.push(next)
+      scheduleRemoval(next.id)
     }
-    currentActivity.value = activityQueue.value.shift()
-    activityTimer = setTimeout(advanceActivity, settingsStore.activityMessageSeconds * 1000)
   }
 
   function pushActivity (message) {
     const described = describeBranchActivity(message, branchName)
     if (!described) return
-    activityQueue.value.push({
+    const item = {
+      id: ++itemSeq,
       text: described.text,
       color: described.color,
       trendIcon: described.trendIcon,
-    })
-    if (!activityTimer) {
-      advanceActivity()
+    }
+    if (activeItems.value.length < MAX_VISIBLE) {
+      activeItems.value.push(item)
+      scheduleRemoval(item.id)
+    } else {
+      activityQueue.value.push(item)
     }
   }
 
@@ -210,21 +222,36 @@
   onUnmounted(() => {
     clearInterval(refreshTimer)
     clearInterval(clockTimer)
-    clearTimeout(activityTimer)
+    for (const timer of itemTimers.values()) clearTimeout(timer)
     unsubscribe?.()
   })
 </script>
 
 <style scoped>
-/* Stock-ticker-style vertical roll: the outgoing line slides up and out
-   while the incoming one slides up and in from below, like a flip/odometer
-   readout rather than a plain crossfade. */
+/* On mobile the pill shrinks to just its icon -- fix it to a square that
+   matches ConnectedBranchesCard's icon-only pill. */
+.icon-pill {
+  width: 34px;
+  height: 34px;
+  justify-content: center;
+}
+
 .ticker {
   position: relative;
   overflow: hidden;
   white-space: nowrap;
+  max-width: min(52vw, 640px);
 }
 
+/* Thin dot between adjacent messages in the reel. */
+.activity-item + .activity-item::before {
+  content: "·";
+  margin: 0 8px;
+  opacity: 0.5;
+}
+
+/* A message slides up as it ages out, the next slides in from below, and the
+   surviving siblings ease across to fill the gap (ticker-move). */
 .ticker-enter-active,
 .ticker-leave-active {
   transition: transform 0.35s ease, opacity 0.35s ease;
@@ -238,5 +265,13 @@
 .ticker-leave-to {
   transform: translateY(-100%);
   opacity: 0;
+}
+
+.ticker-leave-active {
+  position: absolute;
+}
+
+.ticker-move {
+  transition: transform 0.35s ease;
 }
 </style>

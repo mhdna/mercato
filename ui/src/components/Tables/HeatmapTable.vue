@@ -6,20 +6,20 @@
           <th class="sticky-col day-col year-nav">
             <v-btn
               aria-label="Previous year"
-              density="compact"
+              color="primary"
               icon="mdi-chevron-left"
-              size="x-small"
-              variant="text"
+              size="small"
+              variant="tonal"
               @click="selectedYear--"
             />
             <span>{{ selectedYear }}</span>
             <v-btn
               aria-label="Next year"
-              density="compact"
+              color="primary"
               :disabled="selectedYear >= currentYear"
               icon="mdi-chevron-right"
-              size="x-small"
-              variant="text"
+              size="small"
+              variant="tonal"
               @click="selectedYear++"
             />
           </th>
@@ -279,9 +279,16 @@
   text-align: center !important;
 }
 
+.year-nav > * {
+  vertical-align: middle;
+}
+
 .year-nav span {
   display: inline-block;
-  min-width: 38px;
+  min-width: 46px;
+  margin: 0 2px;
+  font-size: 0.95rem;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 

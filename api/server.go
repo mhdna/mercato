@@ -272,6 +272,7 @@ func (server *Server) setupRoutes() {
 	authRoutes.GET("/branch_invoices", server.listBranchInvoices)
 	authRoutes.GET("/branch_invoices/:id/items", server.listBranchInvoiceItems)
 	authRoutes.GET("/branch_invoices/daily_income", server.dailyIncome)
+	authRoutes.GET("/branch_sales_stats", server.listBranchSalesStats)
 	authRoutes.GET("/branch_shifts", server.listBranchShifts)
 	authRoutes.GET("/branch_visitor_events", server.listBranchVisitorDays)
 	authRoutes.GET("/branch_visitor_stats", server.listBranchVisitorStats)

@@ -9,6 +9,7 @@ export const navItems = [
       { title: 'Financials', icon: 'mdi-currency-usd', to: '/financials' },
       { title: 'Targets', icon: 'mdi-target', to: '/targets' },
       { title: 'Footfall', icon: 'mdi-walk', to: '/footfall' },
+      { title: 'Conversion', icon: 'mdi-percent-outline', to: '/conversion' },
       {
         title: 'Stock Health',
         icon: 'mdi-heart-pulse',

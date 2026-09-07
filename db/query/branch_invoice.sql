@@ -109,3 +109,29 @@ WHERE occurred_at >= make_date(sqlc.arg(year)::int, 1, 1)
   AND (sqlc.narg(branch_id)::bigint IS NULL OR branch_id = sqlc.narg(branch_id))
 GROUP BY day
 ORDER BY day;
+
+-- name: ListBranchSalesDaysRange :many
+-- Per (branch, local day) sales-invoice count and gross sales revenue in an
+-- inclusive "YYYY-MM-DD" range, oldest first. Deliberately shaped like
+-- ListBranchVisitorDaysRange so the Footfall page can line footfall up
+-- against sales for the same window -- conversion rate, average ticket --
+-- with one extra request and no per-day query.
+--
+-- Only kind = 'sales' counts: a return or exchange isn't a walk-in turning
+-- into a buyer, and its grand_total carries the branch's own signed
+-- refund/top-up convention (see ListDailyIncome) which would distort an
+-- "average sale" figure. The occurred_at range is compared against plain
+-- date bounds (not AT TIME ZONE per row) so idx_branch_invoices_occurred_at
+-- stays usable, same reasoning as ListDailyIncome.
+SELECT
+  branch_id,
+  (occurred_at AT TIME ZONE 'UTC')::date AS day,
+  COUNT(*)::bigint AS invoice_count,
+  COALESCE(SUM(grand_total), 0)::bigint AS revenue
+FROM branch_invoices
+WHERE kind = 'sales'
+  AND occurred_at >= sqlc.arg(from_day)::date
+  AND occurred_at < (sqlc.arg(to_day)::date + 1)
+  AND (sqlc.narg(branch_id)::bigint IS NULL OR branch_id = sqlc.narg(branch_id))
+GROUP BY branch_id, day
+ORDER BY day, branch_id;

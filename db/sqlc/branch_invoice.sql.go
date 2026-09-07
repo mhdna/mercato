@@ -460,6 +460,74 @@ func (q *Queries) ListBranchInvoicesPage(ctx context.Context, arg ListBranchInvo
 	return items, nil
 }
 
+const listBranchSalesDaysRange = `-- name: ListBranchSalesDaysRange :many
+SELECT
+  branch_id,
+  (occurred_at AT TIME ZONE 'UTC')::date AS day,
+  COUNT(*)::bigint AS invoice_count,
+  COALESCE(SUM(grand_total), 0)::bigint AS revenue
+FROM branch_invoices
+WHERE kind = 'sales'
+  AND occurred_at >= $1::date
+  AND occurred_at < ($2::date + 1)
+  AND ($3::bigint IS NULL OR branch_id = $3)
+GROUP BY branch_id, day
+ORDER BY day, branch_id
+`
+
+type ListBranchSalesDaysRangeParams struct {
+	FromDay  time.Time     `json:"from_day"`
+	ToDay    time.Time     `json:"to_day"`
+	BranchID sql.NullInt64 `json:"branch_id"`
+}
+
+type ListBranchSalesDaysRangeRow struct {
+	BranchID     int64     `json:"branch_id"`
+	Day          time.Time `json:"day"`
+	InvoiceCount int64     `json:"invoice_count"`
+	Revenue      int64     `json:"revenue"`
+}
+
+// Per (branch, local day) sales-invoice count and gross sales revenue in an
+// inclusive "YYYY-MM-DD" range, oldest first. Deliberately shaped like
+// ListBranchVisitorDaysRange so the Footfall page can line footfall up
+// against sales for the same window -- conversion rate, average ticket --
+// with one extra request and no per-day query.
+//
+// Only kind = 'sales' counts: a return or exchange isn't a walk-in turning
+// into a buyer, and its grand_total carries the branch's own signed
+// refund/top-up convention (see ListDailyIncome) which would distort an
+// "average sale" figure. The occurred_at range is compared against plain
+// date bounds (not AT TIME ZONE per row) so idx_branch_invoices_occurred_at
+// stays usable, same reasoning as ListDailyIncome.
+func (q *Queries) ListBranchSalesDaysRange(ctx context.Context, arg ListBranchSalesDaysRangeParams) ([]ListBranchSalesDaysRangeRow, error) {
+	rows, err := q.db.QueryContext(ctx, listBranchSalesDaysRange, arg.FromDay, arg.ToDay, arg.BranchID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListBranchSalesDaysRangeRow{}
+	for rows.Next() {
+		var i ListBranchSalesDaysRangeRow
+		if err := rows.Scan(
+			&i.BranchID,
+			&i.Day,
+			&i.InvoiceCount,
+			&i.Revenue,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listDailyIncome = `-- name: ListDailyIncome :many
 SELECT
   (occurred_at AT TIME ZONE 'UTC')::date AS day,

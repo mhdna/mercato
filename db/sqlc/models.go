@@ -699,6 +699,16 @@ type BranchUser struct {
 	UpdatedAt    time.Time `json:"updated_at"`
 }
 
+type BranchVisitorEvent struct {
+	ID         int64     `json:"id"`
+	BranchID   int64     `json:"branch_id"`
+	ClientRef  string    `json:"client_ref"`
+	Day        string    `json:"day"`
+	Direction  string    `json:"direction"`
+	OccurredAt time.Time `json:"occurred_at"`
+	ReceivedAt time.Time `json:"received_at"`
+}
+
 type Cashbox struct {
 	ID        int64     `json:"id"`
 	Name      string    `json:"name"`

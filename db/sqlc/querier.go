@@ -39,6 +39,7 @@ type Querier interface {
 	CountBranchInvoices(ctx context.Context, branchID sql.NullInt64) (int64, error)
 	CountBranchInvoicesFiltered(ctx context.Context, arg CountBranchInvoicesFilteredParams) (int64, error)
 	CountBranchShifts(ctx context.Context, branchID sql.NullInt64) (int64, error)
+	CountBranchVisitorDays(ctx context.Context, branchID sql.NullInt64) (int64, error)
 	CountClients(ctx context.Context, clientType sql.NullString) (int64, error)
 	// Same filters as ListClientsBySpending, minus the spend computation --
 	// used for the rest-of-clients table's pagination total. Deliberately
@@ -92,6 +93,7 @@ type Querier interface {
 	CreateBranchTarget(ctx context.Context, arg CreateBranchTargetParams) (BranchTarget, error)
 	CreateBranchTargetSeries(ctx context.Context, arg CreateBranchTargetSeriesParams) (BranchTargetSeries, error)
 	CreateBranchUser(ctx context.Context, arg CreateBranchUserParams) (BranchUser, error)
+	CreateBranchVisitorEvent(ctx context.Context, arg CreateBranchVisitorEventParams) (BranchVisitorEvent, error)
 	CreateCashbox(ctx context.Context, arg CreateCashboxParams) (Cashbox, error)
 	CreateCashboxAccount(ctx context.Context, arg CreateCashboxAccountParams) (CashboxAccount, error)
 	CreateCentralLoan(ctx context.Context, arg CreateCentralLoanParams) (Loan, error)
@@ -288,6 +290,7 @@ type Querier interface {
 	GetBranchTargetBySeriesAndStart(ctx context.Context, arg GetBranchTargetBySeriesAndStartParams) (BranchTarget, error)
 	GetBranchTargetSeries(ctx context.Context, id int64) (BranchTargetSeries, error)
 	GetBranchUser(ctx context.Context, id int64) (BranchUser, error)
+	GetBranchVisitorEventByClientRef(ctx context.Context, arg GetBranchVisitorEventByClientRefParams) (BranchVisitorEvent, error)
 	GetCashbox(ctx context.Context, id int64) (Cashbox, error)
 	GetCashboxAccount(ctx context.Context, id int64) (CashboxAccount, error)
 	GetCashboxAccountBalance(ctx context.Context, arg GetCashboxAccountBalanceParams) (ShiftsAccountsBalance, error)
@@ -378,6 +381,10 @@ type Querier interface {
 	ListBranchUsersForBranch(ctx context.Context, branchID int64) ([]BranchUser, error)
 	// Branch-scoped catch-up feed, same contract as ListSalespersonsUpdatedSince.
 	ListBranchUsersUpdatedSince(ctx context.Context, arg ListBranchUsersUpdatedSinceParams) ([]BranchUser, error)
+	// One row per (branch, local day): gross customers-in vs customers-out,
+	// newest day first. sqlc.narg(branch_id) NULL means "all branches",
+	// matching ListBranchShifts' admin-filter convention.
+	ListBranchVisitorDays(ctx context.Context, arg ListBranchVisitorDaysParams) ([]ListBranchVisitorDaysRow, error)
 	ListBranches(ctx context.Context) ([]Branch, error)
 	ListBranchesForDiscountList(ctx context.Context, discountListID int64) ([]ListBranchesForDiscountListRow, error)
 	ListBranchesForPriceList(ctx context.Context, priceListID int64) ([]ListBranchesForPriceListRow, error)

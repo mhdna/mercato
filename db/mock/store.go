@@ -381,6 +381,21 @@ func (mr *MockStoreMockRecorder) CountBranchShifts(arg0, arg1 interface{}) *gomo
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CountBranchShifts", reflect.TypeOf((*MockStore)(nil).CountBranchShifts), arg0, arg1)
 }
 
+// CountBranchVisitorDays mocks base method.
+func (m *MockStore) CountBranchVisitorDays(arg0 context.Context, arg1 sql.NullInt64) (int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CountBranchVisitorDays", arg0, arg1)
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CountBranchVisitorDays indicates an expected call of CountBranchVisitorDays.
+func (mr *MockStoreMockRecorder) CountBranchVisitorDays(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CountBranchVisitorDays", reflect.TypeOf((*MockStore)(nil).CountBranchVisitorDays), arg0, arg1)
+}
+
 // CountClients mocks base method.
 func (m *MockStore) CountClients(arg0 context.Context, arg1 sql.NullString) (int64, error) {
 	m.ctrl.T.Helper()
@@ -1144,6 +1159,21 @@ func (m *MockStore) CreateBranchUser(arg0 context.Context, arg1 db.CreateBranchU
 func (mr *MockStoreMockRecorder) CreateBranchUser(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateBranchUser", reflect.TypeOf((*MockStore)(nil).CreateBranchUser), arg0, arg1)
+}
+
+// CreateBranchVisitorEvent mocks base method.
+func (m *MockStore) CreateBranchVisitorEvent(arg0 context.Context, arg1 db.CreateBranchVisitorEventParams) (db.BranchVisitorEvent, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CreateBranchVisitorEvent", arg0, arg1)
+	ret0, _ := ret[0].(db.BranchVisitorEvent)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CreateBranchVisitorEvent indicates an expected call of CreateBranchVisitorEvent.
+func (mr *MockStoreMockRecorder) CreateBranchVisitorEvent(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateBranchVisitorEvent", reflect.TypeOf((*MockStore)(nil).CreateBranchVisitorEvent), arg0, arg1)
 }
 
 // CreateCashbox mocks base method.
@@ -3137,6 +3167,21 @@ func (mr *MockStoreMockRecorder) GetBranchUser(arg0, arg1 interface{}) *gomock.C
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBranchUser", reflect.TypeOf((*MockStore)(nil).GetBranchUser), arg0, arg1)
 }
 
+// GetBranchVisitorEventByClientRef mocks base method.
+func (m *MockStore) GetBranchVisitorEventByClientRef(arg0 context.Context, arg1 db.GetBranchVisitorEventByClientRefParams) (db.BranchVisitorEvent, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetBranchVisitorEventByClientRef", arg0, arg1)
+	ret0, _ := ret[0].(db.BranchVisitorEvent)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetBranchVisitorEventByClientRef indicates an expected call of GetBranchVisitorEventByClientRef.
+func (mr *MockStoreMockRecorder) GetBranchVisitorEventByClientRef(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBranchVisitorEventByClientRef", reflect.TypeOf((*MockStore)(nil).GetBranchVisitorEventByClientRef), arg0, arg1)
+}
+
 // GetCashbox mocks base method.
 func (m *MockStore) GetCashbox(arg0 context.Context, arg1 int64) (db.Cashbox, error) {
 	m.ctrl.T.Helper()
@@ -4275,6 +4320,21 @@ func (m *MockStore) ListBranchUsersUpdatedSince(arg0 context.Context, arg1 db.Li
 func (mr *MockStoreMockRecorder) ListBranchUsersUpdatedSince(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListBranchUsersUpdatedSince", reflect.TypeOf((*MockStore)(nil).ListBranchUsersUpdatedSince), arg0, arg1)
+}
+
+// ListBranchVisitorDays mocks base method.
+func (m *MockStore) ListBranchVisitorDays(arg0 context.Context, arg1 db.ListBranchVisitorDaysParams) ([]db.ListBranchVisitorDaysRow, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListBranchVisitorDays", arg0, arg1)
+	ret0, _ := ret[0].([]db.ListBranchVisitorDaysRow)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListBranchVisitorDays indicates an expected call of ListBranchVisitorDays.
+func (mr *MockStoreMockRecorder) ListBranchVisitorDays(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListBranchVisitorDays", reflect.TypeOf((*MockStore)(nil).ListBranchVisitorDays), arg0, arg1)
 }
 
 // ListBranches mocks base method.

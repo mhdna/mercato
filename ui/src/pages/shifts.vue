@@ -59,6 +59,7 @@
         >
           <v-btn value="central">Central</v-btn>
           <v-btn value="branch">Branch</v-btn>
+          <v-btn value="visitors">Visitors</v-btn>
         </v-btn-toggle>
         <v-btn
           v-if="tab === 'central'"
@@ -113,7 +114,7 @@
       </div>
 
       <!-- ------------------------------------------------------- BRANCH -->
-      <div v-else class="shifts-layout">
+      <div v-else-if="tab === 'branch'" class="shifts-layout">
         <PageSidebar
           v-model="selectedBranch"
           all-title="All branches"
@@ -147,6 +148,43 @@
               </v-chip>
             </template>
             <template #item.received_at="{ item }">{{ formatDate(item.received_at) }}</template>
+          </ServerSideTable>
+        </div>
+      </div>
+
+      <!-- ----------------------------------------------------- VISITORS -->
+      <!-- Branch-reported nav-drawer people-counter presses, rolled up to
+           one row per branch per local day (gross in / gross out / net).
+           Same branch-sidebar + ServerSideTable shape as the Branch tab. -->
+      <div v-else class="shifts-layout">
+        <PageSidebar
+          v-model="selectedBranch"
+          all-title="All branches"
+          empty-text="No branches yet."
+          :items="branchItems"
+          :loading="branchesLoading"
+          show-all
+        />
+
+        <v-divider vertical />
+
+        <div class="shifts-content">
+          <ServerSideTable
+            :api-u-r-l="`${API_BASE}/branch_visitor_events`"
+            class="shifts-table"
+            density="comfortable"
+            flush
+            :headers="visitorHeaders"
+            :query-params="branchQueryParams"
+            root-key="visitor_days"
+            :show-search-icon="false"
+          >
+            <template #item.branch_id="{ item }">{{ branchName(item.branch_id) }}</template>
+            <template #item.net="{ item }">
+              <v-chip :color="(item.in_count - item.out_count) < 0 ? 'error' : 'default'" size="small" variant="tonal">
+                {{ item.in_count - item.out_count }}
+              </v-chip>
+            </template>
           </ServerSideTable>
         </div>
       </div>
@@ -226,6 +264,14 @@
     { title: 'Counted USD', key: 'counted_usd', align: 'end', sortable: false },
     { title: 'Variance USD', key: 'variance_usd', align: 'end', sortable: false },
     { title: 'Received', key: 'received_at', align: 'end', sortable: false },
+  ]
+
+  const visitorHeaders = [
+    { title: 'Branch', key: 'branch_id', align: 'start', sortable: false },
+    { title: 'Day', key: 'day', align: 'start', sortable: false },
+    { title: 'Customers In', key: 'in_count', align: 'end', sortable: false },
+    { title: 'Customers Out', key: 'out_count', align: 'end', sortable: false },
+    { title: 'Net', key: 'net', align: 'end', sortable: false },
   ]
 
   const search = ref('')

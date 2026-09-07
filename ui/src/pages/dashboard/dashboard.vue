@@ -7,6 +7,7 @@
         <v-tab value="sales">Sales</v-tab>
         <v-tab value="financials">Financials</v-tab>
         <v-tab value="targets">Targets</v-tab>
+        <v-tab value="visitors">Visitors</v-tab>
       </v-tabs>
 
       <div class="d-flex align-center flex-wrap justify-end">
@@ -67,6 +68,9 @@
       <v-window-item class="h-100" value="targets">
         <TargetsTab class="h-100" />
       </v-window-item>
+      <v-window-item class="h-100" value="visitors">
+        <VisitorsTab class="h-100" />
+      </v-window-item>
     </v-window>
   </v-sheet>
 </template>
@@ -79,6 +83,7 @@
   import RecentActivitiesTab from './tabs/RecentActivitiesTab.vue'
   import SalesTab from './tabs/SalesTab.vue'
   import TargetsTab from './tabs/TargetsTab.vue'
+  import VisitorsTab from './tabs/VisitorsTab.vue'
 
   const tab = ref('overview')
   const scopeItems = [

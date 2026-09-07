@@ -251,6 +251,10 @@
   position: relative;
   display: flex;
   align-items: center;
+  /* min-height keeps the box a full text-line tall even when the reel is
+     empty -- otherwise it collapses and overflow:hidden clips the
+     absolutely-positioned status line. */
+  min-height: 24px;
   overflow: hidden;
   white-space: nowrap;
   min-width: 140px; /* room for "synced 59 mins ago" when the reel is empty */
@@ -267,6 +271,8 @@
 .status {
   position: absolute;
   left: 0;
+  top: 50%;
+  transform: translateY(-50%);
   transition: opacity 0.24s ease;
 }
 

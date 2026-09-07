@@ -29,5 +29,17 @@ export function useBranchVisitors () {
     return data?.visitor_days ?? []
   }
 
-  return { listVisitorDays }
+  // listVisitorStats returns every { branch_id, day, in_count, out_count }
+  // rollup row in an inclusive date range (YYYY-MM-DD), unpaginated -- the
+  // Footfall page aggregates it into months / branches / weekdays itself.
+  async function listVisitorStats ({ from, to, branchId } = {}) {
+    const url = new URL(`${API_BASE}/branch_visitor_stats`)
+    url.searchParams.set('from', from)
+    url.searchParams.set('to', to)
+    if (branchId) url.searchParams.set('branch_id', String(branchId))
+    const data = await requestJSON(url.toString())
+    return data?.visitor_days ?? []
+  }
+
+  return { listVisitorDays, listVisitorStats }
 }

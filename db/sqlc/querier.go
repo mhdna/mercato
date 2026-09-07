@@ -39,6 +39,9 @@ type Querier interface {
 	CountBranchInvoices(ctx context.Context, branchID sql.NullInt64) (int64, error)
 	CountBranchInvoicesFiltered(ctx context.Context, arg CountBranchInvoicesFilteredParams) (int64, error)
 	CountBranchShifts(ctx context.Context, branchID sql.NullInt64) (int64, error)
+	// Running gross tally for one branch, one local day, one direction -- used
+	// to tell the admin toast "customer in -- 42 in today".
+	CountBranchVisitorDayByDirection(ctx context.Context, arg CountBranchVisitorDayByDirectionParams) (int64, error)
 	CountBranchVisitorDays(ctx context.Context, branchID sql.NullInt64) (int64, error)
 	CountClients(ctx context.Context, clientType sql.NullString) (int64, error)
 	// Same filters as ListClientsBySpending, minus the spend computation --
@@ -385,6 +388,11 @@ type Querier interface {
 	// newest day first. sqlc.narg(branch_id) NULL means "all branches",
 	// matching ListBranchShifts' admin-filter convention.
 	ListBranchVisitorDays(ctx context.Context, arg ListBranchVisitorDaysParams) ([]ListBranchVisitorDaysRow, error)
+	// Every (branch, day) rollup within an inclusive "YYYY-MM-DD" day range,
+	// oldest first. No pagination: footfall data is one row per branch per day,
+	// so even a year across every branch is a small result the Footfall page
+	// slices into months / branch comparisons / weekday profiles client-side.
+	ListBranchVisitorDaysRange(ctx context.Context, arg ListBranchVisitorDaysRangeParams) ([]ListBranchVisitorDaysRangeRow, error)
 	ListBranches(ctx context.Context) ([]Branch, error)
 	ListBranchesForDiscountList(ctx context.Context, discountListID int64) ([]ListBranchesForDiscountListRow, error)
 	ListBranchesForPriceList(ctx context.Context, priceListID int64) ([]ListBranchesForPriceListRow, error)

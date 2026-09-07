@@ -11,6 +11,27 @@ import (
 	"time"
 )
 
+const countBranchVisitorDayByDirection = `-- name: CountBranchVisitorDayByDirection :one
+SELECT COUNT(*)
+FROM branch_visitor_events
+WHERE branch_id = $1 AND day = $2 AND direction = $3
+`
+
+type CountBranchVisitorDayByDirectionParams struct {
+	BranchID  int64  `json:"branch_id"`
+	Day       string `json:"day"`
+	Direction string `json:"direction"`
+}
+
+// Running gross tally for one branch, one local day, one direction -- used
+// to tell the admin toast "customer in -- 42 in today".
+func (q *Queries) CountBranchVisitorDayByDirection(ctx context.Context, arg CountBranchVisitorDayByDirectionParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countBranchVisitorDayByDirection, arg.BranchID, arg.Day, arg.Direction)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countBranchVisitorDays = `-- name: CountBranchVisitorDays :one
 SELECT COUNT(*) FROM (
   SELECT 1
@@ -133,6 +154,65 @@ func (q *Queries) ListBranchVisitorDays(ctx context.Context, arg ListBranchVisit
 	items := []ListBranchVisitorDaysRow{}
 	for rows.Next() {
 		var i ListBranchVisitorDaysRow
+		if err := rows.Scan(
+			&i.BranchID,
+			&i.Day,
+			&i.InCount,
+			&i.OutCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listBranchVisitorDaysRange = `-- name: ListBranchVisitorDaysRange :many
+SELECT
+  branch_id,
+  day,
+  COUNT(*) FILTER (WHERE direction = 'in')  AS in_count,
+  COUNT(*) FILTER (WHERE direction = 'out') AS out_count
+FROM branch_visitor_events
+WHERE day >= $1
+  AND day <= $2
+  AND ($3::bigint IS NULL OR branch_id = $3)
+GROUP BY branch_id, day
+ORDER BY day, branch_id
+`
+
+type ListBranchVisitorDaysRangeParams struct {
+	FromDay  string        `json:"from_day"`
+	ToDay    string        `json:"to_day"`
+	BranchID sql.NullInt64 `json:"branch_id"`
+}
+
+type ListBranchVisitorDaysRangeRow struct {
+	BranchID int64  `json:"branch_id"`
+	Day      string `json:"day"`
+	InCount  int64  `json:"in_count"`
+	OutCount int64  `json:"out_count"`
+}
+
+// Every (branch, day) rollup within an inclusive "YYYY-MM-DD" day range,
+// oldest first. No pagination: footfall data is one row per branch per day,
+// so even a year across every branch is a small result the Footfall page
+// slices into months / branch comparisons / weekday profiles client-side.
+func (q *Queries) ListBranchVisitorDaysRange(ctx context.Context, arg ListBranchVisitorDaysRangeParams) ([]ListBranchVisitorDaysRangeRow, error) {
+	rows, err := q.db.QueryContext(ctx, listBranchVisitorDaysRange, arg.FromDay, arg.ToDay, arg.BranchID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListBranchVisitorDaysRangeRow{}
+	for rows.Next() {
+		var i ListBranchVisitorDaysRangeRow
 		if err := rows.Scan(
 			&i.BranchID,
 			&i.Day,

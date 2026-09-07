@@ -39,8 +39,11 @@ func TestCreateBranchVisitorEvent_OK_InsertsOnce(t *testing.T) {
 			require.Equal(t, testBranchID, arg.BranchID)
 			require.Equal(t, "in", arg.Direction)
 			require.Equal(t, "2026-09-07", arg.Day)
-			return db.BranchVisitorEvent{ID: 1, BranchID: arg.BranchID, ClientRef: arg.ClientRef, Direction: arg.Direction}, nil
+			return db.BranchVisitorEvent{ID: 1, BranchID: arg.BranchID, ClientRef: arg.ClientRef, Day: arg.Day, Direction: arg.Direction}, nil
 		})
+	store.EXPECT().
+		CountBranchVisitorDayByDirection(gomock.Any(), gomock.Eq(db.CountBranchVisitorDayByDirectionParams{BranchID: testBranchID, Day: "2026-09-07", Direction: "in"})).
+		Return(int64(42), nil)
 
 	server := newTestServer(t, store)
 	recorder := httptest.NewRecorder()
@@ -99,6 +102,42 @@ func TestCreateBranchVisitorEvent_Unauthorized(t *testing.T) {
 	server.router.ServeHTTP(recorder, req)
 
 	require.Equal(t, http.StatusUnauthorized, recorder.Code)
+}
+
+func TestListBranchVisitorStats_OK(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	store := mockdb.NewMockStore(ctrl)
+
+	store.EXPECT().
+		ListBranchVisitorDaysRange(gomock.Any(), gomock.Eq(db.ListBranchVisitorDaysRangeParams{FromDay: "2026-01-01", ToDay: "2026-09-30"})).
+		Return([]db.ListBranchVisitorDaysRangeRow{{BranchID: 1, Day: "2026-09-07", InCount: 40, OutCount: 12}}, nil)
+
+	server := newTestServer(t, store)
+	recorder := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodGet, "/branch_visitor_stats?from=2026-01-01&to=2026-09-30", nil)
+	addAuthorization(t, req, server.tokenMaker, authorizationTypeBearer, "user", time.Minute)
+	server.router.ServeHTTP(recorder, req)
+
+	require.Equal(t, http.StatusOK, recorder.Code)
+	var body map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &body))
+	require.Contains(t, body, "visitor_days")
+}
+
+func TestListBranchVisitorStats_RejectsBadRange(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	store := mockdb.NewMockStore(ctrl)
+	store.EXPECT().ListBranchVisitorDaysRange(gomock.Any(), gomock.Any()).Times(0)
+
+	server := newTestServer(t, store)
+	recorder := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodGet, "/branch_visitor_stats?from=2026-09-30&to=2026-01-01", nil)
+	addAuthorization(t, req, server.tokenMaker, authorizationTypeBearer, "user", time.Minute)
+	server.router.ServeHTTP(recorder, req)
+
+	require.Equal(t, http.StatusBadRequest, recorder.Code)
 }
 
 func TestListBranchVisitorDays_OK(t *testing.T) {

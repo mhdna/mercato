@@ -8,6 +8,7 @@ export const navItems = [
       { title: 'Daily Income', icon: 'mdi-chart-bar', to: '/daily-income' },
       { title: 'Financials', icon: 'mdi-currency-usd', to: '/financials' },
       { title: 'Targets', icon: 'mdi-target', to: '/targets' },
+      { title: 'Footfall', icon: 'mdi-walk', to: '/footfall' },
       {
         title: 'Stock Health',
         icon: 'mdi-heart-pulse',

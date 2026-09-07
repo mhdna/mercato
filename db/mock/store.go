@@ -381,6 +381,21 @@ func (mr *MockStoreMockRecorder) CountBranchShifts(arg0, arg1 interface{}) *gomo
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CountBranchShifts", reflect.TypeOf((*MockStore)(nil).CountBranchShifts), arg0, arg1)
 }
 
+// CountBranchVisitorDayByDirection mocks base method.
+func (m *MockStore) CountBranchVisitorDayByDirection(arg0 context.Context, arg1 db.CountBranchVisitorDayByDirectionParams) (int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CountBranchVisitorDayByDirection", arg0, arg1)
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CountBranchVisitorDayByDirection indicates an expected call of CountBranchVisitorDayByDirection.
+func (mr *MockStoreMockRecorder) CountBranchVisitorDayByDirection(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CountBranchVisitorDayByDirection", reflect.TypeOf((*MockStore)(nil).CountBranchVisitorDayByDirection), arg0, arg1)
+}
+
 // CountBranchVisitorDays mocks base method.
 func (m *MockStore) CountBranchVisitorDays(arg0 context.Context, arg1 sql.NullInt64) (int64, error) {
 	m.ctrl.T.Helper()
@@ -4335,6 +4350,21 @@ func (m *MockStore) ListBranchVisitorDays(arg0 context.Context, arg1 db.ListBran
 func (mr *MockStoreMockRecorder) ListBranchVisitorDays(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListBranchVisitorDays", reflect.TypeOf((*MockStore)(nil).ListBranchVisitorDays), arg0, arg1)
+}
+
+// ListBranchVisitorDaysRange mocks base method.
+func (m *MockStore) ListBranchVisitorDaysRange(arg0 context.Context, arg1 db.ListBranchVisitorDaysRangeParams) ([]db.ListBranchVisitorDaysRangeRow, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListBranchVisitorDaysRange", arg0, arg1)
+	ret0, _ := ret[0].([]db.ListBranchVisitorDaysRangeRow)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListBranchVisitorDaysRange indicates an expected call of ListBranchVisitorDaysRange.
+func (mr *MockStoreMockRecorder) ListBranchVisitorDaysRange(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListBranchVisitorDaysRange", reflect.TypeOf((*MockStore)(nil).ListBranchVisitorDaysRange), arg0, arg1)
 }
 
 // ListBranches mocks base method.

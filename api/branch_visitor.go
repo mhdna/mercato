@@ -2,6 +2,7 @@ package api
 
 import (
 	"database/sql"
+	"errors"
 	"net/http"
 	"time"
 
@@ -81,11 +82,23 @@ func (server *Server) createBranchVisitorEvent(ctx *gin.Context) {
 
 	// Only the genuinely-new-insert path reaches here (the lookups above
 	// return early on "already exists"), so a retried outbox entry never
-	// re-notifies -- same convention as createBranchShiftClose.
+	// re-notifies -- same convention as createBranchShiftClose. Amount
+	// carries the running gross tally for this branch/day/direction so the
+	// toast can read "customer in -- 42 in today" (a plain count, like
+	// branch_attendance_events, not cents).
+	soFar, err := server.store.CountBranchVisitorDayByDirection(ctx, db.CountBranchVisitorDayByDirectionParams{
+		BranchID:  branchID,
+		Day:       event.Day,
+		Direction: event.Direction,
+	})
+	if err != nil {
+		soFar = 0 // count is display-only; don't fail the write over it
+	}
 	server.adminHub.broadcastAll(adminWSMessage{
 		Type:     "branch_visitor_event",
 		BranchID: branchID,
 		Kind:     event.Direction,
+		Amount:   soFar,
 		Label:    event.Day,
 	})
 
@@ -131,4 +144,44 @@ func (server *Server) listBranchVisitorDays(ctx *gin.Context) {
 	}
 
 	server.writeJSON(ctx, http.StatusOK, envelope{"visitor_days": days, "total": total})
+}
+
+type listBranchVisitorStatsRequest struct {
+	From     string `form:"from" binding:"required,datetime=2006-01-02"`
+	To       string `form:"to" binding:"required,datetime=2006-01-02"`
+	BranchID int64  `form:"branch_id"`
+}
+
+// listBranchVisitorStats backs the Footfall page: every (branch, day)
+// rollup inside an inclusive date range, unpaginated. The client turns
+// this into month-over-month bars, branch comparisons, weekday profiles
+// and a month x branch table -- keeping the aggregation client-side means
+// one endpoint serves every cut without a query per chart.
+func (server *Server) listBranchVisitorStats(ctx *gin.Context) {
+	var req listBranchVisitorStatsRequest
+	if err := ctx.ShouldBindQuery(&req); err != nil {
+		server.writeError(ctx, http.StatusBadRequest, err)
+		return
+	}
+	if req.From > req.To {
+		server.writeError(ctx, http.StatusBadRequest, errors.New("from date is after to date"))
+		return
+	}
+
+	var branchID sql.NullInt64
+	if req.BranchID > 0 {
+		branchID = sql.NullInt64{Int64: req.BranchID, Valid: true}
+	}
+
+	days, err := server.store.ListBranchVisitorDaysRange(ctx, db.ListBranchVisitorDaysRangeParams{
+		FromDay:  req.From,
+		ToDay:    req.To,
+		BranchID: branchID,
+	})
+	if err != nil {
+		server.writeError(ctx, http.StatusInternalServerError, err)
+		return
+	}
+
+	server.writeJSON(ctx, http.StatusOK, envelope{"visitor_days": days})
 }

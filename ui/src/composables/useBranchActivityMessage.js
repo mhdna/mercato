@@ -170,10 +170,13 @@ export function describeBranchActivity (message, branchName) {
     }
 
     case 'branch_visitor_event': {
-      // kind is the counter direction: "in" (▲) or "out" (▼).
+      // kind is the counter direction: "in" (▲) or "out" (▼); amount is the
+      // running gross tally for that direction on the current local day.
       const isOut = message.kind === 'out'
+      const word = isOut ? 'out' : 'in'
+      const soFar = message.amount ?? 0
       return {
-        text: `${branch}: customer ${isOut ? 'out' : 'in'}`,
+        text: `${branch}: customer ${word} — ${soFar} ${word} today`,
         color: 'info',
         icon: isOut ? 'mdi-account-arrow-left' : 'mdi-account-arrow-right',
         money: false,

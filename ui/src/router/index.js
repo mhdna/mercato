@@ -8,6 +8,7 @@ const routes = [
   { path: '/daily-income', component: () => import('@/pages/daily-income.vue'), meta: { title: 'Daily Income' } },
   { path: '/financials', component: () => import('@/pages/financials.vue'), meta: { title: 'Financials' } },
   { path: '/targets', component: () => import('@/pages/targets.vue'), meta: { title: 'Targets' } },
+  { path: '/footfall', component: () => import('@/pages/footfall.vue'), meta: { title: 'Footfall' } },
   { path: '/stock-health', component: () => import('@/pages/stock-health.vue'), meta: { title: 'Stock Health' } },
   { path: '/alerts', component: () => import('@/pages/alerts.vue'), meta: { title: 'Alerts' } },
   { path: '/sales-analytics', component: () => import('@/pages/sales-analytics.vue'), meta: { title: 'Sales Analytics' } },

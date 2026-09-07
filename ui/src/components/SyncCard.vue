@@ -262,6 +262,7 @@
 }
 
 .reel {
+  position: relative; /* contains the absolutely-positioned leaving pill */
   gap: 6px;
 }
 
@@ -281,8 +282,8 @@
 }
 
 /* Each message is a self-contained pill -- no pseudo-element separators
-   between siblings, so removing one only reflows by that pill's own width
-   and the survivors' FLIP shift is a single clean amount. */
+   between siblings, so the only thing that moves when one leaves is the
+   pills themselves. */
 .activity-item {
   display: inline-flex;
   align-items: center;
@@ -297,35 +298,32 @@
   text-overflow: ellipsis;
 }
 
-/* Newest fades in from the right, the oldest (always the one that leaves)
-   fades out and collapses to zero width in place while the survivors glide
-   over via the FLIP-driven ticker-move. Animating the leaver's own
-   max-width/padding/margin -- rather than yanking it out with
-   position:absolute -- is what keeps the exit smooth. */
-.ticker-enter-active,
+/* Conveyor belt: a new pill fades in from the right; the oldest is pulled
+   OUT OF FLOW the instant it starts leaving (position: absolute), so the
+   survivors immediately have their final slots and glide into them under
+   ticker-move rather than being shoved by a shrinking sibling. The leaver
+   just fades and drifts left on top. This is what keeps a 4th-message
+   arrival smooth on the left edge. */
+.ticker-enter-active {
+  transition: opacity 0.28s ease, transform 0.28s ease;
+}
+
 .ticker-leave-active {
-  transition:
-    opacity 0.24s ease,
-    transform 0.24s ease,
-    max-width 0.24s ease,
-    padding 0.24s ease,
-    margin 0.24s ease;
+  position: absolute;
+  transition: opacity 0.2s ease, transform 0.28s ease;
 }
 
 .ticker-enter-from {
-  transform: translateX(10px);
+  transform: translateX(14px);
   opacity: 0;
 }
 
 .ticker-leave-to {
-  max-width: 0;
-  padding-left: 0;
-  padding-right: 0;
-  margin-left: -6px;
+  transform: translateX(-10px);
   opacity: 0;
 }
 
 .ticker-move {
-  transition: transform 0.24s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
 }
 </style>

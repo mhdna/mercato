@@ -22,6 +22,7 @@ export const navItems = [
     ],
   },
   { title: 'Warehouses', icon: 'mdi-warehouse', to: '/warehouses' },
+  { title: 'Assets Treemap', icon: 'mdi-view-gallery', to: '/assets-treemap' },
   {
     title: 'Alerts',
     icon: 'mdi-alert-circle-outline',
@@ -104,18 +105,6 @@ export const navItems = [
       { title: 'Stock Movements', icon: 'mdi-swap-vertical', to: '/stock-movements' },
       { title: 'Barcodes', icon: 'mdi-barcode', to: '/barcodes' },
       { title: 'Transfers', icon: 'mdi-transfer', to: '/transfers' },
-    ],
-  },
-  {
-    title: 'Stats',
-    icon: 'mdi-chart-bar',
-    children: [
-      {
-        title: 'Inventory Analysis',
-        icon: 'mdi-sine-wave',
-        to: '/inventory-analysis',
-      },
-      { title: 'Custom Reports', icon: 'mdi-chart-bar', to: '/stats' },
     ],
   },
 ]

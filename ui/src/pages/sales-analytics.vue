@@ -1,5 +1,7 @@
 <template>
   <v-sheet class="d-flex flex-column fill-height">
+    <SalesSummary />
+
     <v-tabs v-model="tab" color="primary">
       <v-tab value="sales">Sales Analytics</v-tab>
       <v-tab value="demand">Demand</v-tab>
@@ -14,6 +16,7 @@
 <script setup>
   import { defineAsyncComponent, ref, watch } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
+  import SalesSummary from './dashboard/tabs/SalesTab.vue'
 
   const tabComponents = {
     sales: defineAsyncComponent(() => import('./dashboard/tabs/SalesAnalyticsTab.vue')),

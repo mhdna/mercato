@@ -102,6 +102,11 @@ func main() {
 	fmt.Println("🧮 Seeding sales invoices...")
 	seedSalesInvoices(ctx, store, cashboxIDs, cashboxAccountIDs, shifts, clientIDs, inventoryStock)
 
+	// Seed branch invoices -- the append-only record of what branches sync
+	// up, and what the home page's "Recent activity" feed reads from.
+	fmt.Println("🏪 Seeding branch invoices...")
+	seedBranchInvoices(ctx, conn)
+
 	fmt.Println("✅ Database seeding completed!")
 }
 
@@ -734,6 +739,167 @@ func seedPurchases(ctx context.Context, store db.Store, supplierIDs, variantIDs 
 		itemCount += len(result.Items)
 	}
 	fmt.Printf("  ✓ Completed: %d purchases with %d items created\n", purchaseCount, itemCount)
+}
+
+// seedBranchInvoices fills branch_invoices (plus a couple of items and a
+// payment row each) with 1000 rows spread across the branches and across
+// the current calendar month. received_at is staggered on purpose: the
+// dashboard's activity feed orders and range-filters on received_at, so
+// evenly-spaced values make the "Recent activity" list look real.
+//
+// It writes with raw SQL rather than the CreateBranchInvoice query because
+// that query has no received_at parameter (it defaults to now()), and here
+// we specifically want it backdated.
+func seedBranchInvoices(ctx context.Context, conn *sql.DB) {
+	branchIDs := ensureSeedBranches(ctx, conn)
+	if len(branchIDs) == 0 {
+		log.Println("warning: no branches available, skipping branch invoices")
+		return
+	}
+
+	now := time.Now().UTC()
+	monthStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
+	window := now.Sub(monthStart)
+	if window < time.Hour {
+		window = time.Hour
+	}
+
+	salespeople := []string{"Aisha K.", "Omar H.", "Layla S.", "Karim M.", "Nour F.", "Ziad A."}
+	// Weighted toward plain sales, with some returns and exchanges mixed in.
+	kinds := []string{"sales", "sales", "sales", "sales", "return", "exchange"}
+	accounts := []string{"Cash", "Card", "Mobile Wallet"}
+
+	const total = 1000
+	created := 0
+	for i := 0; i < total; i++ {
+		branchID := branchIDs[i%len(branchIDs)]
+		kind := kinds[rand.Intn(len(kinds))]
+
+		itemsTotal := int64(rand.Intn(24000) + 1000) // $10.00 - $250.00 in cents
+		discount := 0
+		if rand.Intn(3) == 0 {
+			discount = rand.Intn(20) + 5
+		}
+		grandTotal := itemsTotal - itemsTotal*int64(discount)/100
+		switch kind {
+		case "return":
+			grandTotal = -grandTotal // a refund reads as negative in the feed
+		case "exchange":
+			grandTotal = int64(rand.Intn(6000)) - 3000 // small signed net difference
+		}
+
+		occurredAt := now.Add(-time.Duration(rand.Int63n(int64(window))))
+		receivedAt := occurredAt.Add(time.Duration(rand.Intn(90)) * time.Minute)
+		if receivedAt.After(now) {
+			receivedAt = now
+		}
+
+		clientRef := fmt.Sprintf("SEED-%06d", i+1)
+		code := fmt.Sprintf("BINV-%06d", 100000+i)
+
+		var invoiceID int64
+		err := conn.QueryRowContext(ctx, `
+			INSERT INTO branch_invoices (
+				branch_id, client_ref, kind, branch_invoice_code,
+				branch_cashbox_account_id, branch_shift_id, branch_inventory_id,
+				branch_client_id, related_client_ref,
+				discount, subtotal, discounted_total, grand_total,
+				loyalty_points_delta, occurred_at, received_at, salesperson_name
+			) VALUES (
+				$1, $2, $3, $4,
+				$5, $6, $7,
+				NULL, NULL,
+				$8, $9, $10, $11,
+				$12, $13, $14, $15
+			)
+			ON CONFLICT (branch_id, client_ref) DO NOTHING
+			RETURNING id`,
+			branchID, clientRef, kind, code,
+			rand.Int63n(5)+1, rand.Int63n(9)+1, rand.Int63n(5)+1,
+			discount, itemsTotal, itemsTotal, grandTotal,
+			grandTotal/100, occurredAt, receivedAt,
+			salespeople[rand.Intn(len(salespeople))],
+		).Scan(&invoiceID)
+		if err == sql.ErrNoRows {
+			continue // already seeded on an earlier run
+		}
+		if err != nil {
+			log.Printf("warning: failed to insert branch invoice %d: %v", i, err)
+			continue
+		}
+
+		for j := 0; j < rand.Intn(2)+1; j++ {
+			qty := int64(rand.Intn(3) + 1)
+			unitPrice := int64(rand.Intn(8000) + 500)
+			_, err := conn.ExecContext(ctx, `
+				INSERT INTO branch_invoice_items (
+					branch_invoice_id, branch_product_id, unit_price, line_total, discount, quantity
+				) VALUES ($1, $2, $3, $4, $5, $6)`,
+				invoiceID, rand.Int63n(500)+1, unitPrice, unitPrice*qty, 0, qty)
+			if err != nil {
+				log.Printf("warning: failed to insert branch invoice item: %v", err)
+			}
+		}
+
+		if _, err := conn.ExecContext(ctx, `
+			INSERT INTO branch_invoice_payments (branch_invoice_id, account_name, amount)
+			VALUES ($1, $2, $3)`,
+			invoiceID, accounts[rand.Intn(len(accounts))], grandTotal,
+		); err != nil {
+			log.Printf("warning: failed to insert branch invoice payment: %v", err)
+		}
+
+		created++
+		if created%200 == 0 {
+			fmt.Printf("  ✓ Created %d branch invoices\n", created)
+		}
+	}
+	fmt.Printf("  ✓ Completed: %d branch invoices created\n", created)
+}
+
+// ensureSeedBranches returns existing branch IDs, creating a small set of
+// placeholder branches first if the table is empty.
+func ensureSeedBranches(ctx context.Context, conn *sql.DB) []int64 {
+	if ids := queryInt64s(ctx, conn, `SELECT id FROM branches ORDER BY id`); len(ids) > 0 {
+		return ids
+	}
+
+	names := []string{"Beirut Central", "Tripoli Depot", "Saida Store", "Zahle Hub", "Jounieh Outlet"}
+	ids := make([]int64, 0, len(names))
+	for i, name := range names {
+		var id int64
+		err := conn.QueryRowContext(ctx, `
+			INSERT INTO branches (name, code, api_key_hash)
+			VALUES ($1, $2, $3)
+			ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name
+			RETURNING id`,
+			name, fmt.Sprintf("BR-SEED-%02d", i+1), "seed-placeholder-not-a-real-key",
+		).Scan(&id)
+		if err != nil {
+			log.Printf("warning: failed to ensure branch %s: %v", name, err)
+			continue
+		}
+		ids = append(ids, id)
+	}
+	return ids
+}
+
+func queryInt64s(ctx context.Context, conn *sql.DB, query string) []int64 {
+	rows, err := conn.QueryContext(ctx, query)
+	if err != nil {
+		return nil
+	}
+	defer rows.Close()
+
+	var out []int64
+	for rows.Next() {
+		var v int64
+		if err := rows.Scan(&v); err != nil {
+			return out
+		}
+		out = append(out, v)
+	}
+	return out
 }
 
 // seedSalesInvoices creates invoices whose totals are computed with the exact

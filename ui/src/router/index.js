@@ -24,9 +24,9 @@ const routes = [
 
   { path: '/products', component: () => import('@/pages/products.vue'), meta: { title: 'Products' } },
   { path: '/inventory', component: () => import('@/pages/inventory.vue'), meta: { title: 'Inventory' } },
-  { path: '/inventory-analysis', component: () => import('@/pages/inventory-analysis.vue'), meta: { title: 'Inventory Analysis' } },
   { path: '/storage', component: () => import('@/pages/storage.vue'), meta: { title: 'Storage' } },
   { path: '/warehouses', component: () => import('@/pages/warehouses.vue'), meta: { title: 'Warehouses' } },
+  { path: '/assets-treemap', component: () => import('@/pages/assets-treemap.vue'), meta: { title: 'Assets Treemap' } },
   { path: '/branches', component: () => import('@/pages/branches.vue'), meta: { title: 'Branches' } },
   { path: '/branch-settings', component: () => import('@/pages/branch-settings.vue'), meta: { title: 'Branch Settings' } },
   { path: '/branch-invoices', redirect: '/invoices' },
@@ -61,7 +61,6 @@ const routes = [
   { path: '/attendance', component: () => import('@/pages/Attendance.vue'), meta: { title: 'Attendance' } },
   { path: '/calendar', component: () => import('@/pages/calendar.vue'), meta: { title: 'Calendar' } },
 
-  { path: '/stats', component: () => import('@/pages/stats.vue'), meta: { title: 'Statistics' } },
   { path: '/users', component: () => import('@/pages/users.vue'), meta: { title: 'Users' } },
   { path: '/settings', component: () => import('@/pages/settings.vue'), meta: { title: 'Settings' } },
   { path: '/logs', component: () => import('@/pages/logs.vue'), meta: { title: 'Logs' } },

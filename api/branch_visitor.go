@@ -32,11 +32,12 @@ type branchVisitorEventRequest struct {
 // retried sync_outbox entry is a no-op, and fall back to the same lookup
 // on a unique-violation race.
 //
-// Unlike shift closes / invoices / expenses, this deliberately fires no
-// adminHub toast: a counter press is a high-frequency, low-signal event
-// (dozens a day per branch), and the admin surface for it is the
-// per-day rollup on the Shifts page and the dashboard card, not a live
-// stream of individual presses.
+// A genuinely-new press broadcasts a "branch_visitor_event" on the admin
+// hub (Kind = "in"/"out", Label = the local day) so the SyncCard ticker /
+// toast reflects it and the Visitors views refetch without a manual
+// reload. It's a higher-frequency event than the others, so whether it
+// actually surfaces as a toast is left to the admin's existing
+// activity-display setting, same as every other branch activity type.
 func (server *Server) createBranchVisitorEvent(ctx *gin.Context) {
 	branchID := ctx.MustGet(branchIDKey).(int64)
 
@@ -77,6 +78,16 @@ func (server *Server) createBranchVisitorEvent(ctx *gin.Context) {
 		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
+
+	// Only the genuinely-new-insert path reaches here (the lookups above
+	// return early on "already exists"), so a retried outbox entry never
+	// re-notifies -- same convention as createBranchShiftClose.
+	server.adminHub.broadcastAll(adminWSMessage{
+		Type:     "branch_visitor_event",
+		BranchID: branchID,
+		Kind:     event.Direction,
+		Label:    event.Day,
+	})
 
 	server.writeJSON(ctx, http.StatusOK, envelope{"visitor_event": event})
 }

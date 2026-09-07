@@ -1,5 +1,7 @@
 import {
   mdiAccount,
+  mdiAccountArrowLeft,
+  mdiAccountArrowRight,
   mdiAccountCash,
   mdiAccountGroup,
   mdiAccountGroupOutline,
@@ -209,6 +211,8 @@ import { h } from 'vue'
 const iconPaths = {
   'mdi-translate': mdiTranslate,
   'mdi-account': mdiAccount,
+  'mdi-account-arrow-left': mdiAccountArrowLeft,
+  'mdi-account-arrow-right': mdiAccountArrowRight,
   'mdi-account-outline': mdiAccountOutline,
   'mdi-account-tie-outline': mdiAccountTieOutline,
   'mdi-account-cash': mdiAccountCash,

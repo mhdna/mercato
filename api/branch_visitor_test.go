@@ -23,7 +23,7 @@ func visitorEventBody() map[string]any {
 	}
 }
 
-func TestCreateBranchVisitorEvent_OK_InsertsOnceNoToast(t *testing.T) {
+func TestCreateBranchVisitorEvent_OK_InsertsOnce(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	store := mockdb.NewMockStore(ctrl)

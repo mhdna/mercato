@@ -12,6 +12,7 @@ export const BRANCH_ACTIVITY_TYPES = [
   'branch_attendance_event',
   'branch_attendance_events',
   'branch_attendance_changed',
+  'branch_visitor_event',
 ]
 
 export function isBranchActivityMessage (message) {
@@ -164,6 +165,17 @@ export function describeBranchActivity (message, branchName) {
         text: `${branch}: ${verb}${message.label ? ` — ${message.label}` : ''}`,
         color: message.kind === 'rejected' ? 'warning' : 'info',
         icon: attendanceChangeIcon(message.kind),
+        money: false,
+      }
+    }
+
+    case 'branch_visitor_event': {
+      // kind is the counter direction: "in" (▲) or "out" (▼).
+      const isOut = message.kind === 'out'
+      return {
+        text: `${branch}: customer ${isOut ? 'out' : 'in'}`,
+        color: 'info',
+        icon: isOut ? 'mdi-account-arrow-left' : 'mdi-account-arrow-right',
         money: false,
       }
     }

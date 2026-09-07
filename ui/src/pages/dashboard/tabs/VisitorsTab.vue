@@ -57,30 +57,57 @@
 </template>
 
 <script setup>
-  import { computed, onMounted, ref } from 'vue'
+  import { computed, onMounted, onUnmounted, ref } from 'vue'
+  import { useAdminSocket } from '@/composables/useAdminSocket'
   import { useBranches } from '@/composables/useBranches'
   import { useBranchVisitors } from '@/composables/useBranchVisitors'
 
   const { branches, fetchBranches } = useBranches()
   const { listVisitorDays } = useBranchVisitors()
+  const { ensureConnected, onMessage } = useAdminSocket()
 
   const loading = ref(false)
   const error = ref('')
   const days = ref([])
 
-  onMounted(async () => {
-    loading.value = true
-    error.value = ''
+  async function loadDays () {
     try {
-      await fetchBranches()
       // One request: the newest 100 (branch, day) rollup rows across all
       // branches, grouped into per-branch cards below.
       days.value = await listVisitorDays()
+      error.value = ''
     } catch (error_) {
       error.value = error_.message
+    }
+  }
+
+  // Coalesce a burst of presses (each is its own admin push) into one
+  // refetch rather than one per message.
+  let refreshTimer = null
+  function scheduleRefresh () {
+    clearTimeout(refreshTimer)
+    refreshTimer = setTimeout(loadDays, 1500)
+  }
+
+  let unsubscribeAdmin = null
+
+  onMounted(async () => {
+    loading.value = true
+    try {
+      await fetchBranches()
+      await loadDays()
     } finally {
       loading.value = false
     }
+    ensureConnected()
+    unsubscribeAdmin = onMessage(message => {
+      if (message.type === 'branch_visitor_event') scheduleRefresh()
+    })
+  })
+
+  onUnmounted(() => {
+    clearTimeout(refreshTimer)
+    unsubscribeAdmin?.()
   })
 
   function branchName (id) {

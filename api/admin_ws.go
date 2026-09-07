@@ -57,6 +57,7 @@ func (h *adminHub) remove(conn *wsConn) {
 //	branch_attendance_event    Label="<name> <IN|OUT> <time>" — one per punch, for small batches
 //	branch_attendance_events   Amount=count of new punches — one summary toast for a large backfill
 //	branch_attendance_changed  Kind=complaint|approved|rejected, Label="<name> <verb> <date>"
+//	branch_visitor_event       Kind=in|out (counter direction), Label=local day "YYYY-MM-DD"
 //	branch_connection_changed  BranchIDs=full connected list
 type adminWSMessage struct {
 	Type     string `json:"type"`

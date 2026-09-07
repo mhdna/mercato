@@ -170,6 +170,7 @@
 
         <div class="shifts-content">
           <ServerSideTable
+            ref="visitorsTableRef"
             :api-u-r-l="`${API_BASE}/branch_visitor_events`"
             class="shifts-table"
             density="comfortable"
@@ -223,9 +224,10 @@
 
 <script setup lang="ts">
   import { useField, useForm } from 'vee-validate'
-  import { computed, ref } from 'vue'
+  import { computed, onMounted, onUnmounted, ref } from 'vue'
   import PageSidebar from '@/components/PageSidebar.vue'
   import ServerSideTable from '@/components/Tables/ServerSideTable.vue'
+  import { useAdminSocket } from '@/composables/useAdminSocket'
   import { useBranches } from '@/composables/useBranches'
   import { useCashboxes } from '@/composables/useCashboxes'
   import { useShifts } from '@/composables/useShifts'
@@ -301,7 +303,26 @@
   }))
 
   const tableRef = ref(null)
+  const visitorsTableRef = ref(null)
   const dialog = ref(false)
+
+  // Live-refresh the Visitors tab when a branch reports a counter press, so
+  // the per-day rollup doesn't need a manual reload. The visitors table is
+  // only mounted while that tab is open, so this is a no-op otherwise and
+  // switching to the tab refetches on mount anyway.
+  const { ensureConnected, onMessage } = useAdminSocket()
+  let unsubscribeAdmin = null
+  onMounted(() => {
+    ensureConnected()
+    unsubscribeAdmin = onMessage(message => {
+      if (message.type === 'branch_visitor_event') {
+        visitorsTableRef.value?.reload()
+      }
+    })
+  })
+  onUnmounted(() => {
+    unsubscribeAdmin?.()
+  })
   const submitting = ref(false)
   const submitError = ref('')
   const closingId = ref(null)

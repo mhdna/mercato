@@ -36,6 +36,7 @@ export const navItems = [
     icon: 'mdi-cart',
     children: [
       { title: 'Clients', icon: 'mdi-account', to: '/clients' },
+      { title: 'Loyalty', icon: 'mdi-trophy', to: '/loyalty' },
       { title: 'Suppliers', icon: 'mdi-truck-delivery', to: '/suppliers' },
       {
         title: 'Invoices',

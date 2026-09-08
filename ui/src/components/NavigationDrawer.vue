@@ -15,7 +15,6 @@
         <!-- Group item -->
         <v-list-group
           v-if="item.children"
-          append-icon="mdi-chevron-down"
           :prepend-icon="item.icon"
           :value="item.title"
         >

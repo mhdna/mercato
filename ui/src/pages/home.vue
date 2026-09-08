@@ -86,12 +86,7 @@
             {{ error }}
           </v-alert>
 
-          <v-infinite-scroll
-            v-else
-            class="home-activities-scroll"
-            height="100%"
-            @load="loadMore"
-          >
+          <div v-else class="home-activities-scroll">
             <v-list class="py-1" density="compact" lines="two">
               <v-list-item
                 v-for="(item, index) in activities"
@@ -133,22 +128,13 @@
               </v-list-item>
             </v-list>
 
-            <template #empty>
-              <div
-                v-if="activities.length === 0"
-                class="text-body-2 text-medium-emphasis py-4 text-center"
-              >
-                No recent activity yet.
-              </div>
-            </template>
-
-            <template #error="{ props: retryProps }">
-              <div class="text-body-2 text-error py-4 text-center">
-                Couldn't load more.
-                <v-btn class="ms-2" size="small" variant="text" v-bind="retryProps">Retry</v-btn>
-              </div>
-            </template>
-          </v-infinite-scroll>
+            <div
+              v-if="!loading && activities.length === 0"
+              class="text-body-2 text-medium-emphasis py-4 text-center"
+            >
+              No recent activity yet.
+            </div>
+          </div>
         </v-card>
       </section>
     </div>
@@ -246,21 +232,20 @@
     { title: 'Settings', description: 'Change app settings', icon: 'mdi-cog-outline', to: '/settings' },
   ]
 
-  // Recent activity: a read-only feed of what the branches have synced
-  // lately. Reuses the dashboard's /activities endpoint, which defaults to
-  // the current month ordered newest-first when no filters are passed. The
-  // panel fills the bottom third of the (non-scrolling) home page and
-  // scrolls internally -- each scroll to the bottom pulls the next page by
-  // row offset -- and a click on any row opens a details dialog. It
-  // refreshes itself off the shared admin websocket (the same push stream
-  // the dashboard listens to), so there's no manual refresh button.
+  // Recent activity: a read-only glance at the latest branch-sync activity.
+  // Reuses the dashboard's /activities endpoint, which defaults to the
+  // current month ordered newest-first when no filters are passed. This is a
+  // fixed, short feed -- just the newest page -- not a paginated log: the
+  // full history lives on the dashboard. The panel fills the bottom third of
+  // the (non-scrolling) home page and scrolls internally, and a click on any
+  // row opens a details dialog. It refreshes itself off the shared admin
+  // websocket (the same push stream the dashboard listens to), so there's no
+  // manual refresh button.
   const PAGE_SIZE = 20
 
   const activities = ref([])
   const loading = ref(false)
   const error = ref('')
-  const total = ref(0)
-  let offset = 0
 
   const detailOpen = ref(false)
   const detail = ref(null)
@@ -291,52 +276,25 @@
     return base
   }
 
-  async function fetchPage (nextOffset) {
-    const response = await authFetch(
-      `${API_BASE}/dashboard/activities?page_size=${PAGE_SIZE}&page_id=${nextOffset}`,
-    )
-    if (!response.ok) {
-      const body = await response.json().catch(() => ({}))
-      throw new Error(body.error || `Failed to load recent activity (${response.status})`)
-    }
-    return response.json()
-  }
-
-  // Fresh load / reload: rewind to the first page and replace the list.
+  // Fetch the newest page and replace the list. There's no "load more" --
+  // the dashboard is where the full, filterable history lives.
   async function reload () {
     loading.value = true
     error.value = ''
     try {
-      const data = await fetchPage(0)
+      const response = await authFetch(
+        `${API_BASE}/dashboard/activities?page_size=${PAGE_SIZE}&page_id=0`,
+      )
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}))
+        throw new Error(body.error || `Failed to load recent activity (${response.status})`)
+      }
+      const data = await response.json()
       activities.value = data.activities ?? []
-      total.value = data.total ?? activities.value.length
-      offset = activities.value.length
     } catch (error_) {
       error.value = error_.message
     } finally {
       loading.value = false
-    }
-  }
-
-  // v-infinite-scroll's @load: resolve with the status it should show next.
-  async function loadMore ({ done }) {
-    if (error.value) {
-      done('error')
-      return
-    }
-    if (activities.value.length > 0 && offset >= total.value) {
-      done('empty')
-      return
-    }
-    try {
-      const data = await fetchPage(offset)
-      const rows = data.activities ?? []
-      activities.value.push(...rows)
-      total.value = data.total ?? total.value
-      offset += rows.length
-      done(rows.length === 0 || offset >= total.value ? 'empty' : 'ok')
-    } catch {
-      done('error')
     }
   }
 
@@ -444,6 +402,7 @@
   .home-activities-scroll {
     flex: 1 1 0;
     min-height: 0;
+    overflow-y: auto;
   }
 
   .activity-row {

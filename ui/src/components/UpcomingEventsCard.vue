@@ -4,22 +4,24 @@
       <v-card
         v-bind="props"
         class="d-flex align-center me-2"
-        :class="compact ? 'icon-pill' : 'py-1 px-2'"
+        :class="mobile ? 'icon-pill' : 'py-1 px-2'"
         rounded="xl"
         style="cursor: pointer"
-        :title="next ? undefined : `No retail events in the next ${windowDays} days`"
         variant="tonal"
       >
         <v-icon
-          :class="{ 'me-2': !compact }"
+          :class="{ 'me-2': !mobile }"
           :color="next ? next.color : undefined"
           :icon="next ? next.icon : 'mdi-calendar'"
-          :size="compact ? 20 : undefined"
+          :size="mobile ? 20 : undefined"
         />
-        <div v-if="!compact" class="text-body-2 label">
-          <span class="text-medium-emphasis">{{ next.lead }}</span>
-          <span class="ms-1">{{ next.name }}</span>
-          <span class="ms-1 text-medium-emphasis">· {{ next.relative }}</span>
+        <div v-if="!mobile" class="text-body-2 label">
+          <template v-if="next">
+            <span>{{ next.lead }}</span>
+            <span class="ms-1">{{ next.name }}</span>
+            <span class="ms-1">· {{ next.relative }}</span>
+          </template>
+          <span v-else>No events in {{ windowDays }} days</span>
         </div>
       </v-card>
     </template>
@@ -68,10 +70,6 @@
   let clockTimer = null
 
   const windowDays = computed(() => settingsStore.upcomingEventsDays || 15)
-
-  // Icon-only pill on mobile, and also when there's nothing coming up -- a
-  // full-width "no events" pill just reads as clutter in the appbar.
-  const compact = computed(() => mobile.value || !next.value)
 
   function isoDate (date) {
     const y = date.getFullYear()

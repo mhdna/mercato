@@ -7,6 +7,7 @@ const DEFAULT_ACTIVITY_DISPLAY_MODE = 'notification'
 const DEFAULT_FINANCIALS_HIGH_SEASON_MONTHS = [2, 5, 6, 9, 11, 12]
 const DEFAULT_BARCODE_LABEL_WIDTH = 288
 const DEFAULT_BARCODE_LABEL_HEIGHT = 144
+const DEFAULT_UPCOMING_EVENTS_DAYS = 15
 
 // All app settings live in the single global app_settings DB row (see
 // db/migrations/000050_create_app_settings + 000051_add_activity_settings)
@@ -21,6 +22,7 @@ export const useSettingsStore = defineStore('settings', {
     financialsHighSeasonMonths: DEFAULT_FINANCIALS_HIGH_SEASON_MONTHS,
     barcodeLabelWidth: DEFAULT_BARCODE_LABEL_WIDTH,
     barcodeLabelHeight: DEFAULT_BARCODE_LABEL_HEIGHT,
+    upcomingEventsDays: DEFAULT_UPCOMING_EVENTS_DAYS,
     loaded: false,
   }),
 
@@ -37,6 +39,7 @@ export const useSettingsStore = defineStore('settings', {
         this.financialsHighSeasonMonths = settings.financials_high_season_months
         this.barcodeLabelWidth = settings.barcode_label_width ?? DEFAULT_BARCODE_LABEL_WIDTH
         this.barcodeLabelHeight = settings.barcode_label_height ?? DEFAULT_BARCODE_LABEL_HEIGHT
+        this.upcomingEventsDays = settings.upcoming_events_days ?? DEFAULT_UPCOMING_EVENTS_DAYS
       }
       this.loaded = true
     },
@@ -49,7 +52,13 @@ export const useSettingsStore = defineStore('settings', {
         activity_display_mode: this.activityDisplayMode,
         barcode_label_width: this.barcodeLabelWidth,
         barcode_label_height: this.barcodeLabelHeight,
+        upcoming_events_days: this.upcomingEventsDays,
       })
+    },
+
+    async setUpcomingEventsDays (days) {
+      this.upcomingEventsDays = days
+      await this.persist()
     },
 
     async setBarcodeLabelSize (width, height) {

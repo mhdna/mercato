@@ -53,6 +53,25 @@
               type="number"
               variant="outlined"
             />
+
+            <h3 class="text-subtitle-1 mb-1 mt-6">Upcoming events</h3>
+            <p class="text-body-2 text-medium-emphasis mb-4">
+              The appbar &ldquo;Upcoming event&rdquo; card scans the retail calendar this
+              far ahead.
+            </p>
+
+            <v-text-field
+              v-model.number="upcomingEventsDays"
+              class="field-md"
+              density="compact"
+              hint="Days ahead to look for the next retail-calendar event"
+              label="Look-ahead window (days)"
+              max="365"
+              min="1"
+              persistent-hint
+              type="number"
+              variant="outlined"
+            />
           </section>
 
           <!-- ---------------------------------------------------- FINANCIALS -->
@@ -348,6 +367,16 @@
       const seconds = Number(value)
       if (Number.isFinite(seconds) && seconds > 0) {
         settingsStore.setActivityMessageSeconds(seconds)
+      }
+    },
+  })
+
+  const upcomingEventsDays = computed({
+    get: () => settingsStore.upcomingEventsDays,
+    set: value => {
+      const days = Number(value)
+      if (Number.isFinite(days) && days >= 1 && days <= 365) {
+        settingsStore.setUpcomingEventsDays(days)
       }
     },
   })

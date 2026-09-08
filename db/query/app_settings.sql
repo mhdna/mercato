@@ -8,6 +8,7 @@ SET financials_high_season_months = $1,
     activity_display_mode = $3,
     barcode_label_width = $4,
     barcode_label_height = $5,
+    upcoming_events_days = $6,
     updated_at = now()
 WHERE id = 1
 RETURNING *;

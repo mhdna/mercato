@@ -29,6 +29,7 @@ type updateAppSettingsRequest struct {
 	ActivityDisplayMode        string  `json:"activity_display_mode"`
 	BarcodeLabelWidth          float32 `json:"barcode_label_width"`
 	BarcodeLabelHeight         float32 `json:"barcode_label_height"`
+	UpcomingEventsDays         int16   `json:"upcoming_events_days"`
 }
 
 // updateAppSettings replaces the whole global settings row -- the client
@@ -59,6 +60,10 @@ func (server *Server) updateAppSettings(ctx *gin.Context) {
 		server.writeError(ctx, http.StatusBadRequest, errors.New("barcode label dimensions must be greater than 0"))
 		return
 	}
+	if req.UpcomingEventsDays < 1 || req.UpcomingEventsDays > 365 {
+		server.writeError(ctx, http.StatusBadRequest, errors.New("upcoming_events_days must be between 1 and 365"))
+		return
+	}
 
 	months, err := json.Marshal(req.FinancialsHighSeasonMonths)
 	if err != nil {
@@ -72,6 +77,7 @@ func (server *Server) updateAppSettings(ctx *gin.Context) {
 		ActivityDisplayMode:        req.ActivityDisplayMode,
 		BarcodeLabelWidth:          req.BarcodeLabelWidth,
 		BarcodeLabelHeight:         req.BarcodeLabelHeight,
+		UpcomingEventsDays:         req.UpcomingEventsDays,
 	})
 	if err != nil {
 		server.writeError(ctx, http.StatusInternalServerError, err)

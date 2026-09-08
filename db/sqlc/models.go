@@ -411,6 +411,7 @@ type AppSetting struct {
 	ActivityDisplayMode        string          `json:"activity_display_mode"`
 	BarcodeLabelWidth          float32         `json:"barcode_label_width"`
 	BarcodeLabelHeight         float32         `json:"barcode_label_height"`
+	UpcomingEventsDays         int16           `json:"upcoming_events_days"`
 }
 
 type Asset struct {

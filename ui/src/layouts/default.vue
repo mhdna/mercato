@@ -15,6 +15,7 @@
       <!-- <SnackBar /> -->
       <BranchActivityToast />
       <template #append>
+        <UpcomingEventsCard />
         <SyncCard />
         <ConnectedBranchesCard />
         <CommandPalette />

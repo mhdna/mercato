@@ -257,7 +257,7 @@
   min-height: 24px;
   overflow: hidden;
   white-space: nowrap;
-  min-width: 140px; /* room for "synced 59 mins ago" when the reel is empty */
+  min-width: 168px; /* room for "synced 23 hours ago" when the reel is empty */
   max-width: min(44vw, 520px);
 }
 

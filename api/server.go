@@ -126,6 +126,10 @@ func (server *Server) setupRoutes() {
 
 	authRoutes.GET("/app_settings", server.getAppSettings)
 	authRoutes.PUT("/app_settings", server.updateAppSettings)
+
+	authRoutes.GET("/calendar_events", server.listCalendarEvents)
+	authRoutes.POST("/calendar_events", server.createCalendarEvent)
+	authRoutes.DELETE("/calendar_events/:id", server.deleteCalendarEvent)
 	authRoutes.GET("/logs", server.listAppLogs)
 
 	authRoutes.POST("/suppliers", server.createSupplier)

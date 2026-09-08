@@ -29,7 +29,9 @@ type updateAppSettingsRequest struct {
 	ActivityDisplayMode        string  `json:"activity_display_mode"`
 	BarcodeLabelWidth          float32 `json:"barcode_label_width"`
 	BarcodeLabelHeight         float32 `json:"barcode_label_height"`
-	UpcomingEventsDays         int16   `json:"upcoming_events_days"`
+	UpcomingEventsDays         int16    `json:"upcoming_events_days"`
+	UpcomingEventsMenuDays     int16    `json:"upcoming_events_menu_days"`
+	HiddenBuiltinEvents        []string `json:"hidden_builtin_events"`
 }
 
 // updateAppSettings replaces the whole global settings row -- the client
@@ -64,8 +66,21 @@ func (server *Server) updateAppSettings(ctx *gin.Context) {
 		server.writeError(ctx, http.StatusBadRequest, errors.New("upcoming_events_days must be between 1 and 365"))
 		return
 	}
+	if req.UpcomingEventsMenuDays < 1 || req.UpcomingEventsMenuDays > 730 {
+		server.writeError(ctx, http.StatusBadRequest, errors.New("upcoming_events_menu_days must be between 1 and 730"))
+		return
+	}
 
 	months, err := json.Marshal(req.FinancialsHighSeasonMonths)
+	if err != nil {
+		server.writeError(ctx, http.StatusBadRequest, err)
+		return
+	}
+
+	if req.HiddenBuiltinEvents == nil {
+		req.HiddenBuiltinEvents = []string{}
+	}
+	hiddenEvents, err := json.Marshal(req.HiddenBuiltinEvents)
 	if err != nil {
 		server.writeError(ctx, http.StatusBadRequest, err)
 		return
@@ -78,6 +93,8 @@ func (server *Server) updateAppSettings(ctx *gin.Context) {
 		BarcodeLabelWidth:          req.BarcodeLabelWidth,
 		BarcodeLabelHeight:         req.BarcodeLabelHeight,
 		UpcomingEventsDays:         req.UpcomingEventsDays,
+		UpcomingEventsMenuDays:     req.UpcomingEventsMenuDays,
+		HiddenBuiltinEvents:        hiddenEvents,
 	})
 	if err != nil {
 		server.writeError(ctx, http.StatusInternalServerError, err)

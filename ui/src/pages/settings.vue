@@ -64,9 +64,22 @@
               v-model.number="upcomingEventsDays"
               class="field-md"
               density="compact"
-              hint="Days ahead to look for the next retail-calendar event"
-              label="Look-ahead window (days)"
+              hint="Days ahead the inline card text looks for the next event"
+              label="Card look-ahead (days)"
               max="365"
+              min="1"
+              persistent-hint
+              type="number"
+              variant="outlined"
+            />
+
+            <v-text-field
+              v-model.number="upcomingEventsMenuDays"
+              class="field-md mt-4"
+              density="compact"
+              hint="Days ahead the dropdown lists events (default 180 ≈ 6 months)"
+              label="Dropdown look-ahead (days)"
+              max="730"
               min="1"
               persistent-hint
               type="number"
@@ -377,6 +390,16 @@
       const days = Number(value)
       if (Number.isFinite(days) && days >= 1 && days <= 365) {
         settingsStore.setUpcomingEventsDays(days)
+      }
+    },
+  })
+
+  const upcomingEventsMenuDays = computed({
+    get: () => settingsStore.upcomingEventsMenuDays,
+    set: value => {
+      const days = Number(value)
+      if (Number.isFinite(days) && days >= 1 && days <= 730) {
+        settingsStore.setUpcomingEventsMenuDays(days)
       }
     },
   })

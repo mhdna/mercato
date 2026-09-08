@@ -121,13 +121,19 @@ export const retailCalendarEvents = [
   },
 ]
 
-export function getEventsForRange (start, end) {
+// `custom` is the rows from useCalendarEvents().listCalendarEvents() --
+// user-defined one-off events, each { id, name, icon, color, start_date,
+// end_date } with ISO date strings. `hidden` is a list of built-in event
+// names the user has chosen to hide.
+export function getEventsForRange (start, end, { custom = [], hidden = [] } = {}) {
   const startDate = new Date(`${start.date}T00:00:00`)
   const endDate = new Date(`${end.date}T23:59:59`)
+  const hiddenSet = new Set(hidden)
   const events = []
 
   for (let year = startDate.getFullYear() - 1; year <= endDate.getFullYear() + 1; year++) {
     for (const event of retailCalendarEvents) {
+      if (hiddenSet.has(event.name)) {continue}
       for (const { start: s, end: e, allDay } of event.dates(year)) {
         if (e >= startDate && s <= endDate) {
           events.push({
@@ -137,9 +143,28 @@ export function getEventsForRange (start, end) {
             color: event.color,
             icon: event.icon,
             timed: !allDay,
+            builtin: true,
           })
         }
       }
+    }
+  }
+
+  for (const row of custom) {
+    const s = new Date(`${String(row.start_date).slice(0, 10)}T00:00:00`)
+    const e = new Date(`${String(row.end_date).slice(0, 10)}T23:59:59`)
+    if (Number.isNaN(s.getTime()) || Number.isNaN(e.getTime())) {continue}
+    if (e >= startDate && s <= endDate) {
+      events.push({
+        id: row.id,
+        name: row.name,
+        start: s,
+        end: e,
+        color: row.color || 'primary',
+        icon: row.icon || 'mdi-calendar-star',
+        timed: false,
+        custom: true,
+      })
     }
   }
 

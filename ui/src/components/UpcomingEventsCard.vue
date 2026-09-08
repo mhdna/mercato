@@ -21,7 +21,7 @@
             <span class="ms-1">{{ next.name }}</span>
             <span class="ms-1">· {{ next.relative }}</span>
           </template>
-          <span v-else>No events in {{ windowDays }} days</span>
+          <span v-else>No events in {{ pillDays }} days</span>
         </div>
       </v-card>
     </template>
@@ -30,7 +30,7 @@
       <v-card-title class="text-subtitle-1 d-flex align-center">
         Upcoming events
         <v-spacer />
-        <span class="text-caption text-medium-emphasis">next {{ windowDays }} days</span>
+        <span class="text-caption text-medium-emphasis">next {{ menuLabel }}</span>
       </v-card-title>
       <v-divider />
 
@@ -38,7 +38,6 @@
         <v-list-item
           v-for="event in events"
           :key="`${event.name}-${event.start.getTime()}`"
-          :prepend-icon="event.icon"
           :subtitle="`${event.dateLabel} · ${event.relative}`"
           :title="event.name"
         >
@@ -48,19 +47,21 @@
         </v-list-item>
       </v-list>
       <v-card-text v-else class="text-medium-emphasis">
-        Nothing on the retail calendar for the next {{ windowDays }} days.
+        Nothing on the calendar for the next {{ menuLabel }}.
       </v-card-text>
     </v-card>
   </v-menu>
 </template>
 
 <script setup>
-  import { computed, onMounted, onUnmounted, ref } from 'vue'
+  import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
   import { useDisplay } from 'vuetify'
+  import { useCalendarEvents } from '@/composables/useCalendarEvents'
   import { getEventsForRange } from '@/data/retailCalendarEvents'
   import { useSettingsStore } from '@/stores/settings'
 
   const settingsStore = useSettingsStore()
+  const { listCalendarEvents } = useCalendarEvents()
   const { mobile } = useDisplay()
 
   const menu = ref(false)
@@ -69,7 +70,24 @@
   const now = ref(Date.now())
   let clockTimer = null
 
-  const windowDays = computed(() => settingsStore.upcomingEventsDays || 15)
+  // User-defined events, merged with the built-in retail calendar. Loaded
+  // once on mount and refreshed whenever the dropdown is opened so events
+  // just added on the calendar page show up without a reload.
+  const customEvents = ref([])
+
+  // Inline pill text scans this far; the dropdown scans the (longer) menu
+  // window -- both are app settings.
+  const pillDays = computed(() => settingsStore.upcomingEventsDays || 15)
+  const menuDays = computed(() => settingsStore.upcomingEventsMenuDays || 180)
+
+  const menuLabel = computed(() => {
+    const d = menuDays.value
+    if (d >= 60 && d % 30 === 0) {
+      const months = d / 30
+      return `${months} month${months === 1 ? '' : 's'}`
+    }
+    return `${d} days`
+  })
 
   function isoDate (date) {
     const y = date.getFullYear()
@@ -104,26 +122,33 @@
     return `${s} – ${end.toLocaleDateString(undefined, opts)}`
   }
 
-  // Events whose span overlaps [today, today + windowDays], soonest first.
-  // getEventsForRange already expands the recurring retail calendar for us;
-  // we just trim the past-dated tail and decorate with relative labels.
-  const events = computed(() => {
+  // Events whose span overlaps [today, today + days], soonest first.
+  // getEventsForRange expands the recurring retail calendar and folds in
+  // the custom events / hidden built-ins for us; we just trim the
+  // past-dated tail and decorate with relative labels.
+  function eventsWithin (days) {
     const start = new Date(now.value)
     const end = new Date(now.value)
-    end.setDate(end.getDate() + windowDays.value)
+    end.setDate(end.getDate() + days)
 
-    return getEventsForRange({ date: isoDate(start) }, { date: isoDate(end) })
-      .filter(e => daysFromToday(e.end) >= 0 && daysFromToday(e.start) <= windowDays.value)
+    return getEventsForRange(
+      { date: isoDate(start) },
+      { date: isoDate(end) },
+      { custom: customEvents.value, hidden: settingsStore.hiddenBuiltinEvents },
+    )
+      .filter(e => daysFromToday(e.end) >= 0 && daysFromToday(e.start) <= days)
       .toSorted((a, b) => a.start - b.start)
       .map(e => ({
         ...e,
         relative: relativeLabel(e.start, e.end),
         dateLabel: dateLabel(e.start, e.end),
       }))
-  })
+  }
+
+  const events = computed(() => eventsWithin(menuDays.value))
 
   const next = computed(() => {
-    const event = events.value[0]
+    const event = eventsWithin(pillDays.value)[0]
     if (!event) return null
     return {
       ...event,
@@ -131,7 +156,16 @@
     }
   })
 
+  async function loadCustom () {
+    customEvents.value = await listCalendarEvents().catch(() => [])
+  }
+
+  watch(menu, open => {
+    if (open) loadCustom()
+  })
+
   onMounted(() => {
+    loadCustom()
     clockTimer = setInterval(() => {
       now.value = Date.now()
     }, 3_600_000)

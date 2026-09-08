@@ -11,7 +11,7 @@ import (
 )
 
 const getAppSettings = `-- name: GetAppSettings :one
-SELECT id, financials_high_season_months, updated_at, activity_message_seconds, activity_display_mode, barcode_label_width, barcode_label_height, upcoming_events_days FROM app_settings WHERE id = 1
+SELECT id, financials_high_season_months, updated_at, activity_message_seconds, activity_display_mode, barcode_label_width, barcode_label_height, upcoming_events_days, upcoming_events_menu_days, hidden_builtin_events FROM app_settings WHERE id = 1
 `
 
 func (q *Queries) GetAppSettings(ctx context.Context) (AppSetting, error) {
@@ -26,6 +26,8 @@ func (q *Queries) GetAppSettings(ctx context.Context) (AppSetting, error) {
 		&i.BarcodeLabelWidth,
 		&i.BarcodeLabelHeight,
 		&i.UpcomingEventsDays,
+		&i.UpcomingEventsMenuDays,
+		&i.HiddenBuiltinEvents,
 	)
 	return i, err
 }
@@ -38,9 +40,11 @@ SET financials_high_season_months = $1,
     barcode_label_width = $4,
     barcode_label_height = $5,
     upcoming_events_days = $6,
+    upcoming_events_menu_days = $7,
+    hidden_builtin_events = $8,
     updated_at = now()
 WHERE id = 1
-RETURNING id, financials_high_season_months, updated_at, activity_message_seconds, activity_display_mode, barcode_label_width, barcode_label_height, upcoming_events_days
+RETURNING id, financials_high_season_months, updated_at, activity_message_seconds, activity_display_mode, barcode_label_width, barcode_label_height, upcoming_events_days, upcoming_events_menu_days, hidden_builtin_events
 `
 
 type UpdateAppSettingsParams struct {
@@ -50,6 +54,8 @@ type UpdateAppSettingsParams struct {
 	BarcodeLabelWidth          float32         `json:"barcode_label_width"`
 	BarcodeLabelHeight         float32         `json:"barcode_label_height"`
 	UpcomingEventsDays         int16           `json:"upcoming_events_days"`
+	UpcomingEventsMenuDays     int16           `json:"upcoming_events_menu_days"`
+	HiddenBuiltinEvents        json.RawMessage `json:"hidden_builtin_events"`
 }
 
 func (q *Queries) UpdateAppSettings(ctx context.Context, arg UpdateAppSettingsParams) (AppSetting, error) {
@@ -60,6 +66,8 @@ func (q *Queries) UpdateAppSettings(ctx context.Context, arg UpdateAppSettingsPa
 		arg.BarcodeLabelWidth,
 		arg.BarcodeLabelHeight,
 		arg.UpcomingEventsDays,
+		arg.UpcomingEventsMenuDays,
+		arg.HiddenBuiltinEvents,
 	)
 	var i AppSetting
 	err := row.Scan(
@@ -71,6 +79,8 @@ func (q *Queries) UpdateAppSettings(ctx context.Context, arg UpdateAppSettingsPa
 		&i.BarcodeLabelWidth,
 		&i.BarcodeLabelHeight,
 		&i.UpcomingEventsDays,
+		&i.UpcomingEventsMenuDays,
+		&i.HiddenBuiltinEvents,
 	)
 	return i, err
 }

@@ -97,6 +97,7 @@ type Querier interface {
 	CreateBranchTargetSeries(ctx context.Context, arg CreateBranchTargetSeriesParams) (BranchTargetSeries, error)
 	CreateBranchUser(ctx context.Context, arg CreateBranchUserParams) (BranchUser, error)
 	CreateBranchVisitorEvent(ctx context.Context, arg CreateBranchVisitorEventParams) (BranchVisitorEvent, error)
+	CreateCalendarEvent(ctx context.Context, arg CreateCalendarEventParams) (CalendarEvent, error)
 	CreateCashbox(ctx context.Context, arg CreateCashboxParams) (Cashbox, error)
 	CreateCashboxAccount(ctx context.Context, arg CreateCashboxAccountParams) (CashboxAccount, error)
 	CreateCentralLoan(ctx context.Context, arg CreateCentralLoanParams) (Loan, error)
@@ -231,6 +232,7 @@ type Querier interface {
 	DeleteBranchInvoicePaymentsForInvoice(ctx context.Context, branchInvoiceID int64) error
 	DeleteBranchTargetSeries(ctx context.Context, id int64) (BranchTargetSeries, error)
 	DeleteBranchUser(ctx context.Context, id int64) error
+	DeleteCalendarEvent(ctx context.Context, id int64) error
 	DeleteClient(ctx context.Context, id int64) error
 	DeleteColor(ctx context.Context, id int64) error
 	DeleteColors(ctx context.Context, ids []int64) (int64, error)
@@ -409,6 +411,7 @@ type Querier interface {
 	ListBranches(ctx context.Context) ([]Branch, error)
 	ListBranchesForDiscountList(ctx context.Context, discountListID int64) ([]ListBranchesForDiscountListRow, error)
 	ListBranchesForPriceList(ctx context.Context, priceListID int64) ([]ListBranchesForPriceListRow, error)
+	ListCalendarEvents(ctx context.Context) ([]CalendarEvent, error)
 	ListCashboxAccounts(ctx context.Context, arg ListCashboxAccountsParams) ([]CashboxAccount, error)
 	ListCashboxAccountsUpdatedSince(ctx context.Context, updatedAt time.Time) ([]CashboxAccount, error)
 	ListCashboxes(ctx context.Context, arg ListCashboxesParams) ([]Cashbox, error)

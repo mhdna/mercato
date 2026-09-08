@@ -1191,6 +1191,21 @@ func (mr *MockStoreMockRecorder) CreateBranchVisitorEvent(arg0, arg1 interface{}
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateBranchVisitorEvent", reflect.TypeOf((*MockStore)(nil).CreateBranchVisitorEvent), arg0, arg1)
 }
 
+// CreateCalendarEvent mocks base method.
+func (m *MockStore) CreateCalendarEvent(arg0 context.Context, arg1 db.CreateCalendarEventParams) (db.CalendarEvent, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CreateCalendarEvent", arg0, arg1)
+	ret0, _ := ret[0].(db.CalendarEvent)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CreateCalendarEvent indicates an expected call of CreateCalendarEvent.
+func (mr *MockStoreMockRecorder) CreateCalendarEvent(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateCalendarEvent", reflect.TypeOf((*MockStore)(nil).CreateCalendarEvent), arg0, arg1)
+}
+
 // CreateCashbox mocks base method.
 func (m *MockStore) CreateCashbox(arg0 context.Context, arg1 db.CreateCashboxParams) (db.Cashbox, error) {
 	m.ctrl.T.Helper()
@@ -2291,6 +2306,20 @@ func (m *MockStore) DeleteBranchUser(arg0 context.Context, arg1 int64) error {
 func (mr *MockStoreMockRecorder) DeleteBranchUser(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteBranchUser", reflect.TypeOf((*MockStore)(nil).DeleteBranchUser), arg0, arg1)
+}
+
+// DeleteCalendarEvent mocks base method.
+func (m *MockStore) DeleteCalendarEvent(arg0 context.Context, arg1 int64) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteCalendarEvent", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteCalendarEvent indicates an expected call of DeleteCalendarEvent.
+func (mr *MockStoreMockRecorder) DeleteCalendarEvent(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteCalendarEvent", reflect.TypeOf((*MockStore)(nil).DeleteCalendarEvent), arg0, arg1)
 }
 
 // DeleteClient mocks base method.
@@ -4425,6 +4454,21 @@ func (m *MockStore) ListBranchesForPriceList(arg0 context.Context, arg1 int64) (
 func (mr *MockStoreMockRecorder) ListBranchesForPriceList(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListBranchesForPriceList", reflect.TypeOf((*MockStore)(nil).ListBranchesForPriceList), arg0, arg1)
+}
+
+// ListCalendarEvents mocks base method.
+func (m *MockStore) ListCalendarEvents(arg0 context.Context) ([]db.CalendarEvent, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListCalendarEvents", arg0)
+	ret0, _ := ret[0].([]db.CalendarEvent)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListCalendarEvents indicates an expected call of ListCalendarEvents.
+func (mr *MockStoreMockRecorder) ListCalendarEvents(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListCalendarEvents", reflect.TypeOf((*MockStore)(nil).ListCalendarEvents), arg0)
 }
 
 // ListCashboxAccounts mocks base method.

@@ -8,6 +8,7 @@ const DEFAULT_FINANCIALS_HIGH_SEASON_MONTHS = [2, 5, 6, 9, 11, 12]
 const DEFAULT_BARCODE_LABEL_WIDTH = 288
 const DEFAULT_BARCODE_LABEL_HEIGHT = 144
 const DEFAULT_UPCOMING_EVENTS_DAYS = 15
+const DEFAULT_UPCOMING_EVENTS_MENU_DAYS = 180
 
 // All app settings live in the single global app_settings DB row (see
 // db/migrations/000050_create_app_settings + 000051_add_activity_settings)
@@ -23,6 +24,8 @@ export const useSettingsStore = defineStore('settings', {
     barcodeLabelWidth: DEFAULT_BARCODE_LABEL_WIDTH,
     barcodeLabelHeight: DEFAULT_BARCODE_LABEL_HEIGHT,
     upcomingEventsDays: DEFAULT_UPCOMING_EVENTS_DAYS,
+    upcomingEventsMenuDays: DEFAULT_UPCOMING_EVENTS_MENU_DAYS,
+    hiddenBuiltinEvents: [],
     loaded: false,
   }),
 
@@ -40,6 +43,8 @@ export const useSettingsStore = defineStore('settings', {
         this.barcodeLabelWidth = settings.barcode_label_width ?? DEFAULT_BARCODE_LABEL_WIDTH
         this.barcodeLabelHeight = settings.barcode_label_height ?? DEFAULT_BARCODE_LABEL_HEIGHT
         this.upcomingEventsDays = settings.upcoming_events_days ?? DEFAULT_UPCOMING_EVENTS_DAYS
+        this.upcomingEventsMenuDays = settings.upcoming_events_menu_days ?? DEFAULT_UPCOMING_EVENTS_MENU_DAYS
+        this.hiddenBuiltinEvents = settings.hidden_builtin_events ?? []
       }
       this.loaded = true
     },
@@ -53,11 +58,34 @@ export const useSettingsStore = defineStore('settings', {
         barcode_label_width: this.barcodeLabelWidth,
         barcode_label_height: this.barcodeLabelHeight,
         upcoming_events_days: this.upcomingEventsDays,
+        upcoming_events_menu_days: this.upcomingEventsMenuDays,
+        hidden_builtin_events: this.hiddenBuiltinEvents,
       })
     },
 
     async setUpcomingEventsDays (days) {
       this.upcomingEventsDays = days
+      await this.persist()
+    },
+
+    async setUpcomingEventsMenuDays (days) {
+      this.upcomingEventsMenuDays = days
+      await this.persist()
+    },
+
+    async setHiddenBuiltinEvents (names) {
+      this.hiddenBuiltinEvents = names
+      await this.persist()
+    },
+
+    async toggleBuiltinEventHidden (name) {
+      const hidden = new Set(this.hiddenBuiltinEvents)
+      if (hidden.has(name)) {
+        hidden.delete(name)
+      } else {
+        hidden.add(name)
+      }
+      this.hiddenBuiltinEvents = [...hidden]
       await this.persist()
     },
 

@@ -412,6 +412,8 @@ type AppSetting struct {
 	BarcodeLabelWidth          float32         `json:"barcode_label_width"`
 	BarcodeLabelHeight         float32         `json:"barcode_label_height"`
 	UpcomingEventsDays         int16           `json:"upcoming_events_days"`
+	UpcomingEventsMenuDays     int16           `json:"upcoming_events_menu_days"`
+	HiddenBuiltinEvents        json.RawMessage `json:"hidden_builtin_events"`
 }
 
 type Asset struct {
@@ -708,6 +710,16 @@ type BranchVisitorEvent struct {
 	Direction  string    `json:"direction"`
 	OccurredAt time.Time `json:"occurred_at"`
 	ReceivedAt time.Time `json:"received_at"`
+}
+
+type CalendarEvent struct {
+	ID        int64     `json:"id"`
+	Name      string    `json:"name"`
+	Icon      string    `json:"icon"`
+	Color     string    `json:"color"`
+	StartDate time.Time `json:"start_date"`
+	EndDate   time.Time `json:"end_date"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 type Cashbox struct {

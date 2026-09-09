@@ -116,7 +116,6 @@
             density="comfortable"
             flush
             :headers="headers"
-            :max-page-size="10"
             root-key="inventories"
             selectable
             :show-search-icon="false"
@@ -189,6 +188,12 @@
         </v-table>
       </v-card-text>
       <v-card-actions>
+        <v-btn
+          prepend-icon="mdi-clipboard-list-outline"
+          text="Start Count"
+          variant="tonal"
+          @click="startCount"
+        />
         <v-spacer />
         <v-btn text="Close" @click="stockDialog = false" />
       </v-card-actions>
@@ -199,11 +204,19 @@
 <script setup lang="ts">
   import { useField, useForm } from 'vee-validate'
   import { ref } from 'vue'
+  import { useRouter } from 'vue-router'
   import BulkDeleteBar from '@/components/Tables/BulkDeleteBar.vue'
   import ServerSideTable from '@/components/Tables/ServerSideTable.vue'
   import { useBulkDelete } from '@/composables/useBulkDelete'
   import { useInventories } from '@/composables/useInventories'
   import { API_BASE } from '@/config'
+
+  const router = useRouter()
+
+  function startCount () {
+    if (!stockTarget.value) return
+    router.push({ path: '/stock-counts', query: { inventory_id: stockTarget.value.id } })
+  }
 
   const { createInventory, updateInventory, deleteInventory, fetchStock, createAdjustment } = useInventories()
 

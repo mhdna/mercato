@@ -1,10 +1,25 @@
 package api
 
 import (
+	"database/sql"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
+
+// parseOptionalDate parses an RFC3339 date/time query param, returning a
+// zero-value (invalid) sql.NullTime for an empty string.
+func parseOptionalDate(value string) (sql.NullTime, error) {
+	if value == "" {
+		return sql.NullTime{}, nil
+	}
+	parsed, err := time.Parse(time.RFC3339, value)
+	if err != nil {
+		return sql.NullTime{}, err
+	}
+	return sql.NullTime{Time: parsed, Valid: true}, nil
+}
 
 // listPageQuery is the shared query-string shape for the "search + paginate
 // (+ sort)" list endpoints — coupons, suppliers, price lists, discount

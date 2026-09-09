@@ -89,6 +89,7 @@ func (server *Server) createSalesInvoice(ctx *gin.Context) {
 		PriceListID:      priceListID,
 		InvoiceTypeID:    invoiceTypeID,
 		SalespersonID:    salespersonID,
+		CreatedBy:        actorID(ctx),
 	}
 
 	salesInvoice, err := server.store.SalesInvoiceTx(ctx, arg)

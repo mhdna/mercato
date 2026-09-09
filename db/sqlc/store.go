@@ -25,6 +25,11 @@ type Store interface {
 	FireRecurringExpenseTx(ctx context.Context, recurring RecurringExpense) (Expense, error)
 	DeleteBranchTargetSeriesTx(ctx context.Context, seriesID int64) (BranchTargetSeries, error)
 	BatchSetEmployeeSalaries(ctx context.Context, args []UpdateEmployeeSalaryParams) ([]Employee, error)
+	SaveStockCountTx(ctx context.Context, arg SaveStockCountTxParams) (StockCount, error)
+	PostStockCountTx(ctx context.Context, id int64, postedBy sql.NullInt64) (PostStockCountTxResult, error)
+	CancelStockCountTx(ctx context.Context, id int64) (StockCount, error)
+	CancelPurchaseTx(ctx context.Context, purchaseID int64, cancelledBy sql.NullInt64) (PurchaseReceiveTxResult, error)
+	CancelTransferTx(ctx context.Context, transferID int64, cancelledBy sql.NullInt64) (TransferStageTxResult, error)
 }
 
 // provides all the functions to execute SQL queries

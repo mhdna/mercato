@@ -125,8 +125,11 @@ INSERT INTO stock_movements (
   reference_id,
   unit_cost,
   note,
-  created_by
-) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+  created_by,
+  quantity_before,
+  quantity_after,
+  metadata
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 RETURNING *;
 
 -- name: ListStockMovements :many
@@ -142,21 +145,30 @@ SELECT
   sm.note,
   sm.created_by,
   sm.created_at,
+  sm.quantity_before,
+  sm.quantity_after,
+  sm.metadata,
   i.name AS inventory_name,
   pv.barcode,
   p.code AS product_code,
   p.name AS product_name,
   COALESCE(c.name, '') AS color_name,
-  COALESCE(s.name, '') AS size_name
+  COALESCE(s.name, '') AS size_name,
+  COALESCE(u.name, '') AS created_by_name
 FROM stock_movements sm
 JOIN inventories i ON i.id = sm.inventory_id
 JOIN product_variants pv ON pv.id = sm.variant_id
 JOIN products p ON p.id = pv.product_id
 LEFT JOIN colors c ON c.id = pv.color_id
 LEFT JOIN sizes  s ON s.id = pv.size_id
+LEFT JOIN users  u ON u.id = sm.created_by
 WHERE (sqlc.narg(inventory_id)::bigint IS NULL OR sm.inventory_id = sqlc.narg(inventory_id))
   AND (sqlc.narg(variant_id)::bigint IS NULL OR sm.variant_id = sqlc.narg(variant_id))
   AND (sqlc.narg(reason)::stock_movement_reason IS NULL OR sm.reason = sqlc.narg(reason))
+  AND (sqlc.narg(reference_type)::text IS NULL OR sm.reference_type = sqlc.narg(reference_type))
+  AND (sqlc.narg(created_by)::bigint IS NULL OR sm.created_by = sqlc.narg(created_by))
+  AND (sqlc.narg(from_date)::timestamptz IS NULL OR sm.created_at >= sqlc.narg(from_date))
+  AND (sqlc.narg(to_date)::timestamptz IS NULL OR sm.created_at <= sqlc.narg(to_date))
 ORDER BY sm.created_at DESC, sm.id DESC
 LIMIT sqlc.arg(page_limit)
 OFFSET sqlc.arg(page_offset);
@@ -166,4 +178,8 @@ SELECT COUNT(*)
 FROM stock_movements sm
 WHERE (sqlc.narg(inventory_id)::bigint IS NULL OR sm.inventory_id = sqlc.narg(inventory_id))
   AND (sqlc.narg(variant_id)::bigint IS NULL OR sm.variant_id = sqlc.narg(variant_id))
-  AND (sqlc.narg(reason)::stock_movement_reason IS NULL OR sm.reason = sqlc.narg(reason));
+  AND (sqlc.narg(reason)::stock_movement_reason IS NULL OR sm.reason = sqlc.narg(reason))
+  AND (sqlc.narg(reference_type)::text IS NULL OR sm.reference_type = sqlc.narg(reference_type))
+  AND (sqlc.narg(created_by)::bigint IS NULL OR sm.created_by = sqlc.narg(created_by))
+  AND (sqlc.narg(from_date)::timestamptz IS NULL OR sm.created_at >= sqlc.narg(from_date))
+  AND (sqlc.narg(to_date)::timestamptz IS NULL OR sm.created_at <= sqlc.narg(to_date));

@@ -215,7 +215,7 @@ func (server *Server) dispatchTransfer(ctx *gin.Context) {
 		return
 	}
 
-	result, err := server.store.TransferDispatchTx(ctx, db.TransferStageTxParams{TransferID: req.ID})
+	result, err := server.store.TransferDispatchTx(ctx, db.TransferStageTxParams{TransferID: req.ID, CreatedBy: actorID(ctx)})
 	if err != nil {
 		if err == sql.ErrNoRows {
 			server.writeError(ctx, http.StatusNotFound, err)
@@ -235,7 +235,28 @@ func (server *Server) receiveTransfer(ctx *gin.Context) {
 		return
 	}
 
-	result, err := server.store.TransferReceiveTx(ctx, db.TransferStageTxParams{TransferID: req.ID})
+	result, err := server.store.TransferReceiveTx(ctx, db.TransferStageTxParams{TransferID: req.ID, CreatedBy: actorID(ctx)})
+	if err != nil {
+		if err == sql.ErrNoRows {
+			server.writeError(ctx, http.StatusNotFound, err)
+			return
+		}
+		server.writeError(ctx, http.StatusInternalServerError, err)
+		return
+	}
+	ctx.JSON(http.StatusOK, gin.H{"transfer": result.Transfer, "movements": result.Movements})
+}
+
+// cancelTransfer moves a transfer to 'cancelled', unwinding whichever legs
+// already ran.
+func (server *Server) cancelTransfer(ctx *gin.Context) {
+	var req transferIDRequest
+	if err := ctx.ShouldBindUri(&req); err != nil {
+		server.writeError(ctx, http.StatusBadRequest, err)
+		return
+	}
+
+	result, err := server.store.CancelTransferTx(ctx, req.ID, actorID(ctx))
 	if err != nil {
 		if err == sql.ErrNoRows {
 			server.writeError(ctx, http.StatusNotFound, err)

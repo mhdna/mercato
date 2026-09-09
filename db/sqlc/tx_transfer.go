@@ -202,3 +202,82 @@ func (store *SQLStore) TransferReceiveTx(ctx context.Context, arg TransferStageT
 
 	return result, err
 }
+
+// CancelTransferTx moves a transfer to 'cancelled', unwinding whichever
+// legs already ran: a draft never touched stock; a dispatched transfer
+// returns its lines to the source inventory; a received transfer also
+// removes them again from the destination. Either way on-hand ends up
+// exactly where it was before the transfer started.
+func (store *SQLStore) CancelTransferTx(ctx context.Context, transferID int64, cancelledBy sql.NullInt64) (TransferStageTxResult, error) {
+	var result TransferStageTxResult
+
+	err := store.execTx(ctx, func(q *Queries) error {
+		transfer, err := q.GetTransfer(ctx, transferID)
+		if err != nil {
+			return err
+		}
+		if transfer.Status == TransferStatusCancelled {
+			result.Transfer = transfer
+			return nil
+		}
+
+		items, err := q.ListTransferItems(ctx, transferID)
+		if err != nil {
+			return err
+		}
+
+		if transfer.Status == TransferStatusDispatched || transfer.Status == TransferStatusReceived {
+			for _, it := range items {
+				if !it.VariantID.Valid {
+					continue
+				}
+				movement, err := q.applyStockMovement(ctx, applyStockMovementParams{
+					InventoryID:   transfer.FromInventoryID,
+					VariantID:     it.VariantID.Int64,
+					Quantity:      it.Quantity,
+					Reason:        StockMovementReasonAdjustment,
+					ReferenceType: "transfer_cancel",
+					ReferenceID:   transfer.ID,
+					CreatedBy:     cancelledBy,
+				})
+				if err != nil {
+					return err
+				}
+				result.Movements = append(result.Movements, movement)
+			}
+		}
+
+		if transfer.Status == TransferStatusReceived {
+			for _, it := range items {
+				if !it.VariantID.Valid {
+					continue
+				}
+				movement, err := q.applyStockMovement(ctx, applyStockMovementParams{
+					InventoryID:   transfer.ToInventoryID,
+					VariantID:     it.VariantID.Int64,
+					Quantity:      -it.Quantity,
+					Reason:        StockMovementReasonAdjustment,
+					ReferenceType: "transfer_cancel",
+					ReferenceID:   transfer.ID,
+					CreatedBy:     cancelledBy,
+				})
+				if err != nil {
+					return err
+				}
+				result.Movements = append(result.Movements, movement)
+			}
+		}
+
+		updated, err := q.SetTransferStatus(ctx, SetTransferStatusParams{
+			Status: TransferStatusCancelled,
+			ID:     transfer.ID,
+		})
+		if err != nil {
+			return err
+		}
+		result.Transfer = updated
+		return nil
+	})
+
+	return result, err
+}

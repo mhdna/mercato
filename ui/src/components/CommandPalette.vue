@@ -1,7 +1,7 @@
 <template>
   <v-command-palette
     v-model:search="search"
-    height="75vh"
+    height="50vh"
     hotkey="cmd+k"
     :items="items"
     location="center center"

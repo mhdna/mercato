@@ -73,7 +73,7 @@ func (server *Server) getInventory(ctx *gin.Context) {
 }
 
 type listInventoryRequest struct {
-	PageSize int32 `form:"page_size,default=10" binding:"min=5,max=10"`
+	PageSize int32 `form:"page_size,default=10" binding:"min=5,max=100"`
 	PageID   int32 `form:"page_id,default=0" binding:"min=0"`
 }
 
@@ -228,6 +228,7 @@ func (server *Server) createStockAdjustment(ctx *gin.Context) {
 		Mode:        db.StockAdjustmentMode(req.Mode),
 		Quantity:    req.Quantity,
 		Note:        req.Note,
+		CreatedBy:   actorID(ctx),
 	})
 	if err != nil {
 		server.writeError(ctx, http.StatusInternalServerError, err)
@@ -238,11 +239,15 @@ func (server *Server) createStockAdjustment(ctx *gin.Context) {
 }
 
 type listStockMovementsRequest struct {
-	InventoryID int64  `form:"inventory_id"`
-	VariantID   int64  `form:"variant_id"`
-	Reason      string `form:"reason"`
-	PageSize    int32  `form:"page_size,default=50" binding:"min=1,max=500"`
-	PageID      int32  `form:"page_id,default=0" binding:"min=0"`
+	InventoryID   int64  `form:"inventory_id"`
+	VariantID     int64  `form:"variant_id"`
+	Reason        string `form:"reason"`
+	ReferenceType string `form:"reference_type"`
+	CreatedBy     int64  `form:"created_by"`
+	FromDate      string `form:"from_date"`
+	ToDate        string `form:"to_date"`
+	PageSize      int32  `form:"page_size,default=50" binding:"min=1,max=500"`
+	PageID        int32  `form:"page_id,default=0" binding:"min=0"`
 }
 
 func (server *Server) listStockMovements(ctx *gin.Context) {
@@ -252,24 +257,45 @@ func (server *Server) listStockMovements(ctx *gin.Context) {
 		return
 	}
 
-	var inventoryID, variantID sql.NullInt64
+	var inventoryID, variantID, createdBy sql.NullInt64
 	if req.InventoryID > 0 {
 		inventoryID = sql.NullInt64{Int64: req.InventoryID, Valid: true}
 	}
 	if req.VariantID > 0 {
 		variantID = sql.NullInt64{Int64: req.VariantID, Valid: true}
 	}
+	if req.CreatedBy > 0 {
+		createdBy = sql.NullInt64{Int64: req.CreatedBy, Valid: true}
+	}
 	var reason db.NullStockMovementReason
 	if req.Reason != "" {
 		reason = db.NullStockMovementReason{StockMovementReason: db.StockMovementReason(req.Reason), Valid: true}
 	}
+	var referenceType sql.NullString
+	if req.ReferenceType != "" {
+		referenceType = sql.NullString{String: req.ReferenceType, Valid: true}
+	}
+	fromDate, err := parseOptionalDate(req.FromDate)
+	if err != nil {
+		server.writeError(ctx, http.StatusBadRequest, err)
+		return
+	}
+	toDate, err := parseOptionalDate(req.ToDate)
+	if err != nil {
+		server.writeError(ctx, http.StatusBadRequest, err)
+		return
+	}
 
 	rows, err := server.store.ListStockMovements(ctx, db.ListStockMovementsParams{
-		InventoryID: inventoryID,
-		VariantID:   variantID,
-		Reason:      reason,
-		PageLimit:   req.PageSize,
-		PageOffset:  req.PageID,
+		InventoryID:   inventoryID,
+		VariantID:     variantID,
+		Reason:        reason,
+		ReferenceType: referenceType,
+		CreatedBy:     createdBy,
+		FromDate:      fromDate,
+		ToDate:        toDate,
+		PageLimit:     req.PageSize,
+		PageOffset:    req.PageID,
 	})
 	if err != nil {
 		server.writeError(ctx, http.StatusInternalServerError, err)
@@ -277,9 +303,13 @@ func (server *Server) listStockMovements(ctx *gin.Context) {
 	}
 
 	total, err := server.store.CountStockMovements(ctx, db.CountStockMovementsParams{
-		InventoryID: inventoryID,
-		VariantID:   variantID,
-		Reason:      reason,
+		InventoryID:   inventoryID,
+		VariantID:     variantID,
+		Reason:        reason,
+		ReferenceType: referenceType,
+		CreatedBy:     createdBy,
+		FromDate:      fromDate,
+		ToDate:        toDate,
 	})
 	if err != nil {
 		server.writeError(ctx, http.StatusInternalServerError, err)

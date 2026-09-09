@@ -33,11 +33,11 @@
           >
             <template v-if="child.append === 'status'" #append>
               <span
-                aria-label="Stock health status is healthy"
+                :aria-label="`Stock health status is ${healthStatus}`"
                 class="nav-status d-flex align-center ga-2"
                 role="img"
               >
-                <span class="nav-status-dot" />
+                <span class="nav-status-dot" :class="`nav-status-dot--${healthStatus}`" />
               </span>
             </template>
           </v-list-item>
@@ -54,19 +54,28 @@
         >
           <template v-if="item.append === 'status'" #append>
             <span
-              aria-label="Stock health status is healthy"
+              :aria-label="`Stock health status is ${healthStatus}`"
               class="nav-status d-flex align-center ga-2"
               role="img"
             >
-              <span class="nav-status-dot" />
+              <span class="nav-status-dot" :class="`nav-status-dot--${healthStatus}`" />
             </span>
           </template>
-          <template v-else-if="item.append === 'alert-count'" #append>
-            <v-badge
-              color="error"
-              :content="item.appendCount"
-              inline
-            />
+          <template v-else-if="item.append === 'alert-count' && (outOfStockCount > 0 || lowStockCount > 0)" #append>
+            <span class="d-flex align-center ga-1">
+              <v-badge
+                v-if="outOfStockCount > 0"
+                color="error"
+                :content="outOfStockCount"
+                inline
+              />
+              <v-badge
+                v-if="lowStockCount > 0"
+                color="warning"
+                :content="lowStockCount"
+                inline
+              />
+            </span>
           </template>
         </v-list-item>
       </template>
@@ -91,6 +100,9 @@
 </template>
 
 <script setup>
+  import { onMounted, ref } from 'vue'
+  import { useLowStockAlerts } from '@/composables/useLowStockAlerts'
+  import { useStockHealth } from '@/composables/useStockHealth'
   import { appendItems, navItems } from '@/data/navItems'
 
   const props = defineProps({
@@ -99,6 +111,37 @@
     mobile: { type: Boolean, default: false },
   })
   defineEmits(['update:modelValue', 'update:rail'])
+
+  // Real counts backing the Alerts nav badges, shown separately: red for
+  // out-of-stock, orange for merely low (see pages/alerts.vue, api/low_stock.go).
+  const { fetchSummary } = useLowStockAlerts()
+  const outOfStockCount = ref(0)
+  const lowStockCount = ref(0)
+
+  onMounted(async () => {
+    try {
+      const summary = await fetchSummary()
+      outOfStockCount.value = summary?.out_of_stock_count ?? 0
+      lowStockCount.value = summary?.low_stock_count ?? 0
+    } catch {
+      outOfStockCount.value = 0
+      lowStockCount.value = 0
+    }
+  })
+
+  // Real status backing the Stock Health nav dot -- green/orange/red for
+  // healthy/warning/critical (see pages/stock-health.vue, api/stock_health.go).
+  const { fetchStockHealth } = useStockHealth()
+  const healthStatus = ref('healthy')
+
+  onMounted(async () => {
+    try {
+      const health = await fetchStockHealth()
+      healthStatus.value = health?.status ?? 'healthy'
+    } catch {
+      healthStatus.value = 'healthy'
+    }
+  })
 </script>
 
 <style scoped>
@@ -116,6 +159,15 @@
   display: block;
   border-radius: 50%;
   background-color: rgb(var(--v-theme-success));
+}
+.nav-status-dot--healthy {
+  background-color: rgb(var(--v-theme-success));
+}
+.nav-status-dot--warning {
+  background-color: rgb(var(--v-theme-warning));
+}
+.nav-status-dot--critical {
+  background-color: rgb(var(--v-theme-error));
 }
 
 .nav-status {

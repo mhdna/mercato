@@ -8,6 +8,7 @@ package db
 import (
 	"context"
 	"database/sql"
+	"time"
 
 	"github.com/lib/pq"
 )
@@ -62,7 +63,7 @@ INSERT INTO products (
   description
 ) VALUES (
     $1, $2, $3
-) RETURNING id, code, name, description, is_active, created_at
+) RETURNING id, code, name, description, is_active, created_at, low_stock_threshold, low_stock_alerts_enabled
 `
 
 type CreateProductParams struct {
@@ -81,6 +82,8 @@ func (q *Queries) CreateProduct(ctx context.Context, arg CreateProductParams) (P
 		&i.Description,
 		&i.IsActive,
 		&i.CreatedAt,
+		&i.LowStockThreshold,
+		&i.LowStockAlertsEnabled,
 	)
 	return i, err
 }
@@ -96,7 +99,7 @@ func (q *Queries) DeleteProduct(ctx context.Context, id int64) error {
 }
 
 const getProduct = `-- name: GetProduct :one
-SELECT id, code, name, description, is_active, created_at FROM products
+SELECT id, code, name, description, is_active, created_at, low_stock_threshold, low_stock_alerts_enabled FROM products
 WHERE id = $1 LIMIT 1
 `
 
@@ -110,6 +113,8 @@ func (q *Queries) GetProduct(ctx context.Context, id int64) (Product, error) {
 		&i.Description,
 		&i.IsActive,
 		&i.CreatedAt,
+		&i.LowStockThreshold,
+		&i.LowStockAlertsEnabled,
 	)
 	return i, err
 }
@@ -147,11 +152,20 @@ type ListProductsParams struct {
 	PageLimit         int32        `json:"page_limit"`
 }
 
+type ListProductsRow struct {
+	ID          int64     `json:"id"`
+	Code        string    `json:"code"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	IsActive    bool      `json:"is_active"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
 // Search matches code/name/description (case-insensitive). Every filter is
 // optional: empty search string, NULL narg, or empty attribute_value_ids
 // array all mean "don't filter on this". attribute_value_ids is an AND --
 // the product must carry every selected value.
-func (q *Queries) ListProducts(ctx context.Context, arg ListProductsParams) ([]Product, error) {
+func (q *Queries) ListProducts(ctx context.Context, arg ListProductsParams) ([]ListProductsRow, error) {
 	rows, err := q.db.QueryContext(ctx, listProducts,
 		arg.Search,
 		arg.IsActive,
@@ -166,9 +180,9 @@ func (q *Queries) ListProducts(ctx context.Context, arg ListProductsParams) ([]P
 		return nil, err
 	}
 	defer rows.Close()
-	items := []Product{}
+	items := []ListProductsRow{}
 	for rows.Next() {
-		var i Product
+		var i ListProductsRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.Code,

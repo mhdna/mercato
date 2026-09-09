@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/mhdna/kashi/token"
 	"github.com/mhdna/kashi/util"
 )
 
@@ -40,6 +41,20 @@ func corsMiddleware() gin.HandlerFunc {
 
 		ctx.Next()
 	}
+}
+
+// actorID returns the authenticated user's id for audit stamping. Branch
+// (POS) requests carry no user payload, so it returns a null id there.
+func actorID(ctx *gin.Context) sql.NullInt64 {
+	value, exists := ctx.Get(authoizationPayloadKey)
+	if !exists {
+		return sql.NullInt64{}
+	}
+	payload, ok := value.(*token.Payload)
+	if !ok || payload.UserID == 0 {
+		return sql.NullInt64{}
+	}
+	return sql.NullInt64{Int64: payload.UserID, Valid: true}
 }
 
 func (server *Server) authMiddleware() gin.HandlerFunc {

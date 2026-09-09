@@ -23,6 +23,7 @@ type Querier interface {
 	AddPurchaseItem(ctx context.Context, arg AddPurchaseItemParams) (PurchaseItem, error)
 	AddPurchasedProduct(ctx context.Context, arg AddPurchasedProductParams) (ProductSupplier, error)
 	AddPurchasedProductCost(ctx context.Context, arg AddPurchasedProductCostParams) (ProductSupplierCost, error)
+	AddStockCountItem(ctx context.Context, arg AddStockCountItemParams) (StockCountItem, error)
 	// A branch_shifts row exists only once kashi-pos has reported that shift's
 	// close, so its mere presence is the "this shift is closed" signal --
 	// closed_at itself can be NULL for an older till build that omitted it.
@@ -31,6 +32,7 @@ type Querier interface {
 	CompleteBranchCommand(ctx context.Context, arg CompleteBranchCommandParams) (BranchCommand, error)
 	CountAssets(ctx context.Context, arg CountAssetsParams) (int64, error)
 	CountAttributeValues(ctx context.Context, arg CountAttributeValuesParams) (int64, error)
+	CountAuditLogs(ctx context.Context, arg CountAuditLogsParams) (int64, error)
 	CountBranchAttendanceChanges(ctx context.Context, branchID sql.NullInt64) (int64, error)
 	CountBranchAttendanceEvents(ctx context.Context, branchID sql.NullInt64) (int64, error)
 	CountBranchExpenseImages(ctx context.Context) (int64, error)
@@ -59,12 +61,14 @@ type Querier interface {
 	CountDiscountLists(ctx context.Context) (int64, error)
 	CountEmployees(ctx context.Context, arg CountEmployeesParams) (int64, error)
 	CountExpenses(ctx context.Context, arg CountExpensesParams) (int64, error)
+	CountIgnoredLowStockProducts(ctx context.Context, search string) (int64, error)
 	CountInventories(ctx context.Context) (int64, error)
 	CountInventoryStock(ctx context.Context, arg CountInventoryStockParams) (int64, error)
 	CountInvoices(ctx context.Context) (int64, error)
 	CountInvoicesFiltered(ctx context.Context, search string) (int64, error)
 	CountLoanPayments(ctx context.Context, arg CountLoanPaymentsParams) (int64, error)
 	CountLoans(ctx context.Context, arg CountLoansParams) (int64, error)
+	CountLowStockProducts(ctx context.Context, arg CountLowStockProductsParams) (int64, error)
 	CountPriceListItemsWithProduct(ctx context.Context, arg CountPriceListItemsWithProductParams) (int64, error)
 	CountPriceListsFiltered(ctx context.Context, search string) (int64, error)
 	CountProductVariants(ctx context.Context) (int64, error)
@@ -72,12 +76,15 @@ type Querier interface {
 	CountPurchasesFiltered(ctx context.Context, search string) (int64, error)
 	CountShifts(ctx context.Context, arg CountShiftsParams) (int64, error)
 	CountSizes(ctx context.Context, search string) (int64, error)
+	CountStockCounts(ctx context.Context, arg CountStockCountsParams) (int64, error)
+	CountStockHealthByInventory(ctx context.Context, search string) (int64, error)
 	CountStockMovements(ctx context.Context, arg CountStockMovementsParams) (int64, error)
 	CountSuppliersFiltered(ctx context.Context, search string) (int64, error)
 	CountTransfers(ctx context.Context) (int64, error)
 	CountVariantsForBarcodes(ctx context.Context, search string) (int64, error)
 	CreateAsset(ctx context.Context, arg CreateAssetParams) (Asset, error)
 	CreateAssetCategory(ctx context.Context, arg CreateAssetCategoryParams) (AssetCategory, error)
+	CreateAuditLog(ctx context.Context, arg CreateAuditLogParams) (AuditLog, error)
 	CreateBranch(ctx context.Context, arg CreateBranchParams) (Branch, error)
 	CreateBranchAttendanceChange(ctx context.Context, arg CreateBranchAttendanceChangeParams) (BranchAttendanceChange, error)
 	CreateBranchAttendanceEvent(ctx context.Context, arg CreateBranchAttendanceEventParams) (BranchAttendanceEvent, error)
@@ -138,6 +145,7 @@ type Querier interface {
 	CreateSession(ctx context.Context, arg CreateSessionParams) (Session, error)
 	CreateShift(ctx context.Context, cashboxID int64) (Shift, error)
 	CreateSize(ctx context.Context, arg CreateSizeParams) (Size, error)
+	CreateStockCount(ctx context.Context, arg CreateStockCountParams) (StockCount, error)
 	// ---------------------------------------------------------------------------
 	// Stock movement ledger (append-only).
 	// ---------------------------------------------------------------------------
@@ -267,6 +275,7 @@ type Querier interface {
 	DeleteSalesperson(ctx context.Context, id int64) error
 	DeleteSize(ctx context.Context, id int64) error
 	DeleteSizes(ctx context.Context, ids []int64) (int64, error)
+	DeleteStockCountItems(ctx context.Context, stockCountID int64) error
 	DeleteTransferItem(ctx context.Context, arg DeleteTransferItemParams) error
 	DeleteUser(ctx context.Context, id int64) error
 	GetAppSettings(ctx context.Context) (AppSetting, error)
@@ -325,6 +334,10 @@ type Querier interface {
 	GetLoan(ctx context.Context, id int64) (Loan, error)
 	GetLoanCategory(ctx context.Context, id int64) (LoanCategory, error)
 	GetLoanPayment(ctx context.Context, id int64) (LoanPayment, error)
+	// Counts across all active, alert-enabled products, ignoring search --
+	// backs the summary cards, which should reflect the whole picture even
+	// while the table below is filtered.
+	GetLowStockSummary(ctx context.Context) (GetLowStockSummaryRow, error)
 	GetNextBarcodeItemValue(ctx context.Context) (int64, error)
 	GetPriceList(ctx context.Context, id int64) (PriceList, error)
 	GetPriceListBranch(ctx context.Context, branchID int64) (PriceListBranch, error)
@@ -343,6 +356,11 @@ type Querier interface {
 	GetSalesperson(ctx context.Context, id int64) (Salesperson, error)
 	GetSession(ctx context.Context, id uuid.UUID) (Session, error)
 	GetShift(ctx context.Context, id int64) (Shift, error)
+	GetStockCount(ctx context.Context, id int64) (StockCount, error)
+	// Inventory health: overall days-of-inventory (on-hand / trailing daily
+	// sell-through), total inventory value at moving-average cost, and the
+	// same breakdown per inventory location.
+	GetStockHealthOverview(ctx context.Context) (GetStockHealthOverviewRow, error)
 	GetSupplier(ctx context.Context, id int64) (Supplier, error)
 	GetTransfer(ctx context.Context, id int64) (Transfer, error)
 	GetUser(ctx context.Context, id int64) (User, error)
@@ -357,6 +375,7 @@ type Querier interface {
 	ListAssetsPage(ctx context.Context, arg ListAssetsPageParams) ([]Asset, error)
 	ListAttributeValuesPage(ctx context.Context, arg ListAttributeValuesPageParams) ([]ListAttributeValuesPageRow, error)
 	ListAttributes(ctx context.Context) ([]Attribute, error)
+	ListAuditLogs(ctx context.Context, arg ListAuditLogsParams) ([]ListAuditLogsRow, error)
 	ListBranchAttendanceChanges(ctx context.Context, arg ListBranchAttendanceChangesParams) ([]BranchAttendanceChange, error)
 	ListBranchAttendanceEvents(ctx context.Context, arg ListBranchAttendanceEventsParams) ([]BranchAttendanceEvent, error)
 	ListBranchCommands(ctx context.Context, arg ListBranchCommandsParams) ([]BranchCommand, error)
@@ -485,6 +504,9 @@ type Querier interface {
 	// Only branch-scoped categories are synced down to kashi-pos.
 	ListExpenseCategoriesUpdatedSince(ctx context.Context, updatedAt time.Time) ([]ExpenseCategory, error)
 	ListExpenses(ctx context.Context, arg ListExpensesParams) ([]Expense, error)
+	// Products that have opted out of low-stock alerting entirely, regardless
+	// of on-hand or threshold -- lets the muted list be reviewed and reversed.
+	ListIgnoredLowStockProducts(ctx context.Context, arg ListIgnoredLowStockProductsParams) ([]ListIgnoredLowStockProductsRow, error)
 	ListInventories(ctx context.Context, arg ListInventoriesParams) ([]Inventory, error)
 	ListInventoryStock(ctx context.Context, arg ListInventoryStockParams) ([]ListInventoryStockRow, error)
 	ListInvoicePaymentsByInvoice(ctx context.Context, invoiceID int64) ([]ListInvoicePaymentsByInvoiceRow, error)
@@ -506,6 +528,14 @@ type Querier interface {
 	// the loan amount, 'partial' while some but not all is covered, else
 	// 'unpaid'. sqlc.narg(status) filters on that same derived value.
 	ListLoans(ctx context.Context, arg ListLoansParams) ([]ListLoansRow, error)
+	// Low stock alerts. A product's on-hand is the sum of inventory_stock
+	// across every SKU (variant) and every inventory it's stocked in; its
+	// effective threshold is its own override if set, else the single global
+	// app_settings.default_low_stock_threshold.
+	// status narrows to one bucket: 'out_of_stock' (on_hand <= 0) or
+	// 'low_stock' (on_hand > 0, i.e. low but not yet out); NULL keeps both,
+	// matching the "at or below threshold" definition used everywhere else.
+	ListLowStockProducts(ctx context.Context, arg ListLowStockProductsParams) ([]ListLowStockProductsRow, error)
 	ListPendingBranchCommands(ctx context.Context, branchID int64) ([]BranchCommand, error)
 	ListPriceListBranchIDs(ctx context.Context, priceListID int64) ([]int64, error)
 	ListPriceListItems(ctx context.Context, priceListID int64) ([]PriceListItem, error)
@@ -534,7 +564,7 @@ type Querier interface {
 	// optional: empty search string, NULL narg, or empty attribute_value_ids
 	// array all mean "don't filter on this". attribute_value_ids is an AND --
 	// the product must carry every selected value.
-	ListProducts(ctx context.Context, arg ListProductsParams) ([]Product, error)
+	ListProducts(ctx context.Context, arg ListProductsParams) ([]ListProductsRow, error)
 	ListPurchaseItems(ctx context.Context, purchaseID sql.NullInt64) ([]ListPurchaseItemsRow, error)
 	ListPurchases(ctx context.Context, arg ListPurchasesParams) ([]ListPurchasesRow, error)
 	ListRecurringExpenses(ctx context.Context) ([]RecurringExpense, error)
@@ -545,6 +575,9 @@ type Querier interface {
 	ListShifts(ctx context.Context, arg ListShiftsParams) ([]ListShiftsRow, error)
 	ListSizes(ctx context.Context) ([]Size, error)
 	ListSizesPage(ctx context.Context, arg ListSizesPageParams) ([]Size, error)
+	ListStockCountItems(ctx context.Context, stockCountID int64) ([]ListStockCountItemsRow, error)
+	ListStockCounts(ctx context.Context, arg ListStockCountsParams) ([]ListStockCountsRow, error)
+	ListStockHealthByInventory(ctx context.Context, arg ListStockHealthByInventoryParams) ([]ListStockHealthByInventoryRow, error)
 	ListStockMovements(ctx context.Context, arg ListStockMovementsParams) ([]ListStockMovementsRow, error)
 	// TOOD: add UpdateSupplier
 	ListSuppliers(ctx context.Context, arg ListSuppliersParams) ([]Supplier, error)
@@ -567,10 +600,14 @@ type Querier interface {
 	SetBranchTargetActive(ctx context.Context, arg SetBranchTargetActiveParams) (BranchTarget, error)
 	SetBranchTargetSeriesActive(ctx context.Context, arg SetBranchTargetSeriesActiveParams) (BranchTargetSeries, error)
 	SetBranchUserActive(ctx context.Context, arg SetBranchUserActiveParams) (BranchUser, error)
+	SetDefaultLowStockThreshold(ctx context.Context, defaultLowStockThreshold int64) (AppSetting, error)
+	SetProductLowStockAlertsEnabled(ctx context.Context, arg SetProductLowStockAlertsEnabledParams) error
 	SetPurchaseStatus(ctx context.Context, arg SetPurchaseStatusParams) (Purchase, error)
 	SetPurchaseTotals(ctx context.Context, arg SetPurchaseTotalsParams) error
 	SetRecurringExpenseActive(ctx context.Context, arg SetRecurringExpenseActiveParams) (RecurringExpense, error)
 	SetSalespersonActive(ctx context.Context, arg SetSalespersonActiveParams) (Salesperson, error)
+	SetStockCountNote(ctx context.Context, arg SetStockCountNoteParams) error
+	SetStockCountStatus(ctx context.Context, arg SetStockCountStatusParams) (StockCount, error)
 	SetTransferStatus(ctx context.Context, arg SetTransferStatusParams) (Transfer, error)
 	SetVariantBarcode(ctx context.Context, arg SetVariantBarcodeParams) (ProductVariant, error)
 	// Net sales revenue: same grand_total-sum convention as ListDailyIncome in
@@ -620,6 +657,8 @@ type Querier interface {
 	UpdatePriceListItem(ctx context.Context, arg UpdatePriceListItemParams) error
 	UpdateProduct(ctx context.Context, arg UpdateProductParams) error
 	UpdateProductAttribute(ctx context.Context, arg UpdateProductAttributeParams) error
+	// A null threshold clears the override, falling back to the app-wide default.
+	UpdateProductLowStockThreshold(ctx context.Context, arg UpdateProductLowStockThresholdParams) error
 	UpdateProductVariant(ctx context.Context, arg UpdateProductVariantParams) (ProductVariant, error)
 	// Roll the variant's global moving-average cost forward on a stock receipt.
 	// current_qty is the on-hand across all locations before this receipt.

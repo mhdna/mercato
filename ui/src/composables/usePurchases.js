@@ -43,6 +43,10 @@ async function receivePurchase (id) {
   return resource.requestJSON(`${API_BASE}/purchases/${id}/receive`, { method: 'POST' })
 }
 
+async function cancelPurchase (id) {
+  return resource.requestJSON(`${API_BASE}/purchases/${id}/cancel`, { method: 'POST' })
+}
+
 export function usePurchases () {
   return {
     purchases: resource.items,
@@ -51,5 +55,6 @@ export function usePurchases () {
     fetchPurchase,
     addPurchaseItem,
     receivePurchase,
+    cancelPurchase,
   }
 }

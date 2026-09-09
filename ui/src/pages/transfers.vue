@@ -108,6 +108,14 @@
           text="Receive"
           @click="stage('receive')"
         />
+        <v-btn
+          v-if="itemsTarget?.status === 'draft' || itemsTarget?.status === 'dispatched' || itemsTarget?.status === 'received'"
+          color="error"
+          :loading="staging"
+          text="Cancel Transfer"
+          variant="text"
+          @click="stage('cancel')"
+        />
         <v-spacer />
         <v-btn text="Close" @click="itemsDialog = false" />
       </v-card-actions>
@@ -173,7 +181,7 @@
 
   const {
     createTransfer, updateTransfer, fetchTransferItems, createTransferItem,
-    dispatchTransfer, receiveTransfer,
+    dispatchTransfer, receiveTransfer, cancelTransfer,
   } = useTransfers()
   const { inventories, fetchInventories } = useInventories()
   const { variants: skuOptions, loading: skuLoading, searchVariants } = useVariants()
@@ -314,7 +322,7 @@
     staging.value = true
     itemError.value = ''
     try {
-      const fn = action === 'dispatch' ? dispatchTransfer : receiveTransfer
+      const fn = { dispatch: dispatchTransfer, receive: receiveTransfer, cancel: cancelTransfer }[action]
       const res = await fn(itemsTarget.value.id)
       itemsTarget.value = res?.transfer ?? itemsTarget.value
       tableRef.value?.reload()

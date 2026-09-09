@@ -211,7 +211,30 @@ func (server *Server) receivePurchase(ctx *gin.Context) {
 
 	result, err := server.store.PurchaseReceiveTx(ctx, db.PurchaseReceiveTxParams{
 		PurchaseID: req.ID,
+		CreatedBy:  actorID(ctx),
 	})
+	if err != nil {
+		if err == sql.ErrNoRows {
+			server.writeError(ctx, http.StatusNotFound, err)
+			return
+		}
+		server.writeError(ctx, http.StatusInternalServerError, err)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"purchase": result.Purchase, "movements": result.Movements})
+}
+
+// cancelPurchase moves a purchase to 'cancelled'. A received purchase is
+// unwound with compensating negative movements first.
+func (server *Server) cancelPurchase(ctx *gin.Context) {
+	var req purchaseIDRequest
+	if err := ctx.ShouldBindUri(&req); err != nil {
+		server.writeError(ctx, http.StatusBadRequest, err)
+		return
+	}
+
+	result, err := server.store.CancelPurchaseTx(ctx, req.ID, actorID(ctx))
 	if err != nil {
 		if err == sql.ErrNoRows {
 			server.writeError(ctx, http.StatusNotFound, err)

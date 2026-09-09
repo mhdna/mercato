@@ -189,6 +189,68 @@ func (store *SQLStore) PurchaseReceiveTx(ctx context.Context, arg PurchaseReceiv
 	return result, err
 }
 
+// CancelPurchaseTx moves a purchase to 'cancelled'. A draft purchase never
+// touched stock, so this just flips status. A received purchase already
+// moved stock in, so this unwinds every line with a compensating negative
+// movement before flipping status -- on-hand returns to exactly where it
+// was before the purchase was received.
+func (store *SQLStore) CancelPurchaseTx(ctx context.Context, purchaseID int64, cancelledBy sql.NullInt64) (PurchaseReceiveTxResult, error) {
+	var result PurchaseReceiveTxResult
+
+	err := store.execTx(ctx, func(q *Queries) error {
+		purchase, err := q.GetPurchase(ctx, purchaseID)
+		if err != nil {
+			return err
+		}
+		if purchase.Status == PurchaseStatusCancelled {
+			result.Purchase = purchaseFromRow(purchase)
+			return nil
+		}
+
+		if purchase.Status == PurchaseStatusReceived {
+			items, err := q.ListPurchaseItems(ctx, nullInt64(purchaseID))
+			if err != nil {
+				return err
+			}
+			if !purchase.InventoryID.Valid {
+				return errors.New("purchase has no destination inventory")
+			}
+			inventoryID := purchase.InventoryID.Int64
+
+			for _, it := range items {
+				if !it.VariantID.Valid {
+					continue
+				}
+				movement, err := q.applyStockMovement(ctx, applyStockMovementParams{
+					InventoryID:   inventoryID,
+					VariantID:     it.VariantID.Int64,
+					Quantity:      -it.Quantity,
+					Reason:        StockMovementReasonAdjustment,
+					ReferenceType: "purchase_cancel",
+					ReferenceID:   purchase.ID,
+					CreatedBy:     cancelledBy,
+				})
+				if err != nil {
+					return err
+				}
+				result.Movements = append(result.Movements, movement)
+			}
+		}
+
+		updated, err := q.SetPurchaseStatus(ctx, SetPurchaseStatusParams{
+			Status: PurchaseStatusCancelled,
+			ID:     purchase.ID,
+		})
+		if err != nil {
+			return err
+		}
+		result.Purchase = updated
+		return nil
+	})
+
+	return result, err
+}
+
 // recordSupplierCost keeps product_suppliers / product_supplier_costs in
 // step with what a purchase actually paid, as a "last known cost from this
 // supplier" reference. Best-effort: a duplicate (product_supplier_id,

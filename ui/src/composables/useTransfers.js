@@ -48,5 +48,6 @@ export function useTransfers () {
     createTransferItem,
     dispatchTransfer: stage('dispatch'),
     receiveTransfer: stage('receive'),
+    cancelTransfer: stage('cancel'),
   }
 }

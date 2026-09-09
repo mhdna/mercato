@@ -273,6 +273,7 @@ func (server *Server) loginUser(ctx *gin.Context) {
 		return
 	}
 	accessToken, accessPayload, err := server.tokenMaker.CreateToken(
+		user.ID,
 		user.Name,
 		server.config.AccessTokenDuration,
 	)
@@ -281,6 +282,7 @@ func (server *Server) loginUser(ctx *gin.Context) {
 		return
 	}
 	refreshToken, refreshPayload, err := server.tokenMaker.CreateToken(
+		user.ID,
 		user.Name,
 		server.config.RefreshTokenDuration,
 	)
@@ -362,7 +364,14 @@ func (server *Server) renewAccessToken(ctx *gin.Context) {
 		return
 	}
 
+	user, err := server.store.GetUserByUsername(ctx, refreshPayload.Username)
+	if err != nil {
+		server.writeError(ctx, http.StatusInternalServerError, err)
+		return
+	}
+
 	accessToken, accessPayload, err := server.tokenMaker.CreateToken(
+		user.ID,
 		refreshPayload.Username,
 		server.config.AccessTokenDuration,
 	)

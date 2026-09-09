@@ -76,6 +76,7 @@ func (server *Server) createReturnInvoice(ctx *gin.Context) {
 		Items:            items,
 		PriceListID:      priceListID,
 		SalespersonID:    salespersonID,
+		CreatedBy:        actorID(ctx),
 	}
 
 	returnInvoice, err := server.store.ReturnInvoiceTx(ctx, arg)

@@ -15,6 +15,49 @@ import (
 	"github.com/sqlc-dev/pqtype"
 )
 
+type AuditAction string
+
+const (
+	AuditActionCreate AuditAction = "create"
+	AuditActionUpdate AuditAction = "update"
+	AuditActionDelete AuditAction = "delete"
+)
+
+func (e *AuditAction) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = AuditAction(s)
+	case string:
+		*e = AuditAction(s)
+	default:
+		return fmt.Errorf("unsupported scan type for AuditAction: %T", src)
+	}
+	return nil
+}
+
+type NullAuditAction struct {
+	AuditAction AuditAction `json:"audit_action"`
+	Valid       bool        `json:"valid"` // Valid is true if AuditAction is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullAuditAction) Scan(value interface{}) error {
+	if value == nil {
+		ns.AuditAction, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.AuditAction.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullAuditAction) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.AuditAction), nil
+}
+
 type CouponStatus string
 
 const (
@@ -270,6 +313,49 @@ func (ns NullPurchaseStatus) Value() (driver.Value, error) {
 	return string(ns.PurchaseStatus), nil
 }
 
+type StockCountStatus string
+
+const (
+	StockCountStatusDraft     StockCountStatus = "draft"
+	StockCountStatusPosted    StockCountStatus = "posted"
+	StockCountStatusCancelled StockCountStatus = "cancelled"
+)
+
+func (e *StockCountStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = StockCountStatus(s)
+	case string:
+		*e = StockCountStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for StockCountStatus: %T", src)
+	}
+	return nil
+}
+
+type NullStockCountStatus struct {
+	StockCountStatus StockCountStatus `json:"stock_count_status"`
+	Valid            bool             `json:"valid"` // Valid is true if StockCountStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullStockCountStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.StockCountStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.StockCountStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullStockCountStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.StockCountStatus), nil
+}
+
 type StockMovementReason string
 
 const (
@@ -414,6 +500,7 @@ type AppSetting struct {
 	UpcomingEventsDays         int16           `json:"upcoming_events_days"`
 	UpcomingEventsMenuDays     int16           `json:"upcoming_events_menu_days"`
 	HiddenBuiltinEvents        json.RawMessage `json:"hidden_builtin_events"`
+	DefaultLowStockThreshold   int64           `json:"default_low_stock_threshold"`
 }
 
 type Asset struct {
@@ -445,6 +532,18 @@ type AttributesValue struct {
 	AttributeID int64     `json:"attribute_id"`
 	Value       string    `json:"value"`
 	CreatedAt   time.Time `json:"created_at"`
+}
+
+type AuditLog struct {
+	ID         int64                 `json:"id"`
+	EntityType string                `json:"entity_type"`
+	EntityID   int64                 `json:"entity_id"`
+	Action     AuditAction           `json:"action"`
+	Before     pqtype.NullRawMessage `json:"before"`
+	After      pqtype.NullRawMessage `json:"after"`
+	ActorID    sql.NullInt64         `json:"actor_id"`
+	Source     string                `json:"source"`
+	CreatedAt  time.Time             `json:"created_at"`
 }
 
 type Branch struct {
@@ -1008,12 +1107,14 @@ type PriceListItem struct {
 }
 
 type Product struct {
-	ID          int64     `json:"id"`
-	Code        string    `json:"code"`
-	Name        string    `json:"name"`
-	Description string    `json:"description"`
-	IsActive    bool      `json:"is_active"`
-	CreatedAt   time.Time `json:"created_at"`
+	ID                    int64         `json:"id"`
+	Code                  string        `json:"code"`
+	Name                  string        `json:"name"`
+	Description           string        `json:"description"`
+	IsActive              bool          `json:"is_active"`
+	CreatedAt             time.Time     `json:"created_at"`
+	LowStockThreshold     sql.NullInt64 `json:"low_stock_threshold"`
+	LowStockAlertsEnabled bool          `json:"low_stock_alerts_enabled"`
 }
 
 type ProductSupplier struct {
@@ -1137,18 +1238,43 @@ type Size struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+type StockCount struct {
+	ID          int64            `json:"id"`
+	InventoryID int64            `json:"inventory_id"`
+	Code        string           `json:"code"`
+	Status      StockCountStatus `json:"status"`
+	Note        string           `json:"note"`
+	CountedAt   time.Time        `json:"counted_at"`
+	PostedAt    sql.NullTime     `json:"posted_at"`
+	CreatedBy   sql.NullInt64    `json:"created_by"`
+	PostedBy    sql.NullInt64    `json:"posted_by"`
+	CreatedAt   time.Time        `json:"created_at"`
+}
+
+type StockCountItem struct {
+	ID              int64 `json:"id"`
+	StockCountID    int64 `json:"stock_count_id"`
+	VariantID       int64 `json:"variant_id"`
+	SystemQuantity  int64 `json:"system_quantity"`
+	CountedQuantity int64 `json:"counted_quantity"`
+	Difference      int64 `json:"difference"`
+}
+
 type StockMovement struct {
-	ID            int64               `json:"id"`
-	InventoryID   int64               `json:"inventory_id"`
-	VariantID     int64               `json:"variant_id"`
-	Quantity      int64               `json:"quantity"`
-	Reason        StockMovementReason `json:"reason"`
-	ReferenceType sql.NullString      `json:"reference_type"`
-	ReferenceID   sql.NullInt64       `json:"reference_id"`
-	UnitCost      sql.NullInt64       `json:"unit_cost"`
-	Note          string              `json:"note"`
-	CreatedBy     sql.NullInt64       `json:"created_by"`
-	CreatedAt     time.Time           `json:"created_at"`
+	ID             int64               `json:"id"`
+	InventoryID    int64               `json:"inventory_id"`
+	VariantID      int64               `json:"variant_id"`
+	Quantity       int64               `json:"quantity"`
+	Reason         StockMovementReason `json:"reason"`
+	ReferenceType  sql.NullString      `json:"reference_type"`
+	ReferenceID    sql.NullInt64       `json:"reference_id"`
+	UnitCost       sql.NullInt64       `json:"unit_cost"`
+	Note           string              `json:"note"`
+	CreatedBy      sql.NullInt64       `json:"created_by"`
+	CreatedAt      time.Time           `json:"created_at"`
+	QuantityBefore int64               `json:"quantity_before"`
+	QuantityAfter  int64               `json:"quantity_after"`
+	Metadata       json.RawMessage     `json:"metadata"`
 }
 
 type Supplier struct {

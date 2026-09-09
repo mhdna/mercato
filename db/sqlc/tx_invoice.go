@@ -33,6 +33,7 @@ type SalesInvoiceTxParams struct {
 	PriceListID      sql.NullInt64 `json:"price_list_id"`
 	InvoiceTypeID    int64         `json:"invoice_type_id"`
 	SalespersonID    sql.NullInt64 `json:"salesperson_id"`
+	CreatedBy        sql.NullInt64 `json:"created_by"`
 }
 
 type SalesInvoiceTxResult struct {
@@ -249,6 +250,7 @@ func (store *SQLStore) SalesInvoiceTx(ctx context.Context, arg SalesInvoiceTxPar
 				Reason:        StockMovementReasonSale,
 				ReferenceType: "sales_invoice",
 				ReferenceID:   invoice.ID,
+				CreatedBy:     arg.CreatedBy,
 			})
 			if err != nil {
 				return err

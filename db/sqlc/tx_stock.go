@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"time"
 )
@@ -19,15 +20,51 @@ type applyStockMovementParams struct {
 	UnitCost      sql.NullInt64
 	Note          string
 	CreatedBy     sql.NullInt64
+	Metadata      map[string]any
 }
 
-// applyStockMovement appends a stock_movements ledger row (the source of
-// truth) and rolls the cached inventory_stock on-hand forward. For an
-// inbound movement that carries a unit cost (a purchase receipt, or the
-// receiving leg of a transfer) it also rolls the per-location
-// moving-average cost. It never blocks on negative on-hand -- the ledger
-// stays authoritative and the UI surfaces negatives.
+// applyStockMovement is the single choke point for every stock change in
+// the system. It is the audit primitive: nothing else may call
+// AddInventoryStockQuantity or ReceiveInventoryStock directly (enforced by
+// TestApplyStockMovementIsTheOnlyStockWriter), so it is structurally
+// impossible to change on-hand without an audited ledger row. It captures
+// the on-hand quantity immediately before/after, appends the
+// stock_movements row (the source of truth, carrying that before/after),
+// then rolls the cached inventory_stock forward. For an inbound movement
+// that carries a unit cost (a purchase receipt, or the receiving leg of a
+// transfer) it also rolls the per-location moving-average cost. It never
+// blocks on negative on-hand -- the ledger stays authoritative and the UI
+// surfaces negatives. A zero quantity is a no-op: it writes nothing, so an
+// unchanged stock-count line leaves no audit row.
 func (q *Queries) applyStockMovement(ctx context.Context, arg applyStockMovementParams) (StockMovement, error) {
+	if arg.Quantity == 0 {
+		existing, err := q.GetInventoryStock(ctx, GetInventoryStockParams{
+			InventoryID: arg.InventoryID,
+			VariantID:   arg.VariantID,
+		})
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return StockMovement{}, err
+		}
+		return StockMovement{
+			InventoryID:    arg.InventoryID,
+			VariantID:      arg.VariantID,
+			QuantityBefore: existing.Quantity,
+			QuantityAfter:  existing.Quantity,
+		}, nil
+	}
+
+	before := int64(0)
+	existing, err := q.GetInventoryStock(ctx, GetInventoryStockParams{
+		InventoryID: arg.InventoryID,
+		VariantID:   arg.VariantID,
+	})
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return StockMovement{}, err
+	}
+	if err == nil {
+		before = existing.Quantity
+	}
+
 	var refType sql.NullString
 	if arg.ReferenceType != "" {
 		refType = sql.NullString{String: arg.ReferenceType, Valid: true}
@@ -36,39 +73,54 @@ func (q *Queries) applyStockMovement(ctx context.Context, arg applyStockMovement
 	if arg.ReferenceID != 0 {
 		refID = sql.NullInt64{Int64: arg.ReferenceID, Valid: true}
 	}
-
-	movement, err := q.CreateStockMovement(ctx, CreateStockMovementParams{
-		InventoryID:   arg.InventoryID,
-		VariantID:     arg.VariantID,
-		Quantity:      arg.Quantity,
-		Reason:        arg.Reason,
-		ReferenceType: refType,
-		ReferenceID:   refID,
-		UnitCost:      arg.UnitCost,
-		Note:          arg.Note,
-		CreatedBy:     arg.CreatedBy,
-	})
+	metadata := arg.Metadata
+	if metadata == nil {
+		metadata = map[string]any{}
+	}
+	metadataJSON, err := json.Marshal(metadata)
 	if err != nil {
 		return StockMovement{}, err
 	}
 
+	var after int64
 	if arg.UnitCost.Valid && arg.Quantity > 0 {
-		if _, err := q.ReceiveInventoryStock(ctx, ReceiveInventoryStockParams{
+		stock, err := q.ReceiveInventoryStock(ctx, ReceiveInventoryStockParams{
 			InventoryID: arg.InventoryID,
 			VariantID:   arg.VariantID,
 			Quantity:    arg.Quantity,
 			UnitCost:    arg.UnitCost.Int64,
-		}); err != nil {
+		})
+		if err != nil {
 			return StockMovement{}, err
 		}
-		return movement, nil
+		after = stock.Quantity
+	} else {
+		stock, err := q.AddInventoryStockQuantity(ctx, AddInventoryStockQuantityParams{
+			InventoryID: arg.InventoryID,
+			VariantID:   arg.VariantID,
+			Quantity:    arg.Quantity,
+		})
+		if err != nil {
+			return StockMovement{}, err
+		}
+		after = stock.Quantity
 	}
 
-	if _, err := q.AddInventoryStockQuantity(ctx, AddInventoryStockQuantityParams{
-		InventoryID: arg.InventoryID,
-		VariantID:   arg.VariantID,
-		Quantity:    arg.Quantity,
-	}); err != nil {
+	movement, err := q.CreateStockMovement(ctx, CreateStockMovementParams{
+		InventoryID:    arg.InventoryID,
+		VariantID:      arg.VariantID,
+		Quantity:       arg.Quantity,
+		Reason:         arg.Reason,
+		ReferenceType:  refType,
+		ReferenceID:    refID,
+		UnitCost:       arg.UnitCost,
+		Note:           arg.Note,
+		CreatedBy:      arg.CreatedBy,
+		QuantityBefore: before,
+		QuantityAfter:  after,
+		Metadata:       metadataJSON,
+	})
+	if err != nil {
 		return StockMovement{}, err
 	}
 	return movement, nil

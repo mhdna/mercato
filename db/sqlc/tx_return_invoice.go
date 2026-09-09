@@ -28,6 +28,7 @@ type ReturnInvoiceTxParams struct {
 	CashboxAccountID int64         `json:"cashbox_account_id"`
 	PriceListID      sql.NullInt64 `json:"price_list_id"`
 	SalespersonID    sql.NullInt64 `json:"salesperson_id"`
+	CreatedBy        sql.NullInt64 `json:"created_by"`
 
 	Items []ReturnInvoiceItem `json:"items"`
 }
@@ -198,6 +199,7 @@ func (store *SQLStore) ReturnInvoiceTx(ctx context.Context, arg ReturnInvoiceTxP
 				Reason:        StockMovementReasonReturn,
 				ReferenceType: "return_invoice",
 				ReferenceID:   invoice.ID,
+				CreatedBy:     arg.CreatedBy,
 			})
 			if err != nil {
 				return err

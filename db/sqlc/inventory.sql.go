@@ -8,6 +8,7 @@ package db
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"time"
 
 	"github.com/lib/pq"
@@ -85,16 +86,32 @@ FROM stock_movements sm
 WHERE ($1::bigint IS NULL OR sm.inventory_id = $1)
   AND ($2::bigint IS NULL OR sm.variant_id = $2)
   AND ($3::stock_movement_reason IS NULL OR sm.reason = $3)
+  AND ($4::text IS NULL OR sm.reference_type = $4)
+  AND ($5::bigint IS NULL OR sm.created_by = $5)
+  AND ($6::timestamptz IS NULL OR sm.created_at >= $6)
+  AND ($7::timestamptz IS NULL OR sm.created_at <= $7)
 `
 
 type CountStockMovementsParams struct {
-	InventoryID sql.NullInt64           `json:"inventory_id"`
-	VariantID   sql.NullInt64           `json:"variant_id"`
-	Reason      NullStockMovementReason `json:"reason"`
+	InventoryID   sql.NullInt64           `json:"inventory_id"`
+	VariantID     sql.NullInt64           `json:"variant_id"`
+	Reason        NullStockMovementReason `json:"reason"`
+	ReferenceType sql.NullString          `json:"reference_type"`
+	CreatedBy     sql.NullInt64           `json:"created_by"`
+	FromDate      sql.NullTime            `json:"from_date"`
+	ToDate        sql.NullTime            `json:"to_date"`
 }
 
 func (q *Queries) CountStockMovements(ctx context.Context, arg CountStockMovementsParams) (int64, error) {
-	row := q.db.QueryRowContext(ctx, countStockMovements, arg.InventoryID, arg.VariantID, arg.Reason)
+	row := q.db.QueryRowContext(ctx, countStockMovements,
+		arg.InventoryID,
+		arg.VariantID,
+		arg.Reason,
+		arg.ReferenceType,
+		arg.CreatedBy,
+		arg.FromDate,
+		arg.ToDate,
+	)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -151,21 +168,27 @@ INSERT INTO stock_movements (
   reference_id,
   unit_cost,
   note,
-  created_by
-) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-RETURNING id, inventory_id, variant_id, quantity, reason, reference_type, reference_id, unit_cost, note, created_by, created_at
+  created_by,
+  quantity_before,
+  quantity_after,
+  metadata
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+RETURNING id, inventory_id, variant_id, quantity, reason, reference_type, reference_id, unit_cost, note, created_by, created_at, quantity_before, quantity_after, metadata
 `
 
 type CreateStockMovementParams struct {
-	InventoryID   int64               `json:"inventory_id"`
-	VariantID     int64               `json:"variant_id"`
-	Quantity      int64               `json:"quantity"`
-	Reason        StockMovementReason `json:"reason"`
-	ReferenceType sql.NullString      `json:"reference_type"`
-	ReferenceID   sql.NullInt64       `json:"reference_id"`
-	UnitCost      sql.NullInt64       `json:"unit_cost"`
-	Note          string              `json:"note"`
-	CreatedBy     sql.NullInt64       `json:"created_by"`
+	InventoryID    int64               `json:"inventory_id"`
+	VariantID      int64               `json:"variant_id"`
+	Quantity       int64               `json:"quantity"`
+	Reason         StockMovementReason `json:"reason"`
+	ReferenceType  sql.NullString      `json:"reference_type"`
+	ReferenceID    sql.NullInt64       `json:"reference_id"`
+	UnitCost       sql.NullInt64       `json:"unit_cost"`
+	Note           string              `json:"note"`
+	CreatedBy      sql.NullInt64       `json:"created_by"`
+	QuantityBefore int64               `json:"quantity_before"`
+	QuantityAfter  int64               `json:"quantity_after"`
+	Metadata       json.RawMessage     `json:"metadata"`
 }
 
 // ---------------------------------------------------------------------------
@@ -182,6 +205,9 @@ func (q *Queries) CreateStockMovement(ctx context.Context, arg CreateStockMoveme
 		arg.UnitCost,
 		arg.Note,
 		arg.CreatedBy,
+		arg.QuantityBefore,
+		arg.QuantityAfter,
+		arg.Metadata,
 	)
 	var i StockMovement
 	err := row.Scan(
@@ -196,6 +222,9 @@ func (q *Queries) CreateStockMovement(ctx context.Context, arg CreateStockMoveme
 		&i.Note,
 		&i.CreatedBy,
 		&i.CreatedAt,
+		&i.QuantityBefore,
+		&i.QuantityAfter,
+		&i.Metadata,
 	)
 	return i, err
 }
@@ -419,52 +448,69 @@ SELECT
   sm.note,
   sm.created_by,
   sm.created_at,
+  sm.quantity_before,
+  sm.quantity_after,
+  sm.metadata,
   i.name AS inventory_name,
   pv.barcode,
   p.code AS product_code,
   p.name AS product_name,
   COALESCE(c.name, '') AS color_name,
-  COALESCE(s.name, '') AS size_name
+  COALESCE(s.name, '') AS size_name,
+  COALESCE(u.name, '') AS created_by_name
 FROM stock_movements sm
 JOIN inventories i ON i.id = sm.inventory_id
 JOIN product_variants pv ON pv.id = sm.variant_id
 JOIN products p ON p.id = pv.product_id
 LEFT JOIN colors c ON c.id = pv.color_id
 LEFT JOIN sizes  s ON s.id = pv.size_id
+LEFT JOIN users  u ON u.id = sm.created_by
 WHERE ($1::bigint IS NULL OR sm.inventory_id = $1)
   AND ($2::bigint IS NULL OR sm.variant_id = $2)
   AND ($3::stock_movement_reason IS NULL OR sm.reason = $3)
+  AND ($4::text IS NULL OR sm.reference_type = $4)
+  AND ($5::bigint IS NULL OR sm.created_by = $5)
+  AND ($6::timestamptz IS NULL OR sm.created_at >= $6)
+  AND ($7::timestamptz IS NULL OR sm.created_at <= $7)
 ORDER BY sm.created_at DESC, sm.id DESC
-LIMIT $5
-OFFSET $4
+LIMIT $9
+OFFSET $8
 `
 
 type ListStockMovementsParams struct {
-	InventoryID sql.NullInt64           `json:"inventory_id"`
-	VariantID   sql.NullInt64           `json:"variant_id"`
-	Reason      NullStockMovementReason `json:"reason"`
-	PageOffset  int32                   `json:"page_offset"`
-	PageLimit   int32                   `json:"page_limit"`
+	InventoryID   sql.NullInt64           `json:"inventory_id"`
+	VariantID     sql.NullInt64           `json:"variant_id"`
+	Reason        NullStockMovementReason `json:"reason"`
+	ReferenceType sql.NullString          `json:"reference_type"`
+	CreatedBy     sql.NullInt64           `json:"created_by"`
+	FromDate      sql.NullTime            `json:"from_date"`
+	ToDate        sql.NullTime            `json:"to_date"`
+	PageOffset    int32                   `json:"page_offset"`
+	PageLimit     int32                   `json:"page_limit"`
 }
 
 type ListStockMovementsRow struct {
-	ID            int64               `json:"id"`
-	InventoryID   int64               `json:"inventory_id"`
-	VariantID     int64               `json:"variant_id"`
-	Quantity      int64               `json:"quantity"`
-	Reason        StockMovementReason `json:"reason"`
-	ReferenceType sql.NullString      `json:"reference_type"`
-	ReferenceID   sql.NullInt64       `json:"reference_id"`
-	UnitCost      sql.NullInt64       `json:"unit_cost"`
-	Note          string              `json:"note"`
-	CreatedBy     sql.NullInt64       `json:"created_by"`
-	CreatedAt     time.Time           `json:"created_at"`
-	InventoryName string              `json:"inventory_name"`
-	Barcode       string              `json:"barcode"`
-	ProductCode   string              `json:"product_code"`
-	ProductName   string              `json:"product_name"`
-	ColorName     string              `json:"color_name"`
-	SizeName      string              `json:"size_name"`
+	ID             int64               `json:"id"`
+	InventoryID    int64               `json:"inventory_id"`
+	VariantID      int64               `json:"variant_id"`
+	Quantity       int64               `json:"quantity"`
+	Reason         StockMovementReason `json:"reason"`
+	ReferenceType  sql.NullString      `json:"reference_type"`
+	ReferenceID    sql.NullInt64       `json:"reference_id"`
+	UnitCost       sql.NullInt64       `json:"unit_cost"`
+	Note           string              `json:"note"`
+	CreatedBy      sql.NullInt64       `json:"created_by"`
+	CreatedAt      time.Time           `json:"created_at"`
+	QuantityBefore int64               `json:"quantity_before"`
+	QuantityAfter  int64               `json:"quantity_after"`
+	Metadata       json.RawMessage     `json:"metadata"`
+	InventoryName  string              `json:"inventory_name"`
+	Barcode        string              `json:"barcode"`
+	ProductCode    string              `json:"product_code"`
+	ProductName    string              `json:"product_name"`
+	ColorName      string              `json:"color_name"`
+	SizeName       string              `json:"size_name"`
+	CreatedByName  string              `json:"created_by_name"`
 }
 
 func (q *Queries) ListStockMovements(ctx context.Context, arg ListStockMovementsParams) ([]ListStockMovementsRow, error) {
@@ -472,6 +518,10 @@ func (q *Queries) ListStockMovements(ctx context.Context, arg ListStockMovements
 		arg.InventoryID,
 		arg.VariantID,
 		arg.Reason,
+		arg.ReferenceType,
+		arg.CreatedBy,
+		arg.FromDate,
+		arg.ToDate,
 		arg.PageOffset,
 		arg.PageLimit,
 	)
@@ -494,12 +544,16 @@ func (q *Queries) ListStockMovements(ctx context.Context, arg ListStockMovements
 			&i.Note,
 			&i.CreatedBy,
 			&i.CreatedAt,
+			&i.QuantityBefore,
+			&i.QuantityAfter,
+			&i.Metadata,
 			&i.InventoryName,
 			&i.Barcode,
 			&i.ProductCode,
 			&i.ProductName,
 			&i.ColorName,
 			&i.SizeName,
+			&i.CreatedByName,
 		); err != nil {
 			return nil, err
 		}

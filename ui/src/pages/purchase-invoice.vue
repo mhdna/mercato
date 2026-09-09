@@ -121,6 +121,14 @@
           text="Receive"
           @click="receive"
         />
+        <v-btn
+          v-if="itemsTarget?.status === 'draft' || itemsTarget?.status === 'received'"
+          color="error"
+          :loading="cancelling"
+          text="Cancel Purchase"
+          variant="text"
+          @click="cancel"
+        />
         <v-spacer />
         <v-btn text="Close" @click="itemsDialog = false" />
       </v-card-actions>
@@ -186,7 +194,7 @@
   import { useVariants } from '@/composables/useVariants'
   import { API_BASE } from '@/config'
 
-  const { createPurchase, fetchPurchase, addPurchaseItem, receivePurchase } = usePurchases()
+  const { createPurchase, fetchPurchase, addPurchaseItem, receivePurchase, cancelPurchase } = usePurchases()
   const { suppliers, fetchSuppliers } = useSuppliers()
   const { inventories, fetchInventories } = useInventories()
   const { variants: skuOptions, loading: skuLoading, searchVariants } = useVariants()
@@ -298,6 +306,7 @@
   const itemSubmitting = ref(false)
   const itemError = ref('')
   const receiving = ref(false)
+  const cancelling = ref(false)
 
   async function openItems (item) {
     itemsTarget.value = item
@@ -351,6 +360,20 @@
       itemError.value = error.message
     } finally {
       receiving.value = false
+    }
+  }
+
+  async function cancel () {
+    cancelling.value = true
+    itemError.value = ''
+    try {
+      const res = await cancelPurchase(itemsTarget.value.id)
+      itemsTarget.value = res?.purchase ?? itemsTarget.value
+      tableRef.value?.reload()
+    } catch (error) {
+      itemError.value = error.message
+    } finally {
+      cancelling.value = false
     }
   }
 </script>

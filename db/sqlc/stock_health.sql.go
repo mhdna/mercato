@@ -7,7 +7,54 @@ package db
 
 import (
 	"context"
+	"database/sql"
 )
+
+const countSlowMovingProducts = `-- name: CountSlowMovingProducts :one
+WITH velocity AS (
+  SELECT
+    p.id,
+    COALESCE(stock.on_hand, 0)::bigint AS on_hand,
+    COALESCE(sold.units_sold_90d, 0)::bigint AS units_sold_90d
+  FROM products p
+  LEFT JOIN (
+    SELECT pv.product_id, COALESCE(SUM(ist.quantity), 0)::bigint AS on_hand
+    FROM product_variants pv
+    LEFT JOIN inventory_stock ist ON ist.variant_id = pv.id
+    GROUP BY pv.product_id
+  ) stock ON stock.product_id = p.id
+  LEFT JOIN (
+    SELECT pv.product_id, COALESCE(SUM(-sm.quantity), 0)::bigint AS units_sold_90d
+    FROM product_variants pv
+    JOIN stock_movements sm ON sm.variant_id = pv.id
+      AND sm.reason = 'sale' AND sm.created_at >= now() - interval '90 days'
+    GROUP BY pv.product_id
+  ) sold ON sold.product_id = p.id
+  WHERE p.is_active AND COALESCE(stock.on_hand, 0) > 0
+)
+SELECT count(*)
+FROM velocity v
+JOIN products p ON p.id = v.id
+WHERE (v.units_sold_90d = 0 OR (v.on_hand::numeric / (v.units_sold_90d::numeric / 90)) > 90)
+  AND ($1::text IS NULL
+       OR ($1::text = 'dead' AND v.units_sold_90d = 0)
+       OR ($1::text = 'overstocked' AND v.units_sold_90d > 0))
+  AND ($2::text = ''
+       OR p.name ILIKE '%' || $2 || '%'
+       OR p.code ILIKE '%' || $2 || '%')
+`
+
+type CountSlowMovingProductsParams struct {
+	Category sql.NullString `json:"category"`
+	Search   string         `json:"search"`
+}
+
+func (q *Queries) CountSlowMovingProducts(ctx context.Context, arg CountSlowMovingProductsParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countSlowMovingProducts, arg.Category, arg.Search)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
 
 const countStockHealthByInventory = `-- name: CountStockHealthByInventory :one
 SELECT count(*)
@@ -20,6 +67,51 @@ func (q *Queries) CountStockHealthByInventory(ctx context.Context, search string
 	var count int64
 	err := row.Scan(&count)
 	return count, err
+}
+
+const getSlowMoverSummary = `-- name: GetSlowMoverSummary :one
+WITH velocity AS (
+  SELECT
+    p.id,
+    COALESCE(stock.on_hand, 0)::bigint AS on_hand,
+    COALESCE(sold.units_sold_90d, 0)::bigint AS units_sold_90d
+  FROM products p
+  LEFT JOIN (
+    SELECT pv.product_id, COALESCE(SUM(ist.quantity), 0)::bigint AS on_hand
+    FROM product_variants pv
+    LEFT JOIN inventory_stock ist ON ist.variant_id = pv.id
+    GROUP BY pv.product_id
+  ) stock ON stock.product_id = p.id
+  LEFT JOIN (
+    SELECT pv.product_id, COALESCE(SUM(-sm.quantity), 0)::bigint AS units_sold_90d
+    FROM product_variants pv
+    JOIN stock_movements sm ON sm.variant_id = pv.id
+      AND sm.reason = 'sale' AND sm.created_at >= now() - interval '90 days'
+    GROUP BY pv.product_id
+  ) sold ON sold.product_id = p.id
+  WHERE p.is_active
+)
+SELECT
+  count(*) FILTER (WHERE on_hand > 0 AND units_sold_90d = 0)::bigint AS dead_stock_count,
+  count(*) FILTER (
+    WHERE on_hand > 0 AND units_sold_90d > 0
+      AND (on_hand::numeric / (units_sold_90d::numeric / 90)) > 90
+  )::bigint AS overstocked_count,
+  count(*)::bigint AS total_active_products
+FROM velocity
+`
+
+type GetSlowMoverSummaryRow struct {
+	DeadStockCount      int64 `json:"dead_stock_count"`
+	OverstockedCount    int64 `json:"overstocked_count"`
+	TotalActiveProducts int64 `json:"total_active_products"`
+}
+
+func (q *Queries) GetSlowMoverSummary(ctx context.Context) (GetSlowMoverSummaryRow, error) {
+	row := q.db.QueryRowContext(ctx, getSlowMoverSummary)
+	var i GetSlowMoverSummaryRow
+	err := row.Scan(&i.DeadStockCount, &i.OverstockedCount, &i.TotalActiveProducts)
+	return i, err
 }
 
 const getStockHealthOverview = `-- name: GetStockHealthOverview :one
@@ -66,6 +158,110 @@ func (q *Queries) GetStockHealthOverview(ctx context.Context) (GetStockHealthOve
 		&i.DaysOfInventory,
 	)
 	return i, err
+}
+
+const listSlowMovingProducts = `-- name: ListSlowMovingProducts :many
+
+WITH velocity AS (
+  SELECT
+    p.id, p.code, p.name,
+    COALESCE(stock.on_hand, 0)::bigint AS on_hand,
+    COALESCE(sold.units_sold_90d, 0)::bigint AS units_sold_90d
+  FROM products p
+  LEFT JOIN (
+    SELECT pv.product_id, COALESCE(SUM(ist.quantity), 0)::bigint AS on_hand
+    FROM product_variants pv
+    LEFT JOIN inventory_stock ist ON ist.variant_id = pv.id
+    GROUP BY pv.product_id
+  ) stock ON stock.product_id = p.id
+  LEFT JOIN (
+    SELECT pv.product_id, COALESCE(SUM(-sm.quantity), 0)::bigint AS units_sold_90d
+    FROM product_variants pv
+    JOIN stock_movements sm ON sm.variant_id = pv.id
+      AND sm.reason = 'sale' AND sm.created_at >= now() - interval '90 days'
+    GROUP BY pv.product_id
+  ) sold ON sold.product_id = p.id
+  WHERE p.is_active AND COALESCE(stock.on_hand, 0) > 0
+)
+SELECT
+  id, code, name, on_hand, units_sold_90d,
+  CASE WHEN units_sold_90d > 0
+    THEN ROUND(on_hand::numeric / (units_sold_90d::numeric / 90), 1)::float8
+    ELSE NULL
+  END AS days_of_inventory,
+  CASE WHEN units_sold_90d = 0 THEN 'dead' ELSE 'overstocked' END AS category
+FROM velocity
+WHERE (units_sold_90d = 0 OR (on_hand::numeric / (units_sold_90d::numeric / 90)) > 90)
+  AND ($1::text IS NULL
+       OR ($1::text = 'dead' AND units_sold_90d = 0)
+       OR ($1::text = 'overstocked' AND units_sold_90d > 0))
+  AND ($2::text = ''
+       OR name ILIKE '%' || $2 || '%'
+       OR code ILIKE '%' || $2 || '%')
+ORDER BY (units_sold_90d = 0) DESC, on_hand DESC
+LIMIT $4
+OFFSET $3
+`
+
+type ListSlowMovingProductsParams struct {
+	Category   sql.NullString `json:"category"`
+	Search     string         `json:"search"`
+	PageOffset int32          `json:"page_offset"`
+	PageLimit  int32          `json:"page_limit"`
+}
+
+type ListSlowMovingProductsRow struct {
+	ID              int64       `json:"id"`
+	Code            string      `json:"code"`
+	Name            string      `json:"name"`
+	OnHand          int64       `json:"on_hand"`
+	UnitsSold90d    int64       `json:"units_sold_90d"`
+	DaysOfInventory interface{} `json:"days_of_inventory"`
+	Category        string      `json:"category"`
+}
+
+// ---------------------------------------------------------------------------
+// Slow movers: money tied up in stock that isn't selling. Deliberately
+// separate from the low-stock alerts (too little stock) -- this is the
+// opposite problem, too much. A product qualifies when it's carrying stock
+// (on_hand > 0) and either never sold in the last 90 days ("dead": put it
+// on clearance) or would take unreasonably long to sell through at its
+// current pace ("overstocked": more than 90 days on hand).
+// ---------------------------------------------------------------------------
+func (q *Queries) ListSlowMovingProducts(ctx context.Context, arg ListSlowMovingProductsParams) ([]ListSlowMovingProductsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listSlowMovingProducts,
+		arg.Category,
+		arg.Search,
+		arg.PageOffset,
+		arg.PageLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListSlowMovingProductsRow{}
+	for rows.Next() {
+		var i ListSlowMovingProductsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Code,
+			&i.Name,
+			&i.OnHand,
+			&i.UnitsSold90d,
+			&i.DaysOfInventory,
+			&i.Category,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listStockHealthByInventory = `-- name: ListStockHealthByInventory :many

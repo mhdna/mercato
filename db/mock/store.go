@@ -891,6 +891,21 @@ func (mr *MockStoreMockRecorder) CountSizes(arg0, arg1 interface{}) *gomock.Call
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CountSizes", reflect.TypeOf((*MockStore)(nil).CountSizes), arg0, arg1)
 }
 
+// CountSlowMovingProducts mocks base method.
+func (m *MockStore) CountSlowMovingProducts(arg0 context.Context, arg1 db.CountSlowMovingProductsParams) (int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CountSlowMovingProducts", arg0, arg1)
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CountSlowMovingProducts indicates an expected call of CountSlowMovingProducts.
+func (mr *MockStoreMockRecorder) CountSlowMovingProducts(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CountSlowMovingProducts", reflect.TypeOf((*MockStore)(nil).CountSlowMovingProducts), arg0, arg1)
+}
+
 // CountStockCounts mocks base method.
 func (m *MockStore) CountStockCounts(arg0 context.Context, arg1 db.CountStockCountsParams) (int64, error) {
 	m.ctrl.T.Helper()
@@ -4080,6 +4095,21 @@ func (mr *MockStoreMockRecorder) GetShift(arg0, arg1 interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetShift", reflect.TypeOf((*MockStore)(nil).GetShift), arg0, arg1)
 }
 
+// GetSlowMoverSummary mocks base method.
+func (m *MockStore) GetSlowMoverSummary(arg0 context.Context) (db.GetSlowMoverSummaryRow, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetSlowMoverSummary", arg0)
+	ret0, _ := ret[0].(db.GetSlowMoverSummaryRow)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetSlowMoverSummary indicates an expected call of GetSlowMoverSummary.
+func (mr *MockStoreMockRecorder) GetSlowMoverSummary(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSlowMoverSummary", reflect.TypeOf((*MockStore)(nil).GetSlowMoverSummary), arg0)
+}
+
 // GetStockCount mocks base method.
 func (m *MockStore) GetStockCount(arg0 context.Context, arg1 int64) (db.StockCount, error) {
 	m.ctrl.T.Helper()
@@ -5578,6 +5608,21 @@ func (m *MockStore) ListSizesPage(arg0 context.Context, arg1 db.ListSizesPagePar
 func (mr *MockStoreMockRecorder) ListSizesPage(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListSizesPage", reflect.TypeOf((*MockStore)(nil).ListSizesPage), arg0, arg1)
+}
+
+// ListSlowMovingProducts mocks base method.
+func (m *MockStore) ListSlowMovingProducts(arg0 context.Context, arg1 db.ListSlowMovingProductsParams) ([]db.ListSlowMovingProductsRow, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListSlowMovingProducts", arg0, arg1)
+	ret0, _ := ret[0].([]db.ListSlowMovingProductsRow)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListSlowMovingProducts indicates an expected call of ListSlowMovingProducts.
+func (mr *MockStoreMockRecorder) ListSlowMovingProducts(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListSlowMovingProducts", reflect.TypeOf((*MockStore)(nil).ListSlowMovingProducts), arg0, arg1)
 }
 
 // ListStockCountItems mocks base method.

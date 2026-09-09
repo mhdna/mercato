@@ -1,6 +1,7 @@
 package api
 
 import (
+	"database/sql"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -8,27 +9,40 @@ import (
 )
 
 // stockHealthStatus classifies overall inventory health into the same
-// traffic-light the sidebar dot uses. Heuristic, not a hard SLA:
-//   - critical: inventory would run out in under 3 days at the current
-//     sell-through rate, or more than 10% of monitored products are
-//     out of stock.
-//   - warning: any product is out of stock, low, or inventory would run
-//     out within two weeks.
+// traffic-light the sidebar dot uses. Deliberately independent of the
+// low-stock alerts (too little stock, per product): this is the opposite
+// axis -- too much stock, or a sell-through rate that would empty the
+// shelves too fast. Heuristic, not a hard SLA:
+//   - critical: inventory would sell through in under 3 days at the
+//     current rate, or more than a fifth of the active catalog is dead
+//     stock (zero sales in 90 days despite being on hand).
+//   - warning: would sell through within two weeks, or more than a tenth
+//     of the catalog is dead stock or overstocked.
 //   - healthy: otherwise.
-func stockHealthStatus(daysOfInventory *float64, outOfStock, lowStock, totalMonitored int64) string {
+func stockHealthStatus(daysOfInventory *float64, deadStock, overstocked, totalActive int64) string {
+	deadRatio := ratio(deadStock, totalActive)
+	slowRatio := ratio(deadStock+overstocked, totalActive)
+
 	if daysOfInventory != nil && *daysOfInventory < 3 {
 		return "critical"
 	}
-	if totalMonitored > 0 && float64(outOfStock)/float64(totalMonitored) > 0.1 {
+	if deadRatio > 0.2 {
 		return "critical"
-	}
-	if outOfStock > 0 || lowStock > 0 {
-		return "warning"
 	}
 	if daysOfInventory != nil && *daysOfInventory < 14 {
 		return "warning"
 	}
+	if slowRatio > 0.1 {
+		return "warning"
+	}
 	return "healthy"
+}
+
+func ratio(part, whole int64) float64 {
+	if whole == 0 {
+		return 0
+	}
+	return float64(part) / float64(whole)
 }
 
 func asFloat64Ptr(v interface{}) *float64 {
@@ -44,11 +58,11 @@ func asFloat64Ptr(v interface{}) *float64 {
 }
 
 // getStockHealth backs the Stock Health page's summary cards and the
-// sidebar status dot: overall days-of-inventory, value, and a
-// traffic-light status derived from those plus the existing low-stock
-// summary. The per-inventory breakdown is a separate, paginated endpoint
-// (listStockHealthByInventory) -- an install can have hundreds of
-// inventories (one per branch), so it never ships as one unbounded list.
+// sidebar status dot: overall days-of-inventory, inventory value, dead
+// stock / overstock counts, and a traffic-light status. The per-inventory
+// breakdown and the slow-mover list are separate, paginated endpoints
+// (listStockHealthByInventory, listSlowMovingProducts) -- neither ships as
+// one unbounded list.
 func (server *Server) getStockHealth(ctx *gin.Context) {
 	overview, err := server.store.GetStockHealthOverview(ctx)
 	if err != nil {
@@ -56,25 +70,66 @@ func (server *Server) getStockHealth(ctx *gin.Context) {
 		return
 	}
 
-	summary, err := server.store.GetLowStockSummary(ctx)
+	slowMovers, err := server.store.GetSlowMoverSummary(ctx)
 	if err != nil {
 		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
 
 	days := asFloat64Ptr(overview.DaysOfInventory)
-	status := stockHealthStatus(days, summary.OutOfStockCount, summary.LowStockCount, summary.TotalProducts)
+	status := stockHealthStatus(days, slowMovers.DeadStockCount, slowMovers.OverstockedCount, slowMovers.TotalActiveProducts)
 
 	ctx.JSON(http.StatusOK, gin.H{
-		"status":             status,
-		"days_of_inventory":  days,
-		"total_units":        overview.TotalUnits,
-		"inventory_value":    overview.InventoryValue,
-		"units_sold_30d":     overview.UnitsSold30d,
-		"out_of_stock_count": summary.OutOfStockCount,
-		"low_stock_count":    summary.LowStockCount,
-		"total_products":     summary.TotalProducts,
+		"status":                status,
+		"days_of_inventory":     days,
+		"total_units":           overview.TotalUnits,
+		"inventory_value":       overview.InventoryValue,
+		"units_sold_30d":        overview.UnitsSold30d,
+		"dead_stock_count":      slowMovers.DeadStockCount,
+		"overstocked_count":     slowMovers.OverstockedCount,
+		"total_active_products": slowMovers.TotalActiveProducts,
 	})
+}
+
+type listSlowMovingProductsRequest struct {
+	Search   string `form:"search"`
+	Category string `form:"category" binding:"omitempty,oneof=dead overstocked"`
+	PageSize int32  `form:"page_size,default=20" binding:"min=1,max=100"`
+	PageID   int32  `form:"page_id,default=0" binding:"min=0"`
+}
+
+// listSlowMovingProducts backs the "Recommended For Sale" table: active
+// products carrying stock that either never sold in the last 90 days
+// ("dead") or would take over 90 days to sell through at their current
+// pace ("overstocked"). Category narrows to one bucket; omitted keeps both.
+func (server *Server) listSlowMovingProducts(ctx *gin.Context) {
+	var req listSlowMovingProductsRequest
+	if err := ctx.ShouldBindQuery(&req); err != nil {
+		server.writeError(ctx, http.StatusBadRequest, err)
+		return
+	}
+
+	var category sql.NullString
+	if req.Category != "" {
+		category = sql.NullString{String: req.Category, Valid: true}
+	}
+
+	respondList(server, ctx, "products",
+		func() ([]db.ListSlowMovingProductsRow, error) {
+			return server.store.ListSlowMovingProducts(ctx, db.ListSlowMovingProductsParams{
+				Category:   category,
+				Search:     req.Search,
+				PageLimit:  req.PageSize,
+				PageOffset: req.PageID,
+			})
+		},
+		func() (int64, error) {
+			return server.store.CountSlowMovingProducts(ctx, db.CountSlowMovingProductsParams{
+				Category: category,
+				Search:   req.Search,
+			})
+		},
+	)
 }
 
 type listStockHealthByInventoryRequest struct {

@@ -71,6 +71,7 @@ func (server *Server) setupRoutes() {
 	authRoutes.GET("/low_stock/ignored", server.listIgnoredLowStockProducts)
 	authRoutes.GET("/stock_health", server.getStockHealth)
 	authRoutes.GET("/stock_health/by_inventory", server.listStockHealthByInventory)
+	authRoutes.GET("/stock_health/slow_movers", server.listSlowMovingProducts)
 	authRoutes.PUT("/products/:id/low_stock_threshold", server.setProductLowStockThreshold)
 	authRoutes.PUT("/products/:id/low_stock_alerts", server.setProductLowStockAlertsEnabled)
 	authRoutes.PUT("/app_settings/default_low_stock_threshold", server.setDefaultLowStockThreshold)

@@ -56,3 +56,6 @@ WHERE id = $1;
 -- name: DeleteSizes :execrows
 DELETE FROM sizes
 WHERE id = ANY(sqlc.arg(ids)::bigint[]);
+
+-- name: GetSizeByName :one
+SELECT * FROM sizes WHERE name = $1 LIMIT 1;

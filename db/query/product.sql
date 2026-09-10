@@ -157,3 +157,6 @@ WHERE id = $1;
 -- UPDATE discount_list_items
 --   SET discount = $3
 -- WHERE product_id = $1 AND discount_list_id = $2;
+
+-- name: GetProductByCode :one
+SELECT * FROM products WHERE code = $1 LIMIT 1;

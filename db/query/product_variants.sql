@@ -178,3 +178,41 @@ LEFT JOIN products_attributes year_pa ON year_pa.product_id = products.id AND ye
 LEFT JOIN attributes_values year_val ON year_val.id = year_pa.attribute_value_id
 WHERE product_variants.updated_at > $1
 ORDER BY product_variants.updated_at;
+
+-- name: ListProductVariantsForSyncPaged :many
+-- Keyset-paginated ListProductVariantsForSync -- same flattened row, same
+-- joins, ordered by (product_variants.updated_at, product_variants.id) for
+-- a stable page boundary during a branch's full catch-up.
+SELECT
+  product_variants.id,
+  product_variants.barcode,
+  product_variants.price,
+  product_variants.is_active,
+  product_variants.updated_at,
+  products.code,
+  products.name,
+  products.description,
+  colors.name AS color_name,
+  sizes.name AS size_name,
+  brand_val.value AS brand,
+  subcategory_val.value AS sub_category,
+  kind_val.value AS kind,
+  season_val.value AS season,
+  year_val.value AS year
+FROM product_variants
+JOIN products ON products.id = product_variants.product_id
+LEFT JOIN colors ON colors.id = product_variants.color_id
+LEFT JOIN sizes ON sizes.id = product_variants.size_id
+LEFT JOIN products_attributes brand_pa ON brand_pa.product_id = products.id AND brand_pa.attribute_id = 2
+LEFT JOIN attributes_values brand_val ON brand_val.id = brand_pa.attribute_value_id
+LEFT JOIN products_attributes subcategory_pa ON subcategory_pa.product_id = products.id AND subcategory_pa.attribute_id = 1
+LEFT JOIN attributes_values subcategory_val ON subcategory_val.id = subcategory_pa.attribute_value_id
+LEFT JOIN products_attributes kind_pa ON kind_pa.product_id = products.id AND kind_pa.attribute_id = 3
+LEFT JOIN attributes_values kind_val ON kind_val.id = kind_pa.attribute_value_id
+LEFT JOIN products_attributes season_pa ON season_pa.product_id = products.id AND season_pa.attribute_id = 7
+LEFT JOIN attributes_values season_val ON season_val.id = season_pa.attribute_value_id
+LEFT JOIN products_attributes year_pa ON year_pa.product_id = products.id AND year_pa.attribute_id = 6
+LEFT JOIN attributes_values year_val ON year_val.id = year_pa.attribute_value_id
+WHERE (product_variants.updated_at, product_variants.id) > (sqlc.arg(after_updated_at)::timestamptz, sqlc.arg(after_id)::bigint)
+ORDER BY product_variants.updated_at, product_variants.id
+LIMIT sqlc.arg(row_limit);

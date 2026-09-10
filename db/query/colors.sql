@@ -51,3 +51,6 @@ WHERE id = $1;
 -- name: DeleteColors :execrows
 DELETE FROM colors
 WHERE id = ANY(sqlc.arg(ids)::bigint[]);
+
+-- name: GetColorByName :one
+SELECT * FROM colors WHERE name = $1 LIMIT 1;

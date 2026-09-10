@@ -77,6 +77,23 @@ func (q *Queries) DeleteColors(ctx context.Context, ids []int64) (int64, error) 
 	return result.RowsAffected()
 }
 
+const getColorByName = `-- name: GetColorByName :one
+SELECT id, name, hex_value, version, created_at FROM colors WHERE name = $1 LIMIT 1
+`
+
+func (q *Queries) GetColorByName(ctx context.Context, name string) (Color, error) {
+	row := q.db.QueryRowContext(ctx, getColorByName, name)
+	var i Color
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.HexValue,
+		&i.Version,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const listColors = `-- name: ListColors :many
 SELECT id, name, hex_value, version, created_at FROM colors
 ORDER BY name

@@ -82,6 +82,19 @@ func (store *SQLStore) CreateBranchInvoiceTx(ctx context.Context, arg CreateBran
 			payments = append(payments, created)
 		}
 
+		// A historical backfill (a sale from before the branch was syncing)
+		// records fully but moves no central stock -- kashi's inventory was
+		// seeded long after these sales, so replaying their decrements would
+		// drive it negative. The operator can opt back in per resync run
+		// when the timeline genuinely lines up.
+		if arg.Historical {
+			result.StockSkippedItems = len(arg.Items)
+			result.Invoice = invoice
+			result.Items = items
+			result.Payments = payments
+			return nil
+		}
+
 		// Decrement (or, for a return, restore) central stock for this
 		// branch's own store inventory, resolving each line by barcode. A
 		// line that can't be resolved -- unknown barcode, missing barcode,

@@ -202,6 +202,66 @@ func (mr *MockStoreMockRecorder) BatchSetEmployeeSalaries(arg0, arg1 interface{}
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BatchSetEmployeeSalaries", reflect.TypeOf((*MockStore)(nil).BatchSetEmployeeSalaries), arg0, arg1)
 }
 
+// BranchClientLinksPresent mocks base method.
+func (m *MockStore) BranchClientLinksPresent(arg0 context.Context, arg1 db.BranchClientLinksPresentParams) ([]int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "BranchClientLinksPresent", arg0, arg1)
+	ret0, _ := ret[0].([]int64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// BranchClientLinksPresent indicates an expected call of BranchClientLinksPresent.
+func (mr *MockStoreMockRecorder) BranchClientLinksPresent(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BranchClientLinksPresent", reflect.TypeOf((*MockStore)(nil).BranchClientLinksPresent), arg0, arg1)
+}
+
+// BranchExpenseRefsPresent mocks base method.
+func (m *MockStore) BranchExpenseRefsPresent(arg0 context.Context, arg1 db.BranchExpenseRefsPresentParams) ([]string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "BranchExpenseRefsPresent", arg0, arg1)
+	ret0, _ := ret[0].([]string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// BranchExpenseRefsPresent indicates an expected call of BranchExpenseRefsPresent.
+func (mr *MockStoreMockRecorder) BranchExpenseRefsPresent(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BranchExpenseRefsPresent", reflect.TypeOf((*MockStore)(nil).BranchExpenseRefsPresent), arg0, arg1)
+}
+
+// BranchInvoiceRefsPresent mocks base method.
+func (m *MockStore) BranchInvoiceRefsPresent(arg0 context.Context, arg1 db.BranchInvoiceRefsPresentParams) ([]string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "BranchInvoiceRefsPresent", arg0, arg1)
+	ret0, _ := ret[0].([]string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// BranchInvoiceRefsPresent indicates an expected call of BranchInvoiceRefsPresent.
+func (mr *MockStoreMockRecorder) BranchInvoiceRefsPresent(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BranchInvoiceRefsPresent", reflect.TypeOf((*MockStore)(nil).BranchInvoiceRefsPresent), arg0, arg1)
+}
+
+// BranchLoanRefsPresent mocks base method.
+func (m *MockStore) BranchLoanRefsPresent(arg0 context.Context, arg1 db.BranchLoanRefsPresentParams) ([]sql.NullString, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "BranchLoanRefsPresent", arg0, arg1)
+	ret0, _ := ret[0].([]sql.NullString)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// BranchLoanRefsPresent indicates an expected call of BranchLoanRefsPresent.
+func (mr *MockStoreMockRecorder) BranchLoanRefsPresent(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BranchLoanRefsPresent", reflect.TypeOf((*MockStore)(nil).BranchLoanRefsPresent), arg0, arg1)
+}
+
 // BranchShiftIsClosed mocks base method.
 func (m *MockStore) BranchShiftIsClosed(arg0 context.Context, arg1 db.BranchShiftIsClosedParams) (bool, error) {
 	m.ctrl.T.Helper()
@@ -454,6 +514,21 @@ func (m *MockStore) CountBranchShifts(arg0 context.Context, arg1 sql.NullInt64) 
 func (mr *MockStoreMockRecorder) CountBranchShifts(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CountBranchShifts", reflect.TypeOf((*MockStore)(nil).CountBranchShifts), arg0, arg1)
+}
+
+// CountBranchSyncConflicts mocks base method.
+func (m *MockStore) CountBranchSyncConflicts(arg0 context.Context, arg1 db.CountBranchSyncConflictsParams) (int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CountBranchSyncConflicts", arg0, arg1)
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CountBranchSyncConflicts indicates an expected call of CountBranchSyncConflicts.
+func (mr *MockStoreMockRecorder) CountBranchSyncConflicts(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CountBranchSyncConflicts", reflect.TypeOf((*MockStore)(nil).CountBranchSyncConflicts), arg0, arg1)
 }
 
 // CountBranchVisitorDayByDirection mocks base method.
@@ -784,6 +859,21 @@ func (m *MockStore) CountLowStockProducts(arg0 context.Context, arg1 db.CountLow
 func (mr *MockStoreMockRecorder) CountLowStockProducts(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CountLowStockProducts", reflect.TypeOf((*MockStore)(nil).CountLowStockProducts), arg0, arg1)
+}
+
+// CountOpenBranchSyncConflicts mocks base method.
+func (m *MockStore) CountOpenBranchSyncConflicts(arg0 context.Context, arg1 int64) (int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CountOpenBranchSyncConflicts", arg0, arg1)
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CountOpenBranchSyncConflicts indicates an expected call of CountOpenBranchSyncConflicts.
+func (mr *MockStoreMockRecorder) CountOpenBranchSyncConflicts(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CountOpenBranchSyncConflicts", reflect.TypeOf((*MockStore)(nil).CountOpenBranchSyncConflicts), arg0, arg1)
 }
 
 // CountPriceListItemsWithProduct mocks base method.
@@ -3345,6 +3435,21 @@ func (mr *MockStoreMockRecorder) GetBranchShiftByClientRef(arg0, arg1 interface{
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBranchShiftByClientRef", reflect.TypeOf((*MockStore)(nil).GetBranchShiftByClientRef), arg0, arg1)
 }
 
+// GetBranchSyncConflict mocks base method.
+func (m *MockStore) GetBranchSyncConflict(arg0 context.Context, arg1 int64) (db.BranchSyncConflict, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetBranchSyncConflict", arg0, arg1)
+	ret0, _ := ret[0].(db.BranchSyncConflict)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetBranchSyncConflict indicates an expected call of GetBranchSyncConflict.
+func (mr *MockStoreMockRecorder) GetBranchSyncConflict(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBranchSyncConflict", reflect.TypeOf((*MockStore)(nil).GetBranchSyncConflict), arg0, arg1)
+}
+
 // GetBranchTarget mocks base method.
 func (m *MockStore) GetBranchTarget(arg0 context.Context, arg1 int64) (db.BranchTarget, error) {
 	m.ctrl.T.Helper()
@@ -3508,6 +3613,21 @@ func (m *MockStore) GetClientLink(arg0 context.Context, arg1 db.GetClientLinkPar
 func (mr *MockStoreMockRecorder) GetClientLink(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetClientLink", reflect.TypeOf((*MockStore)(nil).GetClientLink), arg0, arg1)
+}
+
+// GetColorByName mocks base method.
+func (m *MockStore) GetColorByName(arg0 context.Context, arg1 string) (db.Color, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetColorByName", arg0, arg1)
+	ret0, _ := ret[0].(db.Color)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetColorByName indicates an expected call of GetColorByName.
+func (mr *MockStoreMockRecorder) GetColorByName(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetColorByName", reflect.TypeOf((*MockStore)(nil).GetColorByName), arg0, arg1)
 }
 
 // GetCoupon mocks base method.
@@ -3915,6 +4035,21 @@ func (mr *MockStoreMockRecorder) GetProductAttributes(arg0, arg1 interface{}) *g
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetProductAttributes", reflect.TypeOf((*MockStore)(nil).GetProductAttributes), arg0, arg1)
 }
 
+// GetProductByCode mocks base method.
+func (m *MockStore) GetProductByCode(arg0 context.Context, arg1 string) (db.Product, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetProductByCode", arg0, arg1)
+	ret0, _ := ret[0].(db.Product)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetProductByCode indicates an expected call of GetProductByCode.
+func (mr *MockStoreMockRecorder) GetProductByCode(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetProductByCode", reflect.TypeOf((*MockStore)(nil).GetProductByCode), arg0, arg1)
+}
+
 // GetProductDiscountFromList mocks base method.
 func (m *MockStore) GetProductDiscountFromList(arg0 context.Context, arg1 db.GetProductDiscountFromListParams) (db.DiscountListItem, error) {
 	m.ctrl.T.Helper()
@@ -4093,6 +4228,21 @@ func (m *MockStore) GetShift(arg0 context.Context, arg1 int64) (db.Shift, error)
 func (mr *MockStoreMockRecorder) GetShift(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetShift", reflect.TypeOf((*MockStore)(nil).GetShift), arg0, arg1)
+}
+
+// GetSizeByName mocks base method.
+func (m *MockStore) GetSizeByName(arg0 context.Context, arg1 string) (db.Size, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetSizeByName", arg0, arg1)
+	ret0, _ := ret[0].(db.Size)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetSizeByName indicates an expected call of GetSizeByName.
+func (mr *MockStoreMockRecorder) GetSizeByName(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSizeByName", reflect.TypeOf((*MockStore)(nil).GetSizeByName), arg0, arg1)
 }
 
 // GetSlowMoverSummary mocks base method.
@@ -4575,6 +4725,21 @@ func (mr *MockStoreMockRecorder) ListBranchShifts(arg0, arg1 interface{}) *gomoc
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListBranchShifts", reflect.TypeOf((*MockStore)(nil).ListBranchShifts), arg0, arg1)
 }
 
+// ListBranchSyncConflictsPage mocks base method.
+func (m *MockStore) ListBranchSyncConflictsPage(arg0 context.Context, arg1 db.ListBranchSyncConflictsPageParams) ([]db.ListBranchSyncConflictsPageRow, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListBranchSyncConflictsPage", arg0, arg1)
+	ret0, _ := ret[0].([]db.ListBranchSyncConflictsPageRow)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListBranchSyncConflictsPage indicates an expected call of ListBranchSyncConflictsPage.
+func (mr *MockStoreMockRecorder) ListBranchSyncConflictsPage(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListBranchSyncConflictsPage", reflect.TypeOf((*MockStore)(nil).ListBranchSyncConflictsPage), arg0, arg1)
+}
+
 // ListBranchTargetSeriesForBranch mocks base method.
 func (m *MockStore) ListBranchTargetSeriesForBranch(arg0 context.Context, arg1 int64) ([]db.BranchTargetSeries, error) {
 	m.ctrl.T.Helper()
@@ -4828,6 +4993,21 @@ func (m *MockStore) ListClientsUpdatedSince(arg0 context.Context, arg1 time.Time
 func (mr *MockStoreMockRecorder) ListClientsUpdatedSince(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListClientsUpdatedSince", reflect.TypeOf((*MockStore)(nil).ListClientsUpdatedSince), arg0, arg1)
+}
+
+// ListClientsUpdatedSincePaged mocks base method.
+func (m *MockStore) ListClientsUpdatedSincePaged(arg0 context.Context, arg1 db.ListClientsUpdatedSincePagedParams) ([]db.Client, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListClientsUpdatedSincePaged", arg0, arg1)
+	ret0, _ := ret[0].([]db.Client)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListClientsUpdatedSincePaged indicates an expected call of ListClientsUpdatedSincePaged.
+func (mr *MockStoreMockRecorder) ListClientsUpdatedSincePaged(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListClientsUpdatedSincePaged", reflect.TypeOf((*MockStore)(nil).ListClientsUpdatedSincePaged), arg0, arg1)
 }
 
 // ListClientsWithLoyalty mocks base method.
@@ -5430,6 +5610,21 @@ func (mr *MockStoreMockRecorder) ListProductVariantsForSync(arg0, arg1 interface
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListProductVariantsForSync", reflect.TypeOf((*MockStore)(nil).ListProductVariantsForSync), arg0, arg1)
 }
 
+// ListProductVariantsForSyncPaged mocks base method.
+func (m *MockStore) ListProductVariantsForSyncPaged(arg0 context.Context, arg1 db.ListProductVariantsForSyncPagedParams) ([]db.ListProductVariantsForSyncPagedRow, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListProductVariantsForSyncPaged", arg0, arg1)
+	ret0, _ := ret[0].([]db.ListProductVariantsForSyncPagedRow)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListProductVariantsForSyncPaged indicates an expected call of ListProductVariantsForSyncPaged.
+func (mr *MockStoreMockRecorder) ListProductVariantsForSyncPaged(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListProductVariantsForSyncPaged", reflect.TypeOf((*MockStore)(nil).ListProductVariantsForSyncPaged), arg0, arg1)
+}
+
 // ListProductVariantsUpdatedSince mocks base method.
 func (m *MockStore) ListProductVariantsUpdatedSince(arg0 context.Context, arg1 time.Time) ([]db.ProductVariant, error) {
 	m.ctrl.T.Helper()
@@ -5789,6 +5984,21 @@ func (mr *MockStoreMockRecorder) PostStockCountTx(arg0, arg1, arg2 interface{}) 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PostStockCountTx", reflect.TypeOf((*MockStore)(nil).PostStockCountTx), arg0, arg1, arg2)
 }
 
+// ProductBarcodesPresent mocks base method.
+func (m *MockStore) ProductBarcodesPresent(arg0 context.Context, arg1 []string) ([]string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ProductBarcodesPresent", arg0, arg1)
+	ret0, _ := ret[0].([]string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ProductBarcodesPresent indicates an expected call of ProductBarcodesPresent.
+func (mr *MockStoreMockRecorder) ProductBarcodesPresent(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ProductBarcodesPresent", reflect.TypeOf((*MockStore)(nil).ProductBarcodesPresent), arg0, arg1)
+}
+
 // PurchaseReceiveTx mocks base method.
 func (m *MockStore) PurchaseReceiveTx(arg0 context.Context, arg1 db.PurchaseReceiveTxParams) (db.PurchaseReceiveTxResult, error) {
 	m.ctrl.T.Helper()
@@ -5817,6 +6027,21 @@ func (m *MockStore) ReceiveInventoryStock(arg0 context.Context, arg1 db.ReceiveI
 func (mr *MockStoreMockRecorder) ReceiveInventoryStock(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReceiveInventoryStock", reflect.TypeOf((*MockStore)(nil).ReceiveInventoryStock), arg0, arg1)
+}
+
+// ResolveBranchSyncConflict mocks base method.
+func (m *MockStore) ResolveBranchSyncConflict(arg0 context.Context, arg1 db.ResolveBranchSyncConflictParams) (db.BranchSyncConflict, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ResolveBranchSyncConflict", arg0, arg1)
+	ret0, _ := ret[0].(db.BranchSyncConflict)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ResolveBranchSyncConflict indicates an expected call of ResolveBranchSyncConflict.
+func (mr *MockStoreMockRecorder) ResolveBranchSyncConflict(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResolveBranchSyncConflict", reflect.TypeOf((*MockStore)(nil).ResolveBranchSyncConflict), arg0, arg1)
 }
 
 // ReturnInvoiceTx mocks base method.
@@ -6832,6 +7057,21 @@ func (m *MockStore) UpsertBranchSettings(arg0 context.Context, arg1 db.UpsertBra
 func (mr *MockStoreMockRecorder) UpsertBranchSettings(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpsertBranchSettings", reflect.TypeOf((*MockStore)(nil).UpsertBranchSettings), arg0, arg1)
+}
+
+// UpsertBranchSyncConflict mocks base method.
+func (m *MockStore) UpsertBranchSyncConflict(arg0 context.Context, arg1 db.UpsertBranchSyncConflictParams) (db.BranchSyncConflict, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpsertBranchSyncConflict", arg0, arg1)
+	ret0, _ := ret[0].(db.BranchSyncConflict)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// UpsertBranchSyncConflict indicates an expected call of UpsertBranchSyncConflict.
+func (mr *MockStoreMockRecorder) UpsertBranchSyncConflict(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpsertBranchSyncConflict", reflect.TypeOf((*MockStore)(nil).UpsertBranchSyncConflict), arg0, arg1)
 }
 
 // UpsertClientLink mocks base method.

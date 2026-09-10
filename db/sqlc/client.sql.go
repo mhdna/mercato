@@ -396,6 +396,57 @@ func (q *Queries) ListClientsUpdatedSince(ctx context.Context, updatedAt time.Ti
 	return items, nil
 }
 
+const listClientsUpdatedSincePaged = `-- name: ListClientsUpdatedSincePaged :many
+SELECT id, name, phone, total_loyalty_points, valid_loyalty_points, created_at, updated_at, client_type FROM clients
+WHERE client_type = 'retail'
+  AND (updated_at, id) > ($1::timestamptz, $2::bigint)
+ORDER BY updated_at, id
+LIMIT $3
+`
+
+type ListClientsUpdatedSincePagedParams struct {
+	AfterUpdatedAt time.Time `json:"after_updated_at"`
+	AfterID        int64     `json:"after_id"`
+	RowLimit       int32     `json:"row_limit"`
+}
+
+// Keyset-paginated form of ListClientsUpdatedSince for a branch doing a
+// full catch-up (cursor reset): ordered by (updated_at, id) so a page
+// boundary that falls between two rows sharing an updated_at can't drop or
+// repeat one. after_updated_at/after_id are the last row of the previous
+// page (zero-time / 0 for the first page).
+func (q *Queries) ListClientsUpdatedSincePaged(ctx context.Context, arg ListClientsUpdatedSincePagedParams) ([]Client, error) {
+	rows, err := q.db.QueryContext(ctx, listClientsUpdatedSincePaged, arg.AfterUpdatedAt, arg.AfterID, arg.RowLimit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Client{}
+	for rows.Next() {
+		var i Client
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Phone,
+			&i.TotalLoyaltyPoints,
+			&i.ValidLoyaltyPoints,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.ClientType,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listClientsWithLoyalty = `-- name: ListClientsWithLoyalty :many
 SELECT c.id, c.name, c.phone, c.total_loyalty_points, c.valid_loyalty_points, c.created_at, c.updated_at, c.client_type, COALESCE(bl.branch_points, 0)::bigint AS branch_loyalty_points
 FROM clients c

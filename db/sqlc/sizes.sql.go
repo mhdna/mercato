@@ -81,6 +81,24 @@ func (q *Queries) DeleteSizes(ctx context.Context, ids []int64) (int64, error) {
 	return result.RowsAffected()
 }
 
+const getSizeByName = `-- name: GetSizeByName :one
+SELECT id, name, type, "order", version, created_at FROM sizes WHERE name = $1 LIMIT 1
+`
+
+func (q *Queries) GetSizeByName(ctx context.Context, name string) (Size, error) {
+	row := q.db.QueryRowContext(ctx, getSizeByName, name)
+	var i Size
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Type,
+		&i.Order,
+		&i.Version,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const listSizes = `-- name: ListSizes :many
 SELECT id, name, type, "order", version, created_at FROM sizes
 ORDER BY type, "order"

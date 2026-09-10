@@ -24,6 +24,15 @@ type Querier interface {
 	AddPurchasedProduct(ctx context.Context, arg AddPurchasedProductParams) (ProductSupplier, error)
 	AddPurchasedProductCost(ctx context.Context, arg AddPurchasedProductCostParams) (ProductSupplierCost, error)
 	AddStockCountItem(ctx context.Context, arg AddStockCountItemParams) (StockCountItem, error)
+	BranchClientLinksPresent(ctx context.Context, arg BranchClientLinksPresentParams) ([]int64, error)
+	BranchExpenseRefsPresent(ctx context.Context, arg BranchExpenseRefsPresentParams) ([]string, error)
+	// Reconcile queries: given the refs a branch believes it has pushed, return
+	// the subset kashi actually holds. The branch diffs its own list against
+	// this to decide what still needs (re)queuing -- the basis of "sync
+	// everything to a (possibly new) central server". Each is a single indexed
+	// `= ANY` lookup; the handler caps the input array size.
+	BranchInvoiceRefsPresent(ctx context.Context, arg BranchInvoiceRefsPresentParams) ([]string, error)
+	BranchLoanRefsPresent(ctx context.Context, arg BranchLoanRefsPresentParams) ([]sql.NullString, error)
 	// A branch_shifts row exists only once kashi-pos has reported that shift's
 	// close, so its mere presence is the "this shift is closed" signal --
 	// closed_at itself can be NULL for an older till build that omitted it.
@@ -41,6 +50,7 @@ type Querier interface {
 	CountBranchInvoices(ctx context.Context, branchID sql.NullInt64) (int64, error)
 	CountBranchInvoicesFiltered(ctx context.Context, arg CountBranchInvoicesFilteredParams) (int64, error)
 	CountBranchShifts(ctx context.Context, branchID sql.NullInt64) (int64, error)
+	CountBranchSyncConflicts(ctx context.Context, arg CountBranchSyncConflictsParams) (int64, error)
 	// Running gross tally for one branch, one local day, one direction -- used
 	// to tell the admin toast "customer in -- 42 in today".
 	CountBranchVisitorDayByDirection(ctx context.Context, arg CountBranchVisitorDayByDirectionParams) (int64, error)
@@ -69,6 +79,7 @@ type Querier interface {
 	CountLoanPayments(ctx context.Context, arg CountLoanPaymentsParams) (int64, error)
 	CountLoans(ctx context.Context, arg CountLoansParams) (int64, error)
 	CountLowStockProducts(ctx context.Context, arg CountLowStockProductsParams) (int64, error)
+	CountOpenBranchSyncConflicts(ctx context.Context, branchID int64) (int64, error)
 	CountPriceListItemsWithProduct(ctx context.Context, arg CountPriceListItemsWithProductParams) (int64, error)
 	CountPriceListsFiltered(ctx context.Context, search string) (int64, error)
 	CountProductVariants(ctx context.Context) (int64, error)
@@ -76,6 +87,7 @@ type Querier interface {
 	CountPurchasesFiltered(ctx context.Context, search string) (int64, error)
 	CountShifts(ctx context.Context, arg CountShiftsParams) (int64, error)
 	CountSizes(ctx context.Context, search string) (int64, error)
+	CountSlowMovingProducts(ctx context.Context, arg CountSlowMovingProductsParams) (int64, error)
 	CountStockCounts(ctx context.Context, arg CountStockCountsParams) (int64, error)
 	CountStockHealthByInventory(ctx context.Context, search string) (int64, error)
 	CountStockMovements(ctx context.Context, arg CountStockMovementsParams) (int64, error)
@@ -300,6 +312,7 @@ type Querier interface {
 	GetBranchLoanByClientRef(ctx context.Context, arg GetBranchLoanByClientRefParams) (Loan, error)
 	GetBranchSettings(ctx context.Context, branchID int64) (BranchSetting, error)
 	GetBranchShiftByClientRef(ctx context.Context, arg GetBranchShiftByClientRefParams) (BranchShift, error)
+	GetBranchSyncConflict(ctx context.Context, id int64) (BranchSyncConflict, error)
 	GetBranchTarget(ctx context.Context, id int64) (BranchTarget, error)
 	GetBranchTargetBySeriesAndStart(ctx context.Context, arg GetBranchTargetBySeriesAndStartParams) (BranchTarget, error)
 	GetBranchTargetSeries(ctx context.Context, id int64) (BranchTargetSeries, error)
@@ -311,6 +324,7 @@ type Querier interface {
 	GetClient(ctx context.Context, id int64) (Client, error)
 	GetClientByPhone(ctx context.Context, phone string) (Client, error)
 	GetClientLink(ctx context.Context, arg GetClientLinkParams) (int64, error)
+	GetColorByName(ctx context.Context, name string) (Color, error)
 	GetCoupon(ctx context.Context, code string) (Coupon, error)
 	GetCouponCategory(ctx context.Context, id int64) (CouponCategory, error)
 	GetCurrency(ctx context.Context, code string) (Currency, error)
@@ -344,6 +358,81 @@ type Querier interface {
 	GetProduct(ctx context.Context, id int64) (Product, error)
 	GetProductAttributeValue(ctx context.Context, arg GetProductAttributeValueParams) (ProductsAttribute, error)
 	GetProductAttributes(ctx context.Context, productID int64) ([]ProductsAttribute, error)
+	// -- name: CreatePriceList :one
+	// INSERT INTO price_lists (
+	//   name,
+	//   is_active,
+	//   is_default,
+	//   valid_from,
+	//   valid_to
+	// ) VALUES (
+	//     $1, $2, $3, $4, $5
+	// ) RETURNING *;
+	// -- name: ListPriceLists :many
+	// SELECT * FROM price_lists
+	// ORDER BY name
+	// LIMIT $1
+	// OFFSET $2;
+	// -- name: UpdatePriceList :exec
+	// UPDATE price_lists
+	//   SET name = $2,
+	//   is_active = $3,
+	//   is_default = $4,
+	//   valid_from = $5,
+	//   valid_to = $6
+	// WHERE id = $1;
+	// -- name: CreateProductPrice :one
+	// INSERT INTO price_list_items (
+	//   price_list_id,
+	//   product_id,
+	//   price
+	// ) VALUES (
+	//     $1, $2, $3
+	// ) RETURNING *;
+	// -- name: UpdateProductPrice :exec
+	// UPDATE price_list_items
+	//   SET price = $3
+	// WHERE product_id = $1 AND price_list_id = $2;
+	// -- name: CreateDiscountList :one
+	// INSERT INTO discount_lists (
+	//   name,
+	//   is_active,
+	//   is_default,
+	//   valid_from,
+	//   valid_to
+	// ) VALUES (
+	//     $1, $2, $3, $4, $5
+	// ) RETURNING *;
+	// -- name: ListDiscountLists :many
+	// SELECT * FROM discount_lists
+	// ORDER BY name
+	// LIMIT $1
+	// OFFSET $2;
+	// -- name: UpdateDiscountList :exec
+	// UPDATE price_lists
+	//   SET name = $2,
+	//   is_active = $3,
+	//   is_default = $4,
+	//   valid_from = $5,
+	//   valid_to = $6
+	// WHERE id = $1;
+	// -- name: UnsetDefaultPriceList :exec
+	// UPDATE price_lists
+	//   SET is_default = false
+	// WHERE is_default = true;
+	// -- name: CreateProductDiscount :one
+	// INSERT INTO discount_list_items (
+	//   discount_list_id,
+	//   product_id,
+	//   discount
+	// ) VALUES (
+	//     $1, $2, $3
+	// ) RETURNING *;
+	// -- name: UpdateProductDiscount :exec
+	// UPDATE discount_list_items
+	//   SET discount = $3
+	// WHERE product_id = $1 AND discount_list_id = $2;
+	GetProductByCode(ctx context.Context, code string) (Product, error)
 	GetProductDiscountFromList(ctx context.Context, arg GetProductDiscountFromListParams) (DiscountListItem, error)
 	GetProductPriceFromList(ctx context.Context, arg GetProductPriceFromListParams) (PriceListItem, error)
 	GetProductSupplier(ctx context.Context, arg GetProductSupplierParams) (ProductSupplier, error)
@@ -356,6 +445,8 @@ type Querier interface {
 	GetSalesperson(ctx context.Context, id int64) (Salesperson, error)
 	GetSession(ctx context.Context, id uuid.UUID) (Session, error)
 	GetShift(ctx context.Context, id int64) (Shift, error)
+	GetSizeByName(ctx context.Context, name string) (Size, error)
+	GetSlowMoverSummary(ctx context.Context) (GetSlowMoverSummaryRow, error)
 	GetStockCount(ctx context.Context, id int64) (StockCount, error)
 	// Inventory health: overall days-of-inventory (on-hand / trailing daily
 	// sell-through), total inventory value at moving-average cost, and the
@@ -412,6 +503,7 @@ type Querier interface {
 	// sqlc.narg(branch_id) is nullable: NULL means "all branches", matching
 	// ListBranchExpenses' admin-filter convention.
 	ListBranchShifts(ctx context.Context, arg ListBranchShiftsParams) ([]BranchShift, error)
+	ListBranchSyncConflictsPage(ctx context.Context, arg ListBranchSyncConflictsPageParams) ([]ListBranchSyncConflictsPageRow, error)
 	ListBranchTargetSeriesForBranch(ctx context.Context, branchID int64) ([]BranchTargetSeries, error)
 	ListBranchTargetsForBranch(ctx context.Context, branchID int64) ([]BranchTarget, error)
 	ListBranchTargetsUpdatedSince(ctx context.Context, arg ListBranchTargetsUpdatedSinceParams) ([]BranchTarget, error)
@@ -466,6 +558,12 @@ type Querier interface {
 	// have it locally (no delete propagation exists for any synced entity
 	// today); acceptable since that conversion is expected to be rare.
 	ListClientsUpdatedSince(ctx context.Context, updatedAt time.Time) ([]Client, error)
+	// Keyset-paginated form of ListClientsUpdatedSince for a branch doing a
+	// full catch-up (cursor reset): ordered by (updated_at, id) so a page
+	// boundary that falls between two rows sharing an updated_at can't drop or
+	// repeat one. after_updated_at/after_id are the last row of the previous
+	// page (zero-time / 0 for the first page).
+	ListClientsUpdatedSincePaged(ctx context.Context, arg ListClientsUpdatedSincePagedParams) ([]Client, error)
 	// Same rows as ListClients, but with each branch's reported loyalty points
 	// (branch_invoices.loyalty_points_delta, via client_links) summed in
 	// alongside kashi's own admin-invoice points. Used by the admin clients
@@ -559,6 +657,10 @@ type Querier interface {
 	// creation time, in the same moment the variant's own updated_at is set,
 	// so this doesn't miss anything in practice yet.
 	ListProductVariantsForSync(ctx context.Context, updatedAt time.Time) ([]ListProductVariantsForSyncRow, error)
+	// Keyset-paginated ListProductVariantsForSync -- same flattened row, same
+	// joins, ordered by (product_variants.updated_at, product_variants.id) for
+	// a stable page boundary during a branch's full catch-up.
+	ListProductVariantsForSyncPaged(ctx context.Context, arg ListProductVariantsForSyncPagedParams) ([]ListProductVariantsForSyncPagedRow, error)
 	ListProductVariantsUpdatedSince(ctx context.Context, updatedAt time.Time) ([]ProductVariant, error)
 	// Search matches code/name/description (case-insensitive). Every filter is
 	// optional: empty search string, NULL narg, or empty attribute_value_ids
@@ -575,6 +677,15 @@ type Querier interface {
 	ListShifts(ctx context.Context, arg ListShiftsParams) ([]ListShiftsRow, error)
 	ListSizes(ctx context.Context) ([]Size, error)
 	ListSizesPage(ctx context.Context, arg ListSizesPageParams) ([]Size, error)
+	// ---------------------------------------------------------------------------
+	// Slow movers: money tied up in stock that isn't selling. Deliberately
+	// separate from the low-stock alerts (too little stock) -- this is the
+	// opposite problem, too much. A product qualifies when it's carrying stock
+	// (on_hand > 0) and either never sold in the last 90 days ("dead": put it
+	// on clearance) or would take unreasonably long to sell through at its
+	// current pace ("overstocked": more than 90 days on hand).
+	// ---------------------------------------------------------------------------
+	ListSlowMovingProducts(ctx context.Context, arg ListSlowMovingProductsParams) ([]ListSlowMovingProductsRow, error)
 	ListStockCountItems(ctx context.Context, stockCountID int64) ([]ListStockCountItemsRow, error)
 	ListStockCounts(ctx context.Context, arg ListStockCountsParams) ([]ListStockCountsRow, error)
 	ListStockHealthByInventory(ctx context.Context, arg ListStockHealthByInventoryParams) ([]ListStockHealthByInventoryRow, error)
@@ -586,10 +697,12 @@ type Querier interface {
 	ListUsers(ctx context.Context, arg ListUsersParams) ([]User, error)
 	ListVariantsForBarcodes(ctx context.Context, arg ListVariantsForBarcodesParams) ([]ListVariantsForBarcodesRow, error)
 	MarkBranchExpenseUploadTokenUsed(ctx context.Context, id int64) error
+	ProductBarcodesPresent(ctx context.Context, dollar_1 []string) ([]string, error)
 	// Apply an inbound quantity delta and roll the per-location moving-average
 	// cost forward. When existing on-hand is <= 0 the average is just reset to
 	// the incoming cost (no meaningful prior average to blend).
 	ReceiveInventoryStock(ctx context.Context, arg ReceiveInventoryStockParams) (InventoryStock, error)
+	ResolveBranchSyncConflict(ctx context.Context, arg ResolveBranchSyncConflictParams) (BranchSyncConflict, error)
 	SetBranchActive(ctx context.Context, arg SetBranchActiveParams) error
 	SetBranchInventory(ctx context.Context, arg SetBranchInventoryParams) error
 	// managed_locally is admin-owned, not branch-reported: a branch's settings
@@ -670,6 +783,10 @@ type Querier interface {
 	UpdateUser(ctx context.Context, arg UpdateUserParams) error
 	UpsertAttributeValue(ctx context.Context, arg UpsertAttributeValueParams) (AttributesValue, error)
 	UpsertBranchSettings(ctx context.Context, arg UpsertBranchSettingsParams) (BranchSetting, error)
+	// Idempotent on (branch_id, entity, ref): a retried outbox push re-reports
+	// the same conflict. A row an admin already resolved/dismissed is left
+	// alone (nothing to re-open).
+	UpsertBranchSyncConflict(ctx context.Context, arg UpsertBranchSyncConflictParams) (BranchSyncConflict, error)
 	UpsertClientLink(ctx context.Context, arg UpsertClientLinkParams) error
 	UpsertDiscountListBranch(ctx context.Context, arg UpsertDiscountListBranchParams) error
 	UpsertPriceListBranch(ctx context.Context, arg UpsertPriceListBranchParams) error

@@ -87,6 +87,11 @@ type branchInvoiceRequest struct {
 	// hasn't been updated yet simply omits them.
 	SalespersonName string                        `json:"salesperson_name"`
 	Payments        []branchInvoicePaymentRequest `json:"payments"`
+
+	// Historical marks a one-time backfill of a pre-sync sale: it records in
+	// full but moves no central stock (see CreateBranchInvoiceTx). Absent /
+	// false on every live checkout.
+	Historical bool `json:"historical"`
 }
 
 type branchInvoicePaymentRequest struct {
@@ -165,6 +170,7 @@ func (server *Server) createBranchInvoice(ctx *gin.Context, kind string) {
 			LoyaltyPointsDelta:     req.LoyaltyPointsDelta,
 			OccurredAt:             req.OccurredAt,
 			SalespersonName:        req.SalespersonName,
+			Historical:             req.Historical,
 		},
 		Items:    items,
 		Payments: payments,

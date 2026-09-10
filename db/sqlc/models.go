@@ -653,6 +653,7 @@ type BranchInvoice struct {
 	OccurredAt             time.Time      `json:"occurred_at"`
 	ReceivedAt             time.Time      `json:"received_at"`
 	SalespersonName        string         `json:"salesperson_name"`
+	Historical             bool           `json:"historical"`
 }
 
 type BranchInvoiceItem struct {
@@ -763,6 +764,21 @@ type BranchShift struct {
 	VarianceWhish     int64        `json:"variance_whish"`
 	OccurredAt        time.Time    `json:"occurred_at"`
 	ReceivedAt        time.Time    `json:"received_at"`
+}
+
+type BranchSyncConflict struct {
+	ID              int64                 `json:"id"`
+	BranchID        int64                 `json:"branch_id"`
+	Entity          string                `json:"entity"`
+	Ref             string                `json:"ref"`
+	Kind            string                `json:"kind"`
+	BranchPayload   json.RawMessage       `json:"branch_payload"`
+	CentralClientID sql.NullInt64         `json:"central_client_id"`
+	Status          string                `json:"status"`
+	Resolution      pqtype.NullRawMessage `json:"resolution"`
+	ResolvedBy      sql.NullInt64         `json:"resolved_by"`
+	CreatedAt       time.Time             `json:"created_at"`
+	UpdatedAt       time.Time             `json:"updated_at"`
 }
 
 type BranchTarget struct {

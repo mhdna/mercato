@@ -404,6 +404,108 @@ func (q *Queries) ListProductVariantsForSync(ctx context.Context, updatedAt time
 	return items, nil
 }
 
+const listProductVariantsForSyncPaged = `-- name: ListProductVariantsForSyncPaged :many
+SELECT
+  product_variants.id,
+  product_variants.barcode,
+  product_variants.price,
+  product_variants.is_active,
+  product_variants.updated_at,
+  products.code,
+  products.name,
+  products.description,
+  colors.name AS color_name,
+  sizes.name AS size_name,
+  brand_val.value AS brand,
+  subcategory_val.value AS sub_category,
+  kind_val.value AS kind,
+  season_val.value AS season,
+  year_val.value AS year
+FROM product_variants
+JOIN products ON products.id = product_variants.product_id
+LEFT JOIN colors ON colors.id = product_variants.color_id
+LEFT JOIN sizes ON sizes.id = product_variants.size_id
+LEFT JOIN products_attributes brand_pa ON brand_pa.product_id = products.id AND brand_pa.attribute_id = 2
+LEFT JOIN attributes_values brand_val ON brand_val.id = brand_pa.attribute_value_id
+LEFT JOIN products_attributes subcategory_pa ON subcategory_pa.product_id = products.id AND subcategory_pa.attribute_id = 1
+LEFT JOIN attributes_values subcategory_val ON subcategory_val.id = subcategory_pa.attribute_value_id
+LEFT JOIN products_attributes kind_pa ON kind_pa.product_id = products.id AND kind_pa.attribute_id = 3
+LEFT JOIN attributes_values kind_val ON kind_val.id = kind_pa.attribute_value_id
+LEFT JOIN products_attributes season_pa ON season_pa.product_id = products.id AND season_pa.attribute_id = 7
+LEFT JOIN attributes_values season_val ON season_val.id = season_pa.attribute_value_id
+LEFT JOIN products_attributes year_pa ON year_pa.product_id = products.id AND year_pa.attribute_id = 6
+LEFT JOIN attributes_values year_val ON year_val.id = year_pa.attribute_value_id
+WHERE (product_variants.updated_at, product_variants.id) > ($1::timestamptz, $2::bigint)
+ORDER BY product_variants.updated_at, product_variants.id
+LIMIT $3
+`
+
+type ListProductVariantsForSyncPagedParams struct {
+	AfterUpdatedAt time.Time `json:"after_updated_at"`
+	AfterID        int64     `json:"after_id"`
+	RowLimit       int32     `json:"row_limit"`
+}
+
+type ListProductVariantsForSyncPagedRow struct {
+	ID          int64          `json:"id"`
+	Barcode     string         `json:"barcode"`
+	Price       sql.NullInt64  `json:"price"`
+	IsActive    bool           `json:"is_active"`
+	UpdatedAt   time.Time      `json:"updated_at"`
+	Code        string         `json:"code"`
+	Name        string         `json:"name"`
+	Description string         `json:"description"`
+	ColorName   sql.NullString `json:"color_name"`
+	SizeName    sql.NullString `json:"size_name"`
+	Brand       sql.NullString `json:"brand"`
+	SubCategory sql.NullString `json:"sub_category"`
+	Kind        sql.NullString `json:"kind"`
+	Season      sql.NullString `json:"season"`
+	Year        sql.NullString `json:"year"`
+}
+
+// Keyset-paginated ListProductVariantsForSync -- same flattened row, same
+// joins, ordered by (product_variants.updated_at, product_variants.id) for
+// a stable page boundary during a branch's full catch-up.
+func (q *Queries) ListProductVariantsForSyncPaged(ctx context.Context, arg ListProductVariantsForSyncPagedParams) ([]ListProductVariantsForSyncPagedRow, error) {
+	rows, err := q.db.QueryContext(ctx, listProductVariantsForSyncPaged, arg.AfterUpdatedAt, arg.AfterID, arg.RowLimit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListProductVariantsForSyncPagedRow{}
+	for rows.Next() {
+		var i ListProductVariantsForSyncPagedRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Barcode,
+			&i.Price,
+			&i.IsActive,
+			&i.UpdatedAt,
+			&i.Code,
+			&i.Name,
+			&i.Description,
+			&i.ColorName,
+			&i.SizeName,
+			&i.Brand,
+			&i.SubCategory,
+			&i.Kind,
+			&i.Season,
+			&i.Year,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listProductVariantsUpdatedSince = `-- name: ListProductVariantsUpdatedSince :many
 SELECT id, product_id, color_id, size_id, barcode, price, is_active, created_at, updated_at, avg_cost FROM product_variants
 WHERE updated_at > $1

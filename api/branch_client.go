@@ -2,7 +2,10 @@ package api
 
 import (
 	"database/sql"
+	"encoding/json"
 	"net/http"
+	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	db "github.com/mhdna/kashi/db/sqlc"
@@ -11,29 +14,37 @@ import (
 type branchClientRequest struct {
 	BranchClientID int64  `json:"branch_client_id" binding:"required"`
 	Name           string `json:"name" binding:"required"`
-	Phone          string `json:"phone" binding:"required"`
+	// Not "required": a legacy till may hold a client with a blank/garbage
+	// phone. Rather than 400 (retried forever) or create an unmatchable
+	// central row, that case is staged as an 'invalid_phone' conflict.
+	Phone string `json:"phone"`
+}
+
+// validBranchPhone reports whether a branch-reported phone is usable as the
+// global clients.phone key: at least 6 digits after stripping the usual
+// formatting characters.
+func validBranchPhone(phone string) bool {
+	digits := 0
+	for _, r := range phone {
+		if r >= '0' && r <= '9' {
+			digits++
+		}
+	}
+	return digits >= 6
 }
 
 // putBranchClient is the up-sync half of client sync: a branch reports a
 // client it just created or edited locally. Resolution:
 //
-//  1. Already linked (branch_id, branch_client_id) -> this branch has
-//     pushed this client before, so this is an edit -- update the linked
-//     kashi client's fields to match (the branch's edit becomes the new
-//     canonical truth, same as it propagating from a live till edit
-//     always should).
-//  2. Not linked, but an existing kashi client has this exact phone ->
-//     the branch thinks this is new but someone else (this branch or
-//     another) already created it centrally. Link to the existing
-//     client WITHOUT touching its fields -- a phone match alone doesn't
-//     mean this branch's name spelling should silently overwrite the
-//     established canonical one.
-//  3. No link, no phone match anywhere -> genuinely new. Create a kashi
-//     client and link it.
-//
-// Every case ends the same way: broadcast client_updated so other
-// branches pick up the (possibly new) canonical record on their next
-// catch-up, same as currencies/cashbox_accounts/products today.
+//  1. Already linked (branch_id, branch_client_id) -> an edit. Update the
+//     linked kashi client to match; client_type is never touched.
+//  2. Not linked, phone matches an existing kashi client -> link to it so
+//     this branch's invoices attribute immediately. If the names differ,
+//     stage a 'phone_name_mismatch' conflict for an admin rather than
+//     silently keeping either spelling.
+//  3. Not linked, phone unusable -> stage an 'invalid_phone' conflict;
+//     create and link nothing. Still a 200 so the outbox row is consumed.
+//  4. Not linked, no phone match -> genuinely new. Create and link.
 func (server *Server) putBranchClient(ctx *gin.Context) {
 	branchID := ctx.MustGet(branchIDKey).(int64)
 
@@ -42,8 +53,9 @@ func (server *Server) putBranchClient(ctx *gin.Context) {
 		server.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
-
-	var client db.Client
+	req.Phone = strings.TrimSpace(req.Phone)
+	payloadJSON, _ := json.Marshal(req)
+	refStr := strconv.FormatInt(req.BranchClientID, 10)
 
 	linkedClientID, err := server.store.GetClientLink(ctx, db.GetClientLinkParams{
 		BranchID:       branchID,
@@ -51,60 +63,102 @@ func (server *Server) putBranchClient(ctx *gin.Context) {
 	})
 	switch {
 	case err == nil:
-		// client_type is never touched by a branch edit -- an admin may
-		// have reclassified this client to wholesale centrally, and a
+		// An edit of an already-linked client. client_type is never touched
+		// -- an admin may have reclassified this client to wholesale, and a
 		// branch till has no business reverting that.
 		linked, getErr := server.store.GetClient(ctx, linkedClientID)
 		if getErr != nil {
 			server.writeError(ctx, http.StatusInternalServerError, getErr)
 			return
 		}
-		client, err = server.store.UpdateClient(ctx, db.UpdateClientParams{
+		client, updErr := server.store.UpdateClient(ctx, db.UpdateClientParams{
 			ID:         linkedClientID,
 			Name:       req.Name,
 			Phone:      req.Phone,
 			ClientType: linked.ClientType,
 		})
-		if err != nil {
-			server.writeError(ctx, http.StatusInternalServerError, err)
+		if updErr != nil {
+			server.writeError(ctx, http.StatusInternalServerError, updErr)
 			return
 		}
+		server.branchHub.broadcastAll(branchWSMessage{Type: "client_updated"})
+		server.writeJSON(ctx, http.StatusOK, envelope{"client": client})
+		return
+
 	case err == sql.ErrNoRows:
+		// Not linked yet.
+		if !validBranchPhone(req.Phone) {
+			server.stageBranchSyncConflict(ctx, branchID, "client", refStr, "invalid_phone", payloadJSON, sql.NullInt64{})
+			server.writeJSON(ctx, http.StatusOK, envelope{"conflict": true, "conflict_kind": "invalid_phone"})
+			return
+		}
+
 		existing, phoneErr := server.store.GetClientByPhone(ctx, req.Phone)
 		switch {
 		case phoneErr == nil:
-			client = existing
+			if linkErr := server.store.UpsertClientLink(ctx, db.UpsertClientLinkParams{
+				BranchID:       branchID,
+				BranchClientID: req.BranchClientID,
+				ClientID:       existing.ID,
+			}); linkErr != nil {
+				server.writeError(ctx, http.StatusInternalServerError, linkErr)
+				return
+			}
+			if strings.TrimSpace(existing.Name) != strings.TrimSpace(req.Name) {
+				server.stageBranchSyncConflict(ctx, branchID, "client", refStr, "phone_name_mismatch", payloadJSON,
+					sql.NullInt64{Int64: existing.ID, Valid: true})
+				server.branchHub.broadcastAll(branchWSMessage{Type: "client_updated"})
+				server.writeJSON(ctx, http.StatusOK, envelope{
+					"client": existing, "conflict": true, "conflict_kind": "phone_name_mismatch",
+				})
+				return
+			}
+			server.branchHub.broadcastAll(branchWSMessage{Type: "client_updated"})
+			server.writeJSON(ctx, http.StatusOK, envelope{"client": existing})
+			return
+
 		case phoneErr == sql.ErrNoRows:
-			// Genuinely new, reported by a branch till -- always retail;
-			// wholesale clients only ever originate centrally in kashi.
 			created, createErr := server.store.CreateClient(ctx, db.CreateClientParams{
 				Name:       req.Name,
 				Phone:      req.Phone,
 				ClientType: "retail",
 			})
-			if createErr != nil {
+			var client db.Client
+			switch {
+			case createErr == nil:
+				client = created
+			case isUniqueViolation(createErr):
+				// A concurrent push won the race on the global phone index.
+				// Resolve to the winner rather than 500ing the loser forever.
+				won, lookupErr := server.store.GetClientByPhone(ctx, req.Phone)
+				if lookupErr != nil {
+					server.writeError(ctx, http.StatusInternalServerError, lookupErr)
+					return
+				}
+				client = won
+			default:
 				server.writeError(ctx, http.StatusInternalServerError, createErr)
 				return
 			}
-			client = created
+			if linkErr := server.store.UpsertClientLink(ctx, db.UpsertClientLinkParams{
+				BranchID:       branchID,
+				BranchClientID: req.BranchClientID,
+				ClientID:       client.ID,
+			}); linkErr != nil {
+				server.writeError(ctx, http.StatusInternalServerError, linkErr)
+				return
+			}
+			server.branchHub.broadcastAll(branchWSMessage{Type: "client_updated"})
+			server.writeJSON(ctx, http.StatusOK, envelope{"client": client})
+			return
+
 		default:
 			server.writeError(ctx, http.StatusInternalServerError, phoneErr)
 			return
 		}
-		if err := server.store.UpsertClientLink(ctx, db.UpsertClientLinkParams{
-			BranchID:       branchID,
-			BranchClientID: req.BranchClientID,
-			ClientID:       client.ID,
-		}); err != nil {
-			server.writeError(ctx, http.StatusInternalServerError, err)
-			return
-		}
+
 	default:
 		server.writeError(ctx, http.StatusInternalServerError, err)
 		return
 	}
-
-	server.branchHub.broadcastAll(branchWSMessage{Type: "client_updated"})
-
-	server.writeJSON(ctx, http.StatusOK, envelope{"client": client})
 }

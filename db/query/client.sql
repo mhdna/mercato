@@ -177,3 +177,15 @@ OFFSET $2;
 SELECT COUNT(*) FROM clients c
 WHERE (sqlc.narg(client_type)::text IS NULL OR c.client_type = sqlc.narg(client_type))
   AND (sqlc.narg(search)::text IS NULL OR c.name ILIKE '%' || sqlc.narg(search)::text || '%' OR c.phone ILIKE '%' || sqlc.narg(search)::text || '%');
+
+-- name: ListClientsUpdatedSincePaged :many
+-- Keyset-paginated form of ListClientsUpdatedSince for a branch doing a
+-- full catch-up (cursor reset): ordered by (updated_at, id) so a page
+-- boundary that falls between two rows sharing an updated_at can't drop or
+-- repeat one. after_updated_at/after_id are the last row of the previous
+-- page (zero-time / 0 for the first page).
+SELECT * FROM clients
+WHERE client_type = 'retail'
+  AND (updated_at, id) > (sqlc.arg(after_updated_at)::timestamptz, sqlc.arg(after_id)::bigint)
+ORDER BY updated_at, id
+LIMIT sqlc.arg(row_limit);

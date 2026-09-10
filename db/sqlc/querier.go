@@ -24,6 +24,8 @@ type Querier interface {
 	AddPurchasedProduct(ctx context.Context, arg AddPurchasedProductParams) (ProductSupplier, error)
 	AddPurchasedProductCost(ctx context.Context, arg AddPurchasedProductCostParams) (ProductSupplierCost, error)
 	AddStockCountItem(ctx context.Context, arg AddStockCountItemParams) (StockCountItem, error)
+	BranchAttendanceChangeRefsPresent(ctx context.Context, arg BranchAttendanceChangeRefsPresentParams) ([]string, error)
+	BranchAttendanceEventRefsPresent(ctx context.Context, arg BranchAttendanceEventRefsPresentParams) ([]string, error)
 	BranchClientLinksPresent(ctx context.Context, arg BranchClientLinksPresentParams) ([]int64, error)
 	BranchExpenseRefsPresent(ctx context.Context, arg BranchExpenseRefsPresentParams) ([]string, error)
 	// Reconcile queries: given the refs a branch believes it has pushed, return
@@ -37,6 +39,8 @@ type Querier interface {
 	// close, so its mere presence is the "this shift is closed" signal --
 	// closed_at itself can be NULL for an older till build that omitted it.
 	BranchShiftIsClosed(ctx context.Context, arg BranchShiftIsClosedParams) (bool, error)
+	BranchShiftRefsPresent(ctx context.Context, arg BranchShiftRefsPresentParams) ([]string, error)
+	BranchVisitorEventRefsPresent(ctx context.Context, arg BranchVisitorEventRefsPresentParams) ([]string, error)
 	CloseShift(ctx context.Context, id int64) error
 	CompleteBranchCommand(ctx context.Context, arg CompleteBranchCommandParams) (BranchCommand, error)
 	CountAssets(ctx context.Context, arg CountAssetsParams) (int64, error)

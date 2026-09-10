@@ -329,6 +329,38 @@ func (server *Server) branchReconcile(ctx *gin.Context) {
 		for _, r := range found {
 			present[r] = true
 		}
+	case "shift_closes":
+		var found []string
+		found, err = server.store.BranchShiftRefsPresent(ctx, db.BranchShiftRefsPresentParams{
+			BranchID: branchID, Column2: req.Refs,
+		})
+		for _, r := range found {
+			present[r] = true
+		}
+	case "visitor_events":
+		var found []string
+		found, err = server.store.BranchVisitorEventRefsPresent(ctx, db.BranchVisitorEventRefsPresentParams{
+			BranchID: branchID, Column2: req.Refs,
+		})
+		for _, r := range found {
+			present[r] = true
+		}
+	case "attendance_events":
+		var found []string
+		found, err = server.store.BranchAttendanceEventRefsPresent(ctx, db.BranchAttendanceEventRefsPresentParams{
+			BranchID: branchID, Column2: req.Refs,
+		})
+		for _, r := range found {
+			present[r] = true
+		}
+	case "attendance_changes":
+		var found []string
+		found, err = server.store.BranchAttendanceChangeRefsPresent(ctx, db.BranchAttendanceChangeRefsPresentParams{
+			BranchID: branchID, Column2: req.Refs,
+		})
+		for _, r := range found {
+			present[r] = true
+		}
 	default:
 		server.writeError(ctx, http.StatusBadRequest, errUnknownSyncEntity)
 		return

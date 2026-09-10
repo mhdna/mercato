@@ -12,6 +12,72 @@ import (
 	"github.com/lib/pq"
 )
 
+const branchAttendanceChangeRefsPresent = `-- name: BranchAttendanceChangeRefsPresent :many
+SELECT client_ref FROM branch_attendance_changes
+WHERE branch_id = $1 AND client_ref = ANY($2::text[])
+`
+
+type BranchAttendanceChangeRefsPresentParams struct {
+	BranchID int64    `json:"branch_id"`
+	Column2  []string `json:"column_2"`
+}
+
+func (q *Queries) BranchAttendanceChangeRefsPresent(ctx context.Context, arg BranchAttendanceChangeRefsPresentParams) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, branchAttendanceChangeRefsPresent, arg.BranchID, pq.Array(arg.Column2))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var client_ref string
+		if err := rows.Scan(&client_ref); err != nil {
+			return nil, err
+		}
+		items = append(items, client_ref)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const branchAttendanceEventRefsPresent = `-- name: BranchAttendanceEventRefsPresent :many
+SELECT client_ref FROM branch_attendance_events
+WHERE branch_id = $1 AND client_ref = ANY($2::text[])
+`
+
+type BranchAttendanceEventRefsPresentParams struct {
+	BranchID int64    `json:"branch_id"`
+	Column2  []string `json:"column_2"`
+}
+
+func (q *Queries) BranchAttendanceEventRefsPresent(ctx context.Context, arg BranchAttendanceEventRefsPresentParams) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, branchAttendanceEventRefsPresent, arg.BranchID, pq.Array(arg.Column2))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var client_ref string
+		if err := rows.Scan(&client_ref); err != nil {
+			return nil, err
+		}
+		items = append(items, client_ref)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const branchClientLinksPresent = `-- name: BranchClientLinksPresent :many
 SELECT branch_client_id FROM client_links
 WHERE branch_id = $1 AND branch_client_id = ANY($2::bigint[])
@@ -136,6 +202,72 @@ func (q *Queries) BranchLoanRefsPresent(ctx context.Context, arg BranchLoanRefsP
 	items := []sql.NullString{}
 	for rows.Next() {
 		var client_ref sql.NullString
+		if err := rows.Scan(&client_ref); err != nil {
+			return nil, err
+		}
+		items = append(items, client_ref)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const branchShiftRefsPresent = `-- name: BranchShiftRefsPresent :many
+SELECT client_ref FROM branch_shifts
+WHERE branch_id = $1 AND client_ref = ANY($2::text[])
+`
+
+type BranchShiftRefsPresentParams struct {
+	BranchID int64    `json:"branch_id"`
+	Column2  []string `json:"column_2"`
+}
+
+func (q *Queries) BranchShiftRefsPresent(ctx context.Context, arg BranchShiftRefsPresentParams) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, branchShiftRefsPresent, arg.BranchID, pq.Array(arg.Column2))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var client_ref string
+		if err := rows.Scan(&client_ref); err != nil {
+			return nil, err
+		}
+		items = append(items, client_ref)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const branchVisitorEventRefsPresent = `-- name: BranchVisitorEventRefsPresent :many
+SELECT client_ref FROM branch_visitor_events
+WHERE branch_id = $1 AND client_ref = ANY($2::text[])
+`
+
+type BranchVisitorEventRefsPresentParams struct {
+	BranchID int64    `json:"branch_id"`
+	Column2  []string `json:"column_2"`
+}
+
+func (q *Queries) BranchVisitorEventRefsPresent(ctx context.Context, arg BranchVisitorEventRefsPresentParams) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, branchVisitorEventRefsPresent, arg.BranchID, pq.Array(arg.Column2))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var client_ref string
 		if err := rows.Scan(&client_ref); err != nil {
 			return nil, err
 		}

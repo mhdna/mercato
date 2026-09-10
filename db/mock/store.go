@@ -202,6 +202,36 @@ func (mr *MockStoreMockRecorder) BatchSetEmployeeSalaries(arg0, arg1 interface{}
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BatchSetEmployeeSalaries", reflect.TypeOf((*MockStore)(nil).BatchSetEmployeeSalaries), arg0, arg1)
 }
 
+// BranchAttendanceChangeRefsPresent mocks base method.
+func (m *MockStore) BranchAttendanceChangeRefsPresent(arg0 context.Context, arg1 db.BranchAttendanceChangeRefsPresentParams) ([]string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "BranchAttendanceChangeRefsPresent", arg0, arg1)
+	ret0, _ := ret[0].([]string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// BranchAttendanceChangeRefsPresent indicates an expected call of BranchAttendanceChangeRefsPresent.
+func (mr *MockStoreMockRecorder) BranchAttendanceChangeRefsPresent(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BranchAttendanceChangeRefsPresent", reflect.TypeOf((*MockStore)(nil).BranchAttendanceChangeRefsPresent), arg0, arg1)
+}
+
+// BranchAttendanceEventRefsPresent mocks base method.
+func (m *MockStore) BranchAttendanceEventRefsPresent(arg0 context.Context, arg1 db.BranchAttendanceEventRefsPresentParams) ([]string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "BranchAttendanceEventRefsPresent", arg0, arg1)
+	ret0, _ := ret[0].([]string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// BranchAttendanceEventRefsPresent indicates an expected call of BranchAttendanceEventRefsPresent.
+func (mr *MockStoreMockRecorder) BranchAttendanceEventRefsPresent(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BranchAttendanceEventRefsPresent", reflect.TypeOf((*MockStore)(nil).BranchAttendanceEventRefsPresent), arg0, arg1)
+}
+
 // BranchClientLinksPresent mocks base method.
 func (m *MockStore) BranchClientLinksPresent(arg0 context.Context, arg1 db.BranchClientLinksPresentParams) ([]int64, error) {
 	m.ctrl.T.Helper()
@@ -275,6 +305,36 @@ func (m *MockStore) BranchShiftIsClosed(arg0 context.Context, arg1 db.BranchShif
 func (mr *MockStoreMockRecorder) BranchShiftIsClosed(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BranchShiftIsClosed", reflect.TypeOf((*MockStore)(nil).BranchShiftIsClosed), arg0, arg1)
+}
+
+// BranchShiftRefsPresent mocks base method.
+func (m *MockStore) BranchShiftRefsPresent(arg0 context.Context, arg1 db.BranchShiftRefsPresentParams) ([]string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "BranchShiftRefsPresent", arg0, arg1)
+	ret0, _ := ret[0].([]string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// BranchShiftRefsPresent indicates an expected call of BranchShiftRefsPresent.
+func (mr *MockStoreMockRecorder) BranchShiftRefsPresent(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BranchShiftRefsPresent", reflect.TypeOf((*MockStore)(nil).BranchShiftRefsPresent), arg0, arg1)
+}
+
+// BranchVisitorEventRefsPresent mocks base method.
+func (m *MockStore) BranchVisitorEventRefsPresent(arg0 context.Context, arg1 db.BranchVisitorEventRefsPresentParams) ([]string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "BranchVisitorEventRefsPresent", arg0, arg1)
+	ret0, _ := ret[0].([]string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// BranchVisitorEventRefsPresent indicates an expected call of BranchVisitorEventRefsPresent.
+func (mr *MockStoreMockRecorder) BranchVisitorEventRefsPresent(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BranchVisitorEventRefsPresent", reflect.TypeOf((*MockStore)(nil).BranchVisitorEventRefsPresent), arg0, arg1)
 }
 
 // CancelPurchaseTx mocks base method.

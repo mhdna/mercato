@@ -31,6 +31,11 @@ test:
 server:
 	go run .
 
+# Live-reloading server for local dev. Needs `air` on PATH:
+#   go install github.com/air-verse/air@latest
+dev:
+	air
+
 mock:
 	mockgen -package mockdb -destination db/mock/store.go github.com/mhdna/kashi/db/sqlc Store
 
@@ -50,4 +55,38 @@ evans:
 seed:
 	go run ./cmd/seed/main.go
 
-.PHONY: postgres createdb dropdb migrateup migratedown migrateup1 migratedown1 sqlc test server mock proto evans seed
+# --- cloud deploy (grandbz.com droplet) -----------------------------------
+# One-time server setup lives in ui/deploy/SETUP.md. Needs an ssh alias
+# `kashi` -> root@178.62.8.143 (in ~/.ssh/config).
+SSH      ?= kashi
+UI_ROOT  ?= /var/www/kashi-ui
+APP_DIR  ?= /home/kashi/app
+PROD_DB  ?= postgresql://kashi:kashi@localhost:5432/kashi?sslmode=disable
+
+# Full release: API binary + migrations, then the UI.
+deploy: deploy-api deploy-ui
+	@echo "Deployed -> https://grandbz.com/"
+
+# Cross-compile the API, ship it with the current migrations, run any
+# pending ones on the prod DB (idempotent), restart the service.
+deploy-api:
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -o /tmp/kashi-api-linux .
+	rsync -avz /tmp/kashi-api-linux $(SSH):$(APP_DIR)/api-linux
+	rsync -avz --delete ./db/migrations/ $(SSH):$(APP_DIR)/migrations/
+	ssh $(SSH) 'chown -R kashi:kashi $(APP_DIR)/api-linux $(APP_DIR)/migrations && \
+		chmod +x $(APP_DIR)/api-linux && \
+		migrate -path $(APP_DIR)/migrations -database "$(PROD_DB)" up && \
+		systemctl restart kashi-api && sleep 1 && systemctl is-active kashi-api'
+
+# Build the SPA (uses ui/.env.production -> VITE_API_URL=/api) and mirror it
+# into the Caddy web root. Fast path for front-end-only changes.
+deploy-ui:
+	$(MAKE) -C ui build
+	rsync -avz --delete --chmod=D755,F644 ui/dist/ $(SSH):$(UI_ROOT)/
+
+# Run pending migrations on prod without shipping anything.
+migrate-prod:
+	rsync -avz --delete ./db/migrations/ $(SSH):$(APP_DIR)/migrations/
+	ssh $(SSH) 'migrate -path $(APP_DIR)/migrations -database "$(PROD_DB)" up'
+
+.PHONY: postgres createdb dropdb migrateup migratedown migrateup1 migratedown1 sqlc test server dev mock proto evans seed deploy deploy-api deploy-ui migrate-prod

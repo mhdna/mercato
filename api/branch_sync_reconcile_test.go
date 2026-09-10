@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 	"time"
 
@@ -141,23 +140,30 @@ func TestPutBranchClient_PhoneMatchDifferentName_StagesConflictAndLinks(t *testi
 	require.Contains(t, rec.Body.String(), `"conflict":true`)
 }
 
-func TestPutBranchClient_BlankPhone_StagesInvalidPhoneCreatesNothing(t *testing.T) {
+func TestPutBranchClient_BlankPhone_CreatesWithSyntheticKey(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	store := mockdb.NewMockStore(ctrl)
 	stubBranchAuth(store)
 
+	// A blank phone no longer stages a conflict -- it gets a stable
+	// synthetic key so the client still syncs and its invoices attribute.
 	store.EXPECT().GetClientLink(gomock.Any(), gomock.Any()).Return(int64(0), sql.ErrNoRows)
-	store.EXPECT().GetClientByPhone(gomock.Any(), gomock.Any()).Times(0)
-	store.EXPECT().CreateClient(gomock.Any(), gomock.Any()).Times(0)
-	store.EXPECT().UpsertClientLink(gomock.Any(), gomock.Any()).Times(0)
 	store.EXPECT().
-		UpsertBranchSyncConflict(gomock.Any(), gomock.Any()).
-		DoAndReturn(func(_ any, arg db.UpsertBranchSyncConflictParams) (db.BranchSyncConflict, error) {
-			require.Equal(t, "invalid_phone", arg.Kind)
-			require.False(t, arg.CentralClientID.Valid)
-			return db.BranchSyncConflict{ID: 2}, nil
+		GetClientByPhone(gomock.Any(), gomock.Eq("nophone-7-9")).
+		Return(db.Client{}, sql.ErrNoRows)
+	store.EXPECT().
+		CreateClient(gomock.Any(), gomock.Any()).
+		DoAndReturn(func(_ any, arg db.CreateClientParams) (db.Client, error) {
+			require.Equal(t, "nophone-7-9", arg.Phone)
+			return db.Client{ID: 3, Name: arg.Name, Phone: arg.Phone}, nil
 		})
+	store.EXPECT().
+		UpsertClientLink(gomock.Any(), gomock.Eq(db.UpsertClientLinkParams{
+			BranchID: testBranchID, BranchClientID: 9, ClientID: 3,
+		})).
+		Return(nil)
+	store.EXPECT().UpsertBranchSyncConflict(gomock.Any(), gomock.Any()).Times(0)
 
 	server := newTestServer(t, store)
 	rec := httptest.NewRecorder()
@@ -166,5 +172,4 @@ func TestPutBranchClient_BlankPhone_StagesInvalidPhoneCreatesNothing(t *testing.
 	}))
 
 	require.Equal(t, http.StatusOK, rec.Code)
-	require.True(t, strings.Contains(rec.Body.String(), "invalid_phone"))
 }

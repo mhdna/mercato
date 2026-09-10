@@ -3,6 +3,7 @@ package api
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -23,6 +24,12 @@ type branchClientRequest struct {
 // validBranchPhone reports whether a branch-reported phone is usable as the
 // global clients.phone key: at least 6 digits after stripping the usual
 // formatting characters.
+// syntheticBranchPhone is the placeholder key used for a branch client
+// with no usable phone, unique per (branch, branch_client_id).
+func syntheticBranchPhone(branchID, branchClientID int64) string {
+	return fmt.Sprintf("nophone-%d-%d", branchID, branchClientID)
+}
+
 func validBranchPhone(phone string) bool {
 	digits := 0
 	for _, r := range phone {
@@ -56,6 +63,13 @@ func (server *Server) putBranchClient(ctx *gin.Context) {
 	req.Phone = strings.TrimSpace(req.Phone)
 	payloadJSON, _ := json.Marshal(req)
 	refStr := strconv.FormatInt(req.BranchClientID, 10)
+	// A blank/garbage phone can't be the global clients.phone key and
+	// can't collide-match anything, so give it a stable synthetic value
+	// keyed to this branch client. The client still syncs and its invoices
+	// still attribute; an admin can set the real number later.
+	if !validBranchPhone(req.Phone) {
+		req.Phone = syntheticBranchPhone(branchID, req.BranchClientID)
+	}
 
 	linkedClientID, err := server.store.GetClientLink(ctx, db.GetClientLinkParams{
 		BranchID:       branchID,
@@ -87,12 +101,6 @@ func (server *Server) putBranchClient(ctx *gin.Context) {
 
 	case err == sql.ErrNoRows:
 		// Not linked yet.
-		if !validBranchPhone(req.Phone) {
-			server.stageBranchSyncConflict(ctx, branchID, "client", refStr, "invalid_phone", payloadJSON, sql.NullInt64{})
-			server.writeJSON(ctx, http.StatusOK, envelope{"conflict": true, "conflict_kind": "invalid_phone"})
-			return
-		}
-
 		existing, phoneErr := server.store.GetClientByPhone(ctx, req.Phone)
 		switch {
 		case phoneErr == nil:

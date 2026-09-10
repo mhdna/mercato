@@ -202,7 +202,7 @@ func (server *Server) bulkResolveBranchSyncConflicts(ctx *gin.Context) {
 		return
 	}
 	switch req.Choice {
-	case "central", "branch", "dismissed":
+	case "central", "branch", "create", "dismissed":
 	default:
 		server.writeError(ctx, http.StatusBadRequest, errors.New("bulk resolve accepts only central, branch or dismissed"))
 		return
@@ -292,12 +292,15 @@ func (server *Server) applyConflictResolution(ctx *gin.Context, conflict db.Bran
 			}
 			targetID = req.ClientID
 		case "create":
-			if !validBranchPhone(req.Phone) {
-				return errors.New("a valid phone is required to create the client")
+			phone := strings.TrimSpace(req.Phone)
+			if !validBranchPhone(phone) {
+				// Bulk "create" (and single create with no phone typed):
+				// mint the same stable placeholder putBranchClient uses.
+				phone = syntheticBranchPhone(conflict.BranchID, branchClientID)
 			}
 			created, err := server.store.CreateClient(ctx, db.CreateClientParams{
 				Name:       bp.Name,
-				Phone:      strings.TrimSpace(req.Phone),
+				Phone:      phone,
 				ClientType: "retail",
 			})
 			if err != nil {

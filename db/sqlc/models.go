@@ -555,6 +555,7 @@ type Branch struct {
 	LastSeenAt  sql.NullTime  `json:"last_seen_at"`
 	CreatedAt   time.Time     `json:"created_at"`
 	InventoryID sql.NullInt64 `json:"inventory_id"`
+	Timezone    string        `json:"timezone"`
 }
 
 type BranchAttendanceChange struct {

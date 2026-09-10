@@ -102,12 +102,13 @@ WHERE (sqlc.narg(branch_id)::bigint IS NULL OR branch_id = sqlc.narg(branch_id))
 -- plain btree index on occurred_at (idx_branch_invoices_occurred_at), while
 -- a range comparison can.
 SELECT
-  (occurred_at AT TIME ZONE 'UTC')::date AS day,
-  SUM(grand_total)::bigint AS total
-FROM branch_invoices
-WHERE occurred_at >= make_date(sqlc.arg(year)::int, 1, 1)
-  AND occurred_at < make_date(sqlc.arg(year)::int + 1, 1, 1)
-  AND (sqlc.narg(branch_id)::bigint IS NULL OR branch_id = sqlc.narg(branch_id))
+  (bi.occurred_at AT TIME ZONE b.timezone)::date AS day,
+  SUM(bi.grand_total)::bigint AS total
+FROM branch_invoices bi
+JOIN branches b ON b.id = bi.branch_id
+WHERE bi.occurred_at >= make_date(sqlc.arg(year)::int, 1, 1)
+  AND bi.occurred_at < make_date(sqlc.arg(year)::int + 1, 1, 1)
+  AND (sqlc.narg(branch_id)::bigint IS NULL OR bi.branch_id = sqlc.narg(branch_id))
 GROUP BY day
 ORDER BY day;
 
@@ -125,14 +126,15 @@ ORDER BY day;
 -- date bounds (not AT TIME ZONE per row) so idx_branch_invoices_occurred_at
 -- stays usable, same reasoning as ListDailyIncome.
 SELECT
-  branch_id,
-  (occurred_at AT TIME ZONE 'UTC')::date AS day,
+  bi.branch_id,
+  (bi.occurred_at AT TIME ZONE b.timezone)::date AS day,
   COUNT(*)::bigint AS invoice_count,
-  COALESCE(SUM(grand_total), 0)::bigint AS revenue
-FROM branch_invoices
-WHERE kind = 'sales'
-  AND occurred_at >= sqlc.arg(from_day)::date
-  AND occurred_at < (sqlc.arg(to_day)::date + 1)
+  COALESCE(SUM(bi.grand_total), 0)::bigint AS revenue
+FROM branch_invoices bi
+JOIN branches b ON b.id = bi.branch_id
+WHERE bi.kind = 'sales'
+  AND bi.occurred_at >= sqlc.arg(from_day)::date
+  AND bi.occurred_at < (sqlc.arg(to_day)::date + 1)
   AND (sqlc.narg(branch_id)::bigint IS NULL OR branch_id = sqlc.narg(branch_id))
 GROUP BY branch_id, day
 ORDER BY day, branch_id;

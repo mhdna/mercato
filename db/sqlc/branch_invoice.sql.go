@@ -470,14 +470,15 @@ func (q *Queries) ListBranchInvoicesPage(ctx context.Context, arg ListBranchInvo
 
 const listBranchSalesDaysRange = `-- name: ListBranchSalesDaysRange :many
 SELECT
-  branch_id,
-  (occurred_at AT TIME ZONE 'UTC')::date AS day,
+  bi.branch_id,
+  (bi.occurred_at AT TIME ZONE b.timezone)::date AS day,
   COUNT(*)::bigint AS invoice_count,
-  COALESCE(SUM(grand_total), 0)::bigint AS revenue
-FROM branch_invoices
-WHERE kind = 'sales'
-  AND occurred_at >= $1::date
-  AND occurred_at < ($2::date + 1)
+  COALESCE(SUM(bi.grand_total), 0)::bigint AS revenue
+FROM branch_invoices bi
+JOIN branches b ON b.id = bi.branch_id
+WHERE bi.kind = 'sales'
+  AND bi.occurred_at >= $1::date
+  AND bi.occurred_at < ($2::date + 1)
   AND ($3::bigint IS NULL OR branch_id = $3)
 GROUP BY branch_id, day
 ORDER BY day, branch_id
@@ -538,12 +539,13 @@ func (q *Queries) ListBranchSalesDaysRange(ctx context.Context, arg ListBranchSa
 
 const listDailyIncome = `-- name: ListDailyIncome :many
 SELECT
-  (occurred_at AT TIME ZONE 'UTC')::date AS day,
-  SUM(grand_total)::bigint AS total
-FROM branch_invoices
-WHERE occurred_at >= make_date($1::int, 1, 1)
-  AND occurred_at < make_date($1::int + 1, 1, 1)
-  AND ($2::bigint IS NULL OR branch_id = $2)
+  (bi.occurred_at AT TIME ZONE b.timezone)::date AS day,
+  SUM(bi.grand_total)::bigint AS total
+FROM branch_invoices bi
+JOIN branches b ON b.id = bi.branch_id
+WHERE bi.occurred_at >= make_date($1::int, 1, 1)
+  AND bi.occurred_at < make_date($1::int + 1, 1, 1)
+  AND ($2::bigint IS NULL OR bi.branch_id = $2)
 GROUP BY day
 ORDER BY day
 `

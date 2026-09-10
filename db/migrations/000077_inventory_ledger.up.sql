@@ -103,6 +103,14 @@ ALTER TABLE purchases
     ADD COLUMN IF NOT EXISTS received_at   timestamp(0) WITH TIME ZONE,
     ADD COLUMN IF NOT EXISTS note          text NOT NULL DEFAULT '';
 
+-- Trigram search indexes for the columns just added. Migration 63 wanted
+-- these but ran before the columns existed, so it skips them and they land
+-- here instead.
+CREATE INDEX IF NOT EXISTS purchases_code_trgm_idx
+    ON purchases USING gin (code gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS purchases_currency_code_trgm_idx
+    ON purchases USING gin (currency_code gin_trgm_ops);
+
 -- purchase_items move from product to variant. asset purchases stay.
 -- Pre-launch: the old product-keyed rows never drove stock and can't be
 -- mapped 1:1 to a variant, so they are cleared rather than migrated.
